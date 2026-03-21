@@ -342,6 +342,7 @@ npm run test:perf                  # k6 load test
 - `/next-task` — Get and start next pending task (with actionability checks)
 - `/task-status` — Show task progress summary (with anomaly detection)
 - `/expand-task [id]` — Break a task into subtasks (with backup/restore safety)
+- `/g-coding [task]` — Full TDD workflow: implement → test → wire → QCHECK → g-check → commit
 - `/g-check [scope]` — QCHECK-style code review (working-tree, last-commit, pr N)
 - `/g-review [subsystem]` — Holistic system/architecture review with drift analysis
 - `/g-stack [action]` — Git branch and PR workflow (status, create, submit, sync)
