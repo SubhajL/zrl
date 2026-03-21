@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────
+
+enum UserRole {
+  EXPORTER
+  PARTNER
+  ADMIN
+  AUDITOR
+
+  @@map("user_role")
+}
+
+enum LaneStatus {
+  CREATED
+  EVIDENCE_COLLECTING
+  VALIDATED
+  PACKED
+  CLOSED
+  INCOMPLETE
+  CLAIM_DEFENSE
+  DISPUTE_RESOLVED
+  ARCHIVED
+
+  @@map("lane_status")
+}
+
+enum ProductType {
+  MANGO
+  DURIAN
+  MANGOSTEEN
+  LONGAN
+
+  @@map("product_type")
+}
+
+enum DestinationMarket {
+  JAPAN
+  CHINA
+  KOREA
+  EU
+
+  @@map("destination_market")
+}
+
+enum TransportMode {
+  AIR
+  SEA
+  TRUCK
+
+  @@map("transport_mode")
+}
+
+enum ArtifactType {
+  MRL_TEST
+  VHT_CERT
+  PHYTO_CERT
+  CHECKPOINT_PHOTO
+  TEMP_DATA
+  HANDOFF_SIGNATURE
+  INVOICE
+  GAP_CERT
+
+  @@map("artifact_type")
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+
+  @@map("verification_status")
+}
+
+enum CheckpointStatus {
+  PENDING
+  COMPLETED
+  OVERDUE
+
+  @@map("checkpoint_status")
+}
+
+enum PackType {
+  REGULATOR
+  BUYER
+  DEFENSE
+
+  @@map("pack_type")
+}
+
+enum AuditAction {
+  UPLOAD
+  SIGN
+  GENERATE
+  VERIFY
+  CREATE
+  UPDATE
+
+  @@map("audit_action")
+}
+
+enum AuditEntityType {
+  LANE
+  ARTIFACT
+  CHECKPOINT
+  PROOF_PACK
+
+  @@map("audit_entity_type")
+}
+
+enum Grade {
+  PREMIUM
+  A
+  B
+
+  @@map("grade")
+}
+
+enum ColdChainMode {
+  MANUAL
+  LOGGER
+  TELEMETRY
+
+  @@map("cold_chain_mode")
+}
+
+enum ExcursionSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  CRITICAL
+
+  @@map("excursion_severity")
+}
+
+enum RiskLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+
+  @@map("risk_level")
+}
+
+// ─── Models ─────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  companyName  String?  @map("company_name")
+  mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
+  totpSecret   String?  @map("totp_secret")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  apiKeys           ApiKey[]
+  lanes             Lane[]
+  uploadedArtifacts EvidenceArtifact[]
+  generatedPacks    ProofPack[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  keyHash     String    @map("key_hash")
+  name        String
+  scopes      String[]
+  ipWhitelist String[]  @map("ip_whitelist")
+  expiresAt   DateTime? @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("api_keys")
+}
+
+model Lane {
+  id                String            @id @default(uuid())
+  laneId            String            @unique @map("lane_id")
+  exporterId        String            @map("exporter_id")
+  status            LaneStatus        @default(CREATED)
+  productType       ProductType       @map("product_type")
+  destinationMarket DestinationMarket @map("destination_market")
+  completenessScore Decimal           @default(0) @map("completeness_score") @db.Decimal(5, 2)
+  coldChainMode     ColdChainMode?    @map("cold_chain_mode")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  exporter     User               @relation(fields: [exporterId], references: [id])
+  batch        Batch?
+  route        Route?
+  ruleSnapshot RuleSnapshot?
+  checkpoints  Checkpoint[]
+  artifacts    EvidenceArtifact[]
+  proofPacks   ProofPack[]
+
+  @@map("lanes")
+}
+
+model Batch {
+  id             String      @id @default(uuid())
+  laneId         String      @unique @map("lane_id")
+  batchId        String      @unique @map("batch_id")
+  product        ProductType
+  variety        String?
+  quantityKg     Decimal     @map("quantity_kg") @db.Decimal(10, 2)
+  originProvince String      @map("origin_province")
+  harvestDate    DateTime    @map("harvest_date") @db.Date
+  grade          Grade
+
+  // Relations
+  lane Lane @relation(fields: [laneId], references: [id])
+
+  @@map("batches")
+}
+
+model Route {
+  id                    String        @id @default(uuid())
+  laneId                String        @unique @map("lane_id")
+  transportMode         TransportMode @map("transport_mode")
+  carrier               String?
+  originGps             Json?         @map("origin_gps")
+  destinationGps        Json?         @map("destination_gps")
+  estimatedTransitHours Int?          @map("estimated_transit_hours")
+
+  // Relations
+  lane Lane @relation(fields: [laneId], references: [id])
+
+  @@map("routes")
+}
+
+model Checkpoint {
+  id             String           @id @default(uuid())
+  laneId         String           @map("lane_id")
+  sequence       Int
+  locationName   String           @map("location_name")
+  gpsLat         Decimal?         @map("gps_lat") @db.Decimal(10, 7)
+  gpsLng         Decimal?         @map("gps_lng") @db.Decimal(10, 7)
+  timestamp      DateTime?
+  temperature    Decimal?         @db.Decimal(5, 2)
+  signatureHash  String?          @map("signature_hash")
+  signerName     String?          @map("signer_name")
+  conditionNotes String?          @map("condition_notes")
+  status         CheckpointStatus @default(PENDING)
+
+  // Relations
+  lane Lane @relation(fields: [laneId], references: [id])
+
+  @@unique([laneId, sequence])
+  @@map("checkpoints")
+}
+
+model EvidenceArtifact {
+  id                 String             @id @default(uuid())
+  laneId             String             @map("lane_id")
+  artifactType       ArtifactType       @map("artifact_type")
+  filePath           String             @map("file_path")
+  contentHash        String             @map("content_hash") @db.Char(64)
+  issuer             String?
+  issuedAt           DateTime?          @map("issued_at")
+  uploadedBy         String             @map("uploaded_by")
+  uploadedAt         DateTime           @default(now()) @map("uploaded_at")
+  verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
+  metadata           Json?
+
+  // Relations
+  lane        Lane           @relation(fields: [laneId], references: [id])
+  uploader    User           @relation(fields: [uploadedBy], references: [id])
+  sourceLinks ArtifactLink[] @relation("SourceArtifact")
+  targetLinks ArtifactLink[] @relation("TargetArtifact")
+
+  @@map("evidence_artifacts")
+}
+
+model ArtifactLink {
+  id               String @id @default(uuid())
+  sourceArtifactId String @map("source_artifact_id")
+  targetArtifactId String @map("target_artifact_id")
+  relationshipType String @map("relationship_type")
+
+  // Relations
+  sourceArtifact EvidenceArtifact @relation("SourceArtifact", fields: [sourceArtifactId], references: [id])
+  targetArtifact EvidenceArtifact @relation("TargetArtifact", fields: [targetArtifactId], references: [id])
+
+  @@unique([sourceArtifactId, targetArtifactId])
+  @@map("artifact_links")
+}
+
+model ProofPack {
+  id          String   @id @default(uuid())
+  laneId      String   @map("lane_id")
+  packType    PackType @map("pack_type")
+  version     Int      @default(1)
+  contentHash String   @map("content_hash") @db.Char(64)
+  filePath    String   @map("file_path")
+  generatedAt DateTime @default(now()) @map("generated_at")
+  generatedBy String   @map("generated_by")
+  recipient   String?
+
+  // Relations
+  lane      Lane @relation(fields: [laneId], references: [id])
+  generator User @relation(fields: [generatedBy], references: [id])
+
+  @@map("proof_packs")
+}
+
+model AuditEntry {
+  id          String          @id @default(uuid())
+  timestamp   DateTime        @default(now())
+  actor       String
+  action      AuditAction
+  entityType  AuditEntityType @map("entity_type")
+  entityId    String          @map("entity_id")
+  payloadHash String          @map("payload_hash") @db.Char(64)
+  prevHash    String          @map("prev_hash") @db.Char(64)
+  entryHash   String          @map("entry_hash") @db.Char(64)
+
+  @@map("audit_entries")
+}
+
+model RuleSnapshot {
+  id            String            @id @default(uuid())
+  laneId        String            @unique @map("lane_id")
+  market        DestinationMarket
+  product       ProductType
+  version       Int               @default(1)
+  rules         Json
+  effectiveDate DateTime          @map("effective_date") @db.Date
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  lane Lane @relation(fields: [laneId], references: [id])
+
+  @@map("rule_snapshots")
+}
