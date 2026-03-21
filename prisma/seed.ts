@@ -4,7 +4,14 @@ import { Pool } from 'pg';
 import { createHash } from 'crypto';
 import { hash } from 'bcrypt';
 
-const pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
+const databaseUrl = process.env['DATABASE_URL'] ?? '';
+if (!databaseUrl.includes('localhost')) {
+  throw new Error(
+    'Seed only runs against localhost. Set DATABASE_URL to a local database.',
+  );
+}
+
+const pool = new Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
@@ -335,6 +342,7 @@ main()
     console.error('Seed error:', e);
     process.exit(1);
   })
-  .finally(() => {
-    void prisma.$disconnect();
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end();
   });

@@ -183,7 +183,7 @@ model ApiKey {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("api_keys")
 }
@@ -201,7 +201,7 @@ model Lane {
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  exporter     User               @relation(fields: [exporterId], references: [id])
+  exporter     User               @relation(fields: [exporterId], references: [id], onDelete: Restrict)
   batch        Batch?
   route        Route?
   ruleSnapshot RuleSnapshot?
@@ -253,7 +253,7 @@ model Checkpoint {
   gpsLng         Decimal?         @map("gps_lng") @db.Decimal(10, 7)
   timestamp      DateTime?
   temperature    Decimal?         @db.Decimal(5, 2)
-  signatureHash  String?          @map("signature_hash")
+  signatureHash  String?          @map("signature_hash") @db.Char(64)
   signerName     String?          @map("signer_name")
   conditionNotes String?          @map("condition_notes")
   status         CheckpointStatus @default(PENDING)
@@ -279,8 +279,8 @@ model EvidenceArtifact {
   metadata           Json?
 
   // Relations
-  lane        Lane           @relation(fields: [laneId], references: [id])
-  uploader    User           @relation(fields: [uploadedBy], references: [id])
+  lane        Lane           @relation(fields: [laneId], references: [id], onDelete: Restrict)
+  uploader    User           @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   sourceLinks ArtifactLink[] @relation("SourceArtifact")
   targetLinks ArtifactLink[] @relation("TargetArtifact")
 
@@ -313,8 +313,8 @@ model ProofPack {
   recipient   String?
 
   // Relations
-  lane      Lane @relation(fields: [laneId], references: [id])
-  generator User @relation(fields: [generatedBy], references: [id])
+  lane      Lane @relation(fields: [laneId], references: [id], onDelete: Restrict)
+  generator User @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
 
   @@map("proof_packs")
 }
@@ -330,6 +330,8 @@ model AuditEntry {
   prevHash    String          @map("prev_hash") @db.Char(64)
   entryHash   String          @map("entry_hash") @db.Char(64)
 
+  @@index([entityId])
+  @@index([timestamp])
   @@map("audit_entries")
 }
 
