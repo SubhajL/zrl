@@ -1,0 +1,292 @@
+# Coding Log
+
+## 2026-03-21 13:05 ICT
+- Goal: Establish the initial Claude Code and Task Master harness for ZRL.
+- Status: In progress.
+- Notes: This log was created because implementation work started before a prior planning-run pointer existed.
+
+## 2026-03-21 13:17 ICT
+- Goal: Replace the draft harness with a working global hook set and connect project-scoped Task Master for ZRL.
+- What changed:
+  - `~/.claude/settings.json`: normalized lifecycle hooks to use global scripts on every session start, post-edit logging, and stop reminders.
+  - `~/.claude/hooks/block-dangerous.sh`: fixed command detection to use real regex matching instead of ineffective literal substring checks.
+  - `~/.claude/hooks/protect-files.sh`: made protected-file checks more defensive.
+  - `~/.claude/hooks/lever-check.sh`: made LEVER warnings more robust when creating new code files.
+  - `~/.claude/hooks/inject-task-context.sh`: made task-context injection portable for any repo with `.taskmaster/`.
+  - `~/.claude/hooks/tool-use-log.sh`: added a real post-tool logger.
+  - `~/.claude/hooks/stop-reminders.sh`: added a Coding Log reminder hook rather than unsafe auto-authorship.
+  - `.mcp.json`: added project-scoped `taskmaster-ai` MCP using `TASK_MASTER_TOOLS=core`.
+  - `.codex/coding-log.current`: created the repo-local Coding Log pointer required by the workflow.
+  - `coding-logs/2026-03-21-13-05-00 Coding Log (claude-harness-setup).md`: created and updated the current Coding Log.
+  - `.gitignore`: added `.DS_Store`.
+  - `/.claude/hooks/*` inside the repo: removed duplicate local hook scripts so ZRL now relies on the global harness.
+- TDD evidence:
+  - No RED test run was produced because this task is Claude/Task Master configuration, not application logic.
+  - GREEN-style verification commands:
+    - `jq empty /Users/subhajlimanond/.claude/settings.json`
+    - `jq empty /Users/subhajlimanond/dev/zrl/.claude/settings.json`
+    - `jq empty /Users/subhajlimanond/dev/zrl/.mcp.json`
+    - `claude mcp list`
+    - `printf '{"tool_input":{"command":"git reset --hard"}}' | /Users/subhajlimanond/.claude/hooks/block-dangerous.sh; echo EXIT:$?`
+    - `CLAUDE_PROJECT_DIR=/Users/subhajlimanond/dev/zrl /Users/subhajlimanond/.claude/hooks/inject-task-context.sh`
+    - `CLAUDE_PROJECT_DIR=/Users/subhajlimanond/dev/zrl /Users/subhajlimanond/.claude/hooks/stop-reminders.sh; echo EXIT:$?`
+- Tests run and results:
+  - JSON validation passed for all edited config files.
+  - `claude mcp list` showed `taskmaster-ai` connected successfully.
+  - Hook smoke tests passed; the dangerous-command hook correctly blocked `git reset --hard`, and the context/reminder hooks emitted the expected output.
+- Wiring verification evidence:
+  - Global hooks are registered in `~/.claude/settings.json`.
+  - Project-scoped MCP is registered in `/Users/subhajlimanond/dev/zrl/.mcp.json`.
+  - ZRL still exposes the intended 7 Task Master permissions in `/Users/subhajlimanond/dev/zrl/.claude/settings.json`.
+- Behavior changes and risk notes:
+  - Coding Log updates are now reminded by hook, not auto-written. This avoids low-quality or misleading summaries.
+  - The global dangerous-command hook is intentionally conservative around force-pushes and destructive git/database commands.
+  - Task context injection only prints useful output when a repo has `CLAUDE.md` or `.taskmaster/`, so it should stay quiet in unrelated directories.
+- Follow-ups / known gaps:
+  - Task Master tasks have not been initialized yet because `.taskmaster/tasks/tasks.json` does not exist. Run the repo task initialization flow next.
+  - I verified Task Master connection from Claude Code CLI, but this Codex tool environment still does not expose Task Master as a first-class callable tool in this chat session.
+
+## 2026-03-21 13:24 ICT
+- Goal: Create a lightweight root `AGENTS.md` from the provided template, adapted to the current docs-first repo state.
+- What changed:
+  - `AGENTS.md`: added the root agent guide with repo snapshot, current-state notes, guarded setup commands, universal conventions, Task Master guidance, a JIT index, anti-patterns, and definition of done.
+- TDD evidence:
+  - No RED test run was produced because this change is repository guidance documentation, not runtime application code.
+  - GREEN-style verification commands:
+    - `wc -l /Users/subhajlimanond/dev/zrl/AGENTS.md`
+    - `sed -n '1,240p' /Users/subhajlimanond/dev/zrl/AGENTS.md`
+    - `git -C /Users/subhajlimanond/dev/zrl status --short`
+- Tests run and results:
+  - Verified the new root file is 126 lines, which stays within the lightweight target from the template.
+  - Verified the content aligns with the current repo state and does not assume scaffolded code already exists.
+- Wiring verification evidence:
+  - Root guidance references the existing repo files and harness configuration already present in the repo.
+  - The file is placed at `/Users/subhajlimanond/dev/zrl/AGENTS.md`, where general AI agents will discover it at repo root.
+- Behavior changes and risk notes:
+  - The new root `AGENTS.md` intentionally avoids promising package-specific patterns before actual modules exist.
+  - Deeper per-directory guidance should be added later only after real code is scaffolded.
+- Follow-ups / known gaps:
+  - Add nearer `AGENTS.md` files for `src/`, `frontend/`, `prisma/`, `rules/`, and `test/` once those areas contain real implementation details worth documenting.
+
+## 2026-03-21 13:48 ICT
+- Goal: Create Codex-native Task Master skills matching the repo's Claude slash-command workflow.
+- What changed:
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-init-tasks/SKILL.md`: added the PRD-to-task initialization workflow, verification steps, overwrite guardrails, and `docs/PROGRESS.md` update guidance.
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-next-task/SKILL.md`: added the next-task execution workflow, honest status-transition rules, and blocker handling guidance.
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-task-status/SKILL.md`: added the status-summary workflow, presentation rules, and blocker inference guardrails.
+  - `docs/PROGRESS.md`: appended a terse note that the new Task Master skills were added.
+- TDD evidence:
+  - No RED test run was produced because this work adds skill metadata and workflow instructions, not application logic.
+  - GREEN-style verification commands:
+    - `sed -n '1,220p' /Users/subhajlimanond/.codex/skills/taskmaster-init-tasks/SKILL.md`
+    - `sed -n '1,220p' /Users/subhajlimanond/.codex/skills/taskmaster-next-task/SKILL.md`
+    - `sed -n '1,220p' /Users/subhajlimanond/.codex/skills/taskmaster-task-status/SKILL.md`
+    - `/tmp/skill-creator-validate/bin/python /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/subhajlimanond/.codex/skills/taskmaster-init-tasks`
+    - `/tmp/skill-creator-validate/bin/python /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/subhajlimanond/.codex/skills/taskmaster-next-task`
+    - `/tmp/skill-creator-validate/bin/python /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/subhajlimanond/.codex/skills/taskmaster-task-status`
+- Tests run and results:
+  - All three skills passed `quick_validate.py`.
+  - The base `python3` environment was missing `PyYAML`, so validation was run in a temporary virtualenv at `/tmp/skill-creator-validate` instead of modifying the global interpreter.
+- Wiring verification evidence:
+  - Skills were created under `/Users/subhajlimanond/.codex/skills`, which is the default auto-discovery location for Codex skills in this environment.
+  - Each skill folder contains `SKILL.md` and `agents/openai.yaml`, generated via the skill-creator initializer.
+- Behavior changes and risk notes:
+  - The skills intentionally preserve the docs-first repo constraints instead of assuming scaffolded code or package scripts already exist.
+  - `taskmaster-init-tasks` avoids blind re-parsing when a repo already has a task set, which is safer for normal daily use.
+- Follow-ups / known gaps:
+  - Forward-test the skills on real invocations to confirm the descriptions trigger cleanly and the workflows feel natural in practice.
+
+## 2026-03-21 14:08 ICT
+- Goal: Create and forward-test a Task Master subtask-expansion skill against the real MCP behavior.
+- What changed:
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-expand-task/SKILL.md`: added the subtask expansion workflow, default-safe behavior for existing subtasks, and a `force=true` overwrite warning based on actual tool behavior.
+  - `docs/PROGRESS.md`: appended a terse note capturing the new skill and the timeout/overwrite finding.
+- TDD evidence:
+  - No RED test run was produced because this work adds skill instructions and runs MCP workflow tests rather than application code.
+  - GREEN-style verification commands:
+    - `python3 /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/init_skill.py taskmaster-expand-task --path /Users/subhajlimanond/.codex/skills --interface display_name='TaskMaster Expand Task' --interface short_description='Break a task into focused subtasks' --interface default_prompt='Use $taskmaster-expand-task to break a Task Master task into smaller actionable subtasks and summarize the outcome.'`
+    - `mcp__taskmaster_ai__next_task(projectRoot=/Users/subhajlimanond/dev/zrl)`
+    - `mcp__taskmaster_ai__get_tasks(projectRoot=/tmp/zrl-taskmaster-test.Vd1uJh, withSubtasks=true)`
+    - `mcp__taskmaster_ai__expand_task(projectRoot=/tmp/zrl-taskmaster-test.Vd1uJh, id=1, force=false, research=false)`
+    - `mcp__taskmaster_ai__expand_task(projectRoot=/tmp/zrl-taskmaster-test.Vd1uJh, id=1, force=true, research=false)`
+    - `/tmp/skill-creator-validate/bin/python /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/subhajlimanond/.codex/skills/taskmaster-expand-task`
+- Tests run and results:
+  - `expand_task` with `force=false` on a task that already had subtasks was safe and returned `Task 1 already has subtasks. Expansion skipped.`
+  - `expand_task` with `force=true` timed out after 120 seconds in the isolated temp repo.
+  - After that timeout, re-reading the temp task showed task `1` had `subtasks: []`, which indicates forced expansion can leave the task partially mutated if it fails mid-operation.
+  - Main repo task data remained intact because the destructive-path test was isolated to `/tmp/zrl-taskmaster-test.Vd1uJh`.
+- Wiring verification evidence:
+  - The new skill lives under `/Users/subhajlimanond/.codex/skills/taskmaster-expand-task` and will be auto-discovered with the other Task Master skills.
+  - The test used a disposable repo copy containing `AGENTS.md`, `CLAUDE.md`, `docs/PRD.md`, `.taskmaster/config.json`, and `.taskmaster/tasks/tasks.json`.
+- Behavior changes and risk notes:
+  - `force=true` should be treated as an overwrite operation with failure risk, not a routine retry path.
+  - A good expansion workflow must re-read the task after any timeout or error, because the tool may have already mutated the subtask list.
+- Follow-ups / known gaps:
+  - If you want a safer overwrite workflow, add a dedicated helper that snapshots `.taskmaster/tasks/tasks.json` before forced expansion and restores it automatically on failure in a disposable workspace or tagged copy.
+
+## 2026-03-21 14:23 ICT
+- Goal: Add a real backup/restore safeguard for forced Task Master subtask expansion.
+- What changed:
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-expand-task/SKILL.md`: updated the forced-expansion workflow to require a pre-overwrite snapshot and explicit restore path using the bundled helper.
+  - `/Users/subhajlimanond/.codex/skills/taskmaster-expand-task/scripts/taskmaster_tasks_guard.py`: added a standard-library CLI helper with `snapshot` and `restore` commands for `.taskmaster/tasks/tasks.json`.
+  - `docs/PROGRESS.md`: appended a terse note capturing the new guard helper and its tested round-trip behavior.
+- TDD evidence:
+  - No RED test run was produced because this is workflow/tooling support code rather than application logic.
+  - GREEN-style verification commands:
+    - `/tmp/skill-creator-validate/bin/python /Users/subhajlimanond/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/subhajlimanond/.codex/skills/taskmaster-expand-task`
+    - `python3 /Users/subhajlimanond/.codex/skills/taskmaster-expand-task/scripts/taskmaster_tasks_guard.py snapshot --project-root /private/tmp/zrl-taskmaster-guard.CQJlc1 --label force-expand-task-1`
+    - `python3 /Users/subhajlimanond/.codex/skills/taskmaster-expand-task/scripts/taskmaster_tasks_guard.py restore --project-root /private/tmp/zrl-taskmaster-guard.CQJlc1 --backup-file /private/tmp/zrl-taskmaster-guard.CQJlc1/.taskmaster/backups/tasks-force-expand-task-1-20260321-062247.json`
+    - `python3 - <<'PY' ... mutate /private/tmp/zrl-taskmaster-guard.CQJlc1/.taskmaster/tasks/tasks.json ... PY`
+- Tests run and results:
+  - The skill still passed `quick_validate.py` after adding the bundled helper instructions.
+  - Snapshot created a timestamped backup under `/private/tmp/zrl-taskmaster-guard.CQJlc1/.taskmaster/backups/` and emitted structured JSON metadata including the exact backup path and SHA-256.
+  - A manual mutation that cleared the first task's subtasks in the temp copy succeeded.
+  - Restore copied the saved backup back into place, and post-checks confirmed the first task returned to 5 subtasks and the restored file matched the backup byte-for-byte.
+- Wiring verification evidence:
+  - The helper script lives under `/Users/subhajlimanond/.codex/skills/taskmaster-expand-task/scripts/`, so the skill can reference it with a stable relative path.
+  - The helper writes backups under `<projectRoot>/.taskmaster/backups/`, which keeps state adjacent to the Task Master files it protects.
+- Behavior changes and risk notes:
+  - Forced expansion now has a concrete rollback mechanism instead of relying on operator memory or manual file copies.
+  - The helper only manages file snapshots and restores; MCP-driven expansion still needs an explicit re-read after timeout or error.
+- Follow-ups / known gaps:
+  - If you want fully automatic rollback inside one command, the next step would be a wrapper that also invokes Task Master expansion through a supported CLI or API surface rather than relying on separate MCP and shell steps.
+
+## 2026-03-21 14:36 ICT
+- Goal: Harden the repo-side Task Master MCP launcher to reduce opaque `Transport closed` failures and make launch diagnostics visible.
+- What changed:
+  - `.mcp.json`: replaced the bare `npx` stdio launcher with a shell-based wrapper invocation so the MCP uses a repo-local, deterministic startup path.
+  - `scripts/run-taskmaster-mcp.sh`: added a pinned Task Master launcher (`task-master-ai@0.43.0`) that forces stable npm env settings, keeps `TASK_MASTER_TOOLS=core`, changes to repo root, and redirects stderr into `.taskmaster/logs/taskmaster-mcp.stderr.log`.
+  - `.gitignore`: added `.taskmaster/logs/`.
+  - `.claudeignore`: added `.taskmaster/backups/` and `.taskmaster/logs/`.
+  - `docs/PROGRESS.md`: appended a terse note describing the launcher hardening.
+- TDD evidence:
+  - No RED test run was produced because this is MCP/configuration reliability work, not application logic.
+  - GREEN-style verification commands:
+    - `python3 - <<'PY' ... json.loads(Path('.mcp.json').read_text()) ... PY`
+    - `chmod +x scripts/run-taskmaster-mcp.sh`
+    - `./scripts/run-taskmaster-mcp.sh`
+    - `tail -n 30 .taskmaster/logs/taskmaster-mcp.stderr.log`
+- Tests run and results:
+  - `.mcp.json` parsed successfully as valid JSON after the launcher change.
+  - `scripts/run-taskmaster-mcp.sh` started and remained alive until interrupted manually, which confirms the wrapper itself does not crash immediately on startup.
+  - The wrapper's stderr redirection path exists and is ready for future launch diagnostics, though the smoke run did not emit stderr lines without a real MCP handshake.
+- Wiring verification evidence:
+  - `.mcp.json` now resolves the repo root dynamically with `git rev-parse --show-toplevel` and execs `scripts/run-taskmaster-mcp.sh`.
+  - `scripts/run-taskmaster-mcp.sh` resolves `PROJECT_ROOT` from its own path, so it launches Task Master from the correct repo even when invoked via shell.
+- Behavior changes and risk notes:
+  - The MCP launcher is now pinned to `task-master-ai@0.43.0`, which reduces version drift compared with unpinned `npx`.
+  - Stderr is now captured in `.taskmaster/logs/taskmaster-mcp.stderr.log`, which should make future transport failures easier to diagnose.
+  - Existing MCP client sessions may continue using the old launcher until they reload project MCP config.
+- Follow-ups / known gaps:
+  - This is a repo-side hardening step, not a guaranteed fix for a stale or broken Codex-side MCP bridge already running in memory.
+  - To actually pick up the new launcher, the affected client should restart or reload project MCP config.
+
+## 2026-03-21 14:25 ICT
+- Goal: Restore a healthy `claude mcp list` result for the repo-scoped `taskmaster-ai` server without breaking direct Task Master tool access.
+- What changed:
+  - `scripts/taskmaster-mcp-proxy.mjs`: added a repo-local Node stdio proxy that launches `task-master-ai@0.43.0`, forwards stdin/stdout, keeps stderr in `.taskmaster/logs/taskmaster-mcp.stderr.log`, and drops the two startup-only JSON notifications that were being emitted before a real Claude session was established.
+  - `scripts/run-taskmaster-mcp.sh`: switched the wrapper from directly `exec`-ing `npx task-master-ai` to exporting project/log env vars and `exec`-ing the new proxy script.
+  - `docs/PROGRESS.md`: appended a terse note recording that the Task Master MCP health check now passes again through the proxy.
+- TDD evidence:
+  - RED command:
+    - `python3 - <<'PY' ... subprocess.run(['claude','mcp','list'], cwd='/Users/subhajlimanond/dev/zrl', capture_output=True, text=True, timeout=15) ... PY`
+  - RED failure reason:
+    - The command completed with `taskmaster-ai: /bin/bash -lc exec "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/scripts/run-taskmaster-mcp.sh" - ✗ Failed to connect`.
+  - GREEN commands:
+    - `python3 - <<'PY' ... subprocess.Popen(['./scripts/run-taskmaster-mcp.sh'], cwd='/Users/subhajlimanond/dev/zrl', stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) ... PY`
+    - `python3 - <<'PY' ... subprocess.run(['claude','mcp','list'], cwd='/Users/subhajlimanond/dev/zrl', capture_output=True, text=True, timeout=20) ... PY`
+    - `mcp__taskmaster_ai__get_tasks(projectRoot=/Users/subhajlimanond/dev/zrl, withSubtasks=false)`
+- Tests run and results:
+  - The raw wrapper smoke test showed empty stdout/stderr when launched without a handshake after the proxy change, which confirms the two startup-only notifications are no longer leaking onto stdout from the repo wrapper.
+  - `claude mcp list` now returns `taskmaster-ai ... ✓ Connected`.
+  - `get_tasks` still succeeds after the wrapper change and returns the expected `master` task set with 32 tasks.
+  - `.taskmaster/logs/taskmaster-mcp.stderr.log` still captures Task Master startup diagnostics, including the FastMCP warning, so stderr visibility was preserved.
+- Wiring verification evidence:
+  - `.mcp.json` still invokes `scripts/run-taskmaster-mcp.sh`, so the repo-scoped MCP entry point did not change.
+  - `scripts/run-taskmaster-mcp.sh` now exports `TASKMASTER_PROJECT_ROOT` and `TASKMASTER_MCP_STDERR_LOG` and invokes `scripts/taskmaster-mcp-proxy.mjs`.
+  - `scripts/taskmaster-mcp-proxy.mjs` launches the pinned `task-master-ai@0.43.0` package in the repo root, forwards stdin to the child, forwards child stdout except for the two filtered startup notifications, and sends child stderr to the existing log file.
+- Behavior changes and risk notes:
+  - The wrapper now intentionally strips two specific startup notifications from stdout because they are not required for tool operation and were correlated with the Claude health-check failure.
+  - The filter is exact-string based and therefore low-risk for normal MCP traffic, but it is coupled to the current Task Master startup messages.
+  - If a future Task Master release stops emitting those notifications, the proxy remains harmless but unnecessary.
+- Follow-ups / known gaps:
+  - If Task Master changes its startup notification payloads in a later release, the filter list may need to be updated or removed.
+  - A future upstream fix in `task-master-ai` would be better than carrying a repo-local proxy long term.
+
+## 2026-03-21 14:47 ICT
+- Goal: Bring the repo guidance hierarchy in line with the newly scaffolded app structure and create local `AGENTS.md` files only where real code now exists.
+- What changed:
+  - `AGENTS.md`: updated the root guide to describe the scaffolded repo accurately, point readers at the new local `AGENTS.md` files, and stop treating the project as pre-scaffold.
+  - `frontend/AGENTS.md`: replaced the generic Next.js warning stub with ZRL-specific frontend guidance tied to the actual Next.js 16 app structure and current minimal state.
+  - `src/AGENTS.md`: added backend guidance for NestJS module boundaries, shared-vs-domain responsibilities, and the existing module-level `CLAUDE.md` files.
+  - `prisma/AGENTS.md`: added schema and migration guidance grounded in the current single-file Prisma setup and generated-client path.
+  - `test/AGENTS.md`: added guidance for the current Jest unit/e2e split and when tests belong in `src/` versus `test/`.
+  - `docs/PROGRESS.md`: appended a one-line summary of the guidance refresh.
+- TDD evidence:
+  - No RED test run was produced because this change updates repository guidance documents rather than runtime behavior.
+  - GREEN-style verification commands:
+    - `find . -maxdepth 2 -name 'AGENTS.md' | sort`
+    - `find src -maxdepth 4 -type f | sort`
+    - `find frontend/src -maxdepth 4 -type f | sort`
+    - `sed -n '1,220p' AGENTS.md`
+    - `sed -n '1,220p' frontend/AGENTS.md`
+    - `sed -n '1,220p' src/AGENTS.md`
+    - `sed -n '1,220p' prisma/AGENTS.md`
+    - `sed -n '1,220p' test/AGENTS.md`
+    - `rg -n "Nearer \`AGENTS.md\` files now exist|pre-scaffold|not scaffolded yet" AGENTS.md frontend/AGENTS.md src/AGENTS.md prisma/AGENTS.md test/AGENTS.md`
+- Tests run and results:
+  - Verified the repo now exposes exactly five `AGENTS.md` files at the root and the four scaffolded sub-areas.
+  - Verified the root guide no longer claims the repo is pre-scaffold and now marks `rules/` as planned but absent.
+  - Verified the frontend, backend, Prisma, and test guides reference real files, real commands, and current repo structure rather than placeholders.
+- Wiring verification evidence:
+  - `frontend/CLAUDE.md` still points at `frontend/AGENTS.md`, so the frontend local guidance is now meaningful for Claude as well.
+  - The new local files live exactly at `src/AGENTS.md`, `frontend/AGENTS.md`, `prisma/AGENTS.md`, and `test/AGENTS.md`, matching the root guide’s intended hierarchy.
+  - Existing module-specific `CLAUDE.md` files under `src/` remain the nearest specialized context inside those backend areas.
+- Behavior changes and risk notes:
+  - The guidance hierarchy now matches the current scaffold and should reduce generic or misplaced edits in the main app directories.
+  - I intentionally did not create `rules/AGENTS.md` because `rules/` is still absent on disk; adding placeholder local guidance there would create drift.
+- Follow-ups / known gaps:
+  - As `frontend/src/components`, `prisma/migrations`, or other deeper sub-areas stabilize, those may justify their own nearer guidance later.
+  - The root `CLAUDE.md` still contains some forward-looking structure notes; if you want full hierarchy cleanup, the next pass should align those sections with the new `AGENTS.md` split.
+
+## 2026-03-21 14:56 ICT
+- Goal: Analyze when root and local `AGENTS.md` files should be refreshed, then deploy deterministic automation and Claude hooks that keep those guides in sync with real repo structure.
+- What changed:
+  - `scripts/sync_agents.py`: added a deterministic AGENTS sync engine that collects repo state, rewrites only marked auto-generated sections, and can bootstrap future `rules/AGENTS.md` and `templates/AGENTS.md` files when those directories become real.
+  - `test/test_sync_agents.py`: added standard-library unit tests covering first-time sync, idempotent reruns, and future `rules/AGENTS.md` creation.
+  - `.claude/hooks/sync-agents.sh`: added a repo-local Claude hook wrapper that runs the sync script safely, stays non-blocking, and emits a concise update line only when files actually change.
+  - `.claude/settings.json`: added project-scoped `SessionStart` and `PostToolUse` hooks so Claude refreshes AGENTS guidance on session entry and after edit/write/bash activity, while preserving the existing `claudemd-staleness.sh` hook.
+  - `AGENTS.md`: refactored root guidance to use managed auto-generated blocks for scaffold-derived sections while preserving the human-authored policy sections.
+  - `frontend/AGENTS.md`, `src/AGENTS.md`, `prisma/AGENTS.md`, `test/AGENTS.md`: refactored the existing local guides to use managed auto-generated blocks for state/commands/search hints while preserving the stable manual rules.
+  - `docs/PROGRESS.md`: appended a one-line summary of the AGENTS sync automation and hook deployment.
+- TDD evidence:
+  - RED commands:
+    - `python3 -m unittest discover -s test -p 'test_sync_agents.py'`
+    - `python3 -m unittest discover -s test -p 'test_sync_agents.py'`
+  - RED failure reasons:
+    - First RED run failed with `ModuleNotFoundError: No module named 'scripts.sync_agents'` before the sync script existed.
+    - Second RED run failed after adding a regression assertion because the Prisma current-state block still rendered `prisma-client` instead of the datasource provider `postgresql`.
+  - GREEN commands:
+    - `python3 -m unittest discover -s test -p 'test_sync_agents.py'`
+    - `python3 scripts/sync_agents.py --project-root .`
+    - `jq empty .claude/settings.json`
+    - `CLAUDE_PROJECT_DIR=/Users/subhajlimanond/dev/zrl bash .claude/hooks/sync-agents.sh; echo EXIT:$?`
+    - `python3 - <<'PY' ... from scripts.sync_agents import collect_repo_state ... PY`
+- Tests run and results:
+  - `python3 -m unittest discover -s test -p 'test_sync_agents.py'` now passes with 3/3 tests green.
+  - `python3 scripts/sync_agents.py --project-root .` rewrote the managed AGENTS sections on the first real-repo run and becomes a no-op on the second run when nothing changed.
+  - `jq empty .claude/settings.json` passed after adding the project-scoped hook configuration.
+  - `CLAUDE_PROJECT_DIR=/Users/subhajlimanond/dev/zrl bash .claude/hooks/sync-agents.sh; echo EXIT:$?` exited `0`; after the repo was in sync it emitted no update line.
+  - Manual inspection confirmed the earlier live-repo bugs were fixed: `prisma/AGENTS.md` now reports `postgresql`, and `test/AGENTS.md` no longer includes `AGENTS.md` or `__pycache__` artifacts in its current-state block.
+- Wiring verification evidence:
+  - Project-scoped hook registration now lives in `/Users/subhajlimanond/dev/zrl/.claude/settings.json`, so the automation is local to this repo and does not alter the global Claude hook harness.
+  - The hook entry point is `/Users/subhajlimanond/dev/zrl/.claude/hooks/sync-agents.sh`, which resolves the repo root from `CLAUDE_PROJECT_DIR` and invokes `/Users/subhajlimanond/dev/zrl/scripts/sync_agents.py`.
+  - `scripts/sync_agents.py` owns the marker-based blocks in `/Users/subhajlimanond/dev/zrl/AGENTS.md`, `/Users/subhajlimanond/dev/zrl/frontend/AGENTS.md`, `/Users/subhajlimanond/dev/zrl/src/AGENTS.md`, `/Users/subhajlimanond/dev/zrl/prisma/AGENTS.md`, and `/Users/subhajlimanond/dev/zrl/test/AGENTS.md`.
+  - The sync engine also covers the future creation path for `/Users/subhajlimanond/dev/zrl/rules/AGENTS.md` and `/Users/subhajlimanond/dev/zrl/templates/AGENTS.md` when those directories gain real files.
+- Behavior changes and risk notes:
+  - The automation is intentionally deterministic and marker-based; it refreshes state-derived sections only and avoids freeform hook-authored narrative content.
+  - Root-guide updates now trigger from real scaffold changes, package-script changes, and local-guide presence changes; local-guide updates trigger from their own directory structure and package/schema/test-layout changes.
+  - Because the script scans real repo files, generated sections will reflect stray committed structure too; if a directory is created accidentally, the guidance may surface it until the directory is removed.
+- Follow-ups / known gaps:
+  - The current hook model refreshes on Claude session activity; it does not watch arbitrary external filesystem changes in real time outside Claude.
+  - `CLAUDE.md` staleness detection remains separate and advisory; if you want, the next pass can align that script with the new AGENTS sync trigger matrix.

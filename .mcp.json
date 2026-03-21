@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "taskmaster-ai": {
+      "type": "stdio",
+      "command": "/bin/bash",
+      "args": [
+        "-lc",
+        "exec \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/scripts/run-taskmaster-mcp.sh\""
+      ],
+      "env": {
+        "TASK_MASTER_TOOLS": "core"
+      }
+    }
+  }
+}

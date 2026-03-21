@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  /* ZRL Primary Brand */
+  --zrl-primary: #6C5CE7;
+  --zrl-primary-hover: #5936E0;
+  --zrl-primary-light: #A29BFE;
+  --zrl-primary-bg: rgba(108, 92, 231, 0.1);
+
+  /* ZRL Semantic */
+  --zrl-success: #22C55E;
+  --zrl-warning: #F59E0B;
+  --zrl-error: #EF4444;
+  --zrl-info: #3B82F6;
+
+  /* ZRL Domain-Specific */
+  --zrl-cold-chain: #14B8A6;
+  --zrl-excursion: #EF4444;
+  --zrl-completeness: #6C5CE7;
+  --zrl-checkpoint: #F59E0B;
+
+  /* Surfaces (Light Mode) */
+  --background: #FAFBFC;
+  --foreground: #0F172A;
+  --zrl-bg-surface: #FFFFFF;
+  --zrl-bg-surface-secondary: #F8FAFC;
+
+  /* Text */
+  --zrl-text-primary: #0F172A;
+  --zrl-text-secondary: #475569;
+  --zrl-text-muted: #64748B;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--zrl-primary);
+  --color-primary-hover: var(--zrl-primary-hover);
+  --color-primary-light: var(--zrl-primary-light);
+  --color-success: var(--zrl-success);
+  --color-warning: var(--zrl-warning);
+  --color-error: var(--zrl-error);
+  --color-info: var(--zrl-info);
+  --color-cold-chain: var(--zrl-cold-chain);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #101022;
+    --foreground: #ededed;
+    --zrl-bg-surface: #1a1a2e;
+    --zrl-bg-surface-secondary: #16162a;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

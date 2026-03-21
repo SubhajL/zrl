@@ -1,0 +1,40 @@
+# Coding Log
+
+## 2026-03-21 16:35 ICT
+- Goal: Implement Task 2 — Database Schema Design for all ZRL core entities
+- What changed:
+  - `prisma/schema.prisma`: Added 11 models (User, ApiKey, Lane, Batch, Route, Checkpoint, EvidenceArtifact, ArtifactLink, ProofPack, AuditEntry, RuleSnapshot) and 16 enums with snake_case `@@map` mappings
+  - `prisma/migrations/20260321093008_init_core_schema/migration.sql`: Auto-generated initial migration with all tables, enums, indexes, and FK constraints
+  - `prisma/migrations/20260321093009_add_check_constraints/migration.sql`: Manual SQL CHECK constraints for SHA-256 hex format validation and MFA enforcement
+  - `prisma/seed.ts`: Seed script with 4 RBAC users, 1 Mango→Japan lane (batch, route, 4 checkpoints, rule snapshot with 12 critical MRL substances), 2 hash-chained audit entries
+  - `prisma.config.ts`: Added seed command (`npx tsx prisma/seed.ts`)
+  - `.env`: Set DATABASE_URL to match docker-compose PostgreSQL (port 5433)
+  - `docker-compose.yml`: Changed ports to 5433:5432 (postgres) and 6380:6379 (redis) to avoid local conflicts
+  - `package.json`: Added bcrypt, @prisma/adapter-pg, pg, @types/pg, tsx dependencies; added prisma.seed config
+- TDD evidence:
+  - Schema validation: `npx prisma validate` → "The schema is valid"
+  - Client generation: `npx prisma generate` → generated to ./generated/prisma
+  - Migration: `npx prisma migrate dev --name init_core_schema` → applied cleanly
+  - CHECK constraints migration: applied cleanly
+  - Seed: `npx prisma db seed` → "Created 4 users, Created sample lane: LN-2026-001, Created audit chain (2 entries)"
+- Tests run and results:
+  - SQL CHECK for invalid hash: `INSERT INTO audit_entries ... 'INVALID_HASH'` → ERROR "violates check constraint chk_audit_entry_hash" ✓
+  - SQL CHECK for admin without MFA: `INSERT INTO users ... 'ADMIN', false` → ERROR "violates check constraint chk_admin_auditor_mfa" ✓
+  - `npm run build` → OK
+  - `npm run typecheck` → OK
+  - `npm run lint` → OK
+  - `npm test` → 1 passed
+  - Row count verification: users=4, lanes=1, batches=1, routes=1, checkpoints=4, rule_snapshots=1, audit_entries=2
+- Wiring verification evidence:
+  - Prisma client generated to `generated/prisma/` and importable from seed script
+  - Seed runs via `prisma.config.ts` seed command using `npx tsx`
+  - PrismaClient constructed with `@prisma/adapter-pg` adapter (Prisma 7 requirement)
+  - All tables verified present via `psql` row counts
+- Behavior changes and risk notes:
+  - Docker ports changed from default (5432/6379) to 5433/6380 to avoid conflicts with locally-running services
+  - Prisma 7 requires driver adapter for PrismaClient construction — different from Prisma 5/6 patterns
+  - Prisma 7 uses `prisma.config.ts` for seed config, not `package.json` prisma.seed field (kept both for compatibility)
+- Follow-ups / known gaps:
+  - No DB integration test file yet (test/prisma.e2e-spec.ts) — constraints verified via raw SQL instead
+  - Prisma seed script uses `bcrypt` directly — Task 5 (Auth Service) should use the same bcrypt configuration
+  - Rule snapshot stores 12 substances as JSONB — Task 8 will create dedicated Substance/Market tables
