@@ -1,8 +1,12 @@
 import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { createHash } from 'crypto';
 import { hash } from 'bcrypt';
+import {
+  computeHashChainEntry,
+  getGenesisHash,
+  hashUtf8String,
+} from '../src/common/hashing/hashing.utils.js';
 
 const databaseUrl = process.env['DATABASE_URL'] ?? '';
 if (!databaseUrl.includes('localhost')) {
@@ -14,10 +18,6 @@ if (!databaseUrl.includes('localhost')) {
 const pool = new Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
-
-function sha256Hex(input: string): string {
-  return createHash('sha256').update(input).digest('hex');
-}
 
 async function seedUsers() {
   const passwordHash = await hash('ZrlDev2026!', 10);
@@ -274,7 +274,7 @@ async function seedSampleLane(exporterId: string) {
               timestamp: new Date('2026-03-16T08:00:00Z'),
               temperature: 12.5,
               signerName: 'Somchai K.',
-              signatureHash: sha256Hex('checkpoint-1-signature'),
+              signatureHash: hashUtf8String('checkpoint-1-signature'),
             }
           : {}),
       },
@@ -285,11 +285,17 @@ async function seedSampleLane(exporterId: string) {
 }
 
 async function seedAuditChain(laneId: string, actor: string) {
-  const genesisHash = sha256Hex('ZRL_GENESIS_HASH_V1');
-
-  const entry1Hash = sha256Hex(
-    `2026-03-16T07:00:00.000Z${actor}CREATELANE${laneId}${sha256Hex('lane-created')}${genesisHash}`,
-  );
+  const genesisHash = getGenesisHash();
+  const entry1PayloadHash = hashUtf8String('lane-created');
+  const entry1Hash = computeHashChainEntry({
+    timestamp: '2026-03-16T07:00:00.000Z',
+    actor,
+    action: 'CREATE',
+    entityType: 'LANE',
+    entityId: laneId,
+    payloadHash: entry1PayloadHash,
+    prevHash: genesisHash,
+  });
 
   await prisma.auditEntry.create({
     data: {
@@ -298,15 +304,22 @@ async function seedAuditChain(laneId: string, actor: string) {
       action: 'CREATE',
       entityType: 'LANE',
       entityId: laneId,
-      payloadHash: sha256Hex('lane-created'),
+      payloadHash: entry1PayloadHash,
       prevHash: genesisHash,
       entryHash: entry1Hash,
     },
   });
 
-  const entry2Hash = sha256Hex(
-    `2026-03-16T08:00:00.000Z${actor}SIGNCHECKPOINT${laneId}${sha256Hex('checkpoint-signed')}${entry1Hash}`,
-  );
+  const entry2PayloadHash = hashUtf8String('checkpoint-signed');
+  const entry2Hash = computeHashChainEntry({
+    timestamp: '2026-03-16T08:00:00.000Z',
+    actor,
+    action: 'SIGN',
+    entityType: 'CHECKPOINT',
+    entityId: laneId,
+    payloadHash: entry2PayloadHash,
+    prevHash: entry1Hash,
+  });
 
   await prisma.auditEntry.create({
     data: {
@@ -315,7 +328,7 @@ async function seedAuditChain(laneId: string, actor: string) {
       action: 'SIGN',
       entityType: 'CHECKPOINT',
       entityId: laneId,
-      payloadHash: sha256Hex('checkpoint-signed'),
+      payloadHash: entry2PayloadHash,
       prevHash: entry1Hash,
       entryHash: entry2Hash,
     },
