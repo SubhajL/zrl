@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npx jest:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "mcp__taskmaster-ai__get_tasks",
+      "mcp__taskmaster-ai__get_task",
+      "mcp__taskmaster-ai__next_task",
+      "mcp__taskmaster-ai__set_task_status",
+      "mcp__taskmaster-ai__update_subtask",
+      "mcp__taskmaster-ai__parse_prd",
+      "mcp__taskmaster-ai__expand_task"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "env": {
+    "TASK_MASTER_TOOLS": "core"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bash .claude/hooks/sync-agents.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bash .claude/hooks/auto-format.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/subhajlimanond/dev/zrl/.claude/hooks/claudemd-staleness.sh"
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bash .claude/hooks/sync-agents.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

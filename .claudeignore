@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Lock files (large, not useful for AI)
+package-lock.json
+pnpm-lock.yaml
+bun.lockb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+coverage/
+test-results/
+playwright-report/
+
+# Task Master internals (read config only, not logs)
+.taskmaster/tasks/
+.taskmaster/docs/
+.taskmaster/backups/
+.taskmaster/logs/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Large binary/media files
+*.zip
+*.tar.gz
+*.pdf
+*.docx
+*.xlsx
