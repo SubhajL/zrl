@@ -6,9 +6,9 @@
 
 ## Current State
 <!-- BEGIN AUTO-GENERATED:TEST_CURRENT_STATE -->
-- E2E entry point(s) currently on disk: `test/app.e2e-spec.ts`, `test/jest-e2e.json`, `test/test_sync_agents.py`.
+- E2E entry point(s) currently on disk: `test/app.e2e-spec.ts`, `test/audit.e2e-spec.ts`, `test/jest-e2e.json`, `test/test_sync_agents.py`.
 - E2E Jest config: [`test/jest-e2e.json`](/Users/subhajlimanond/dev/zrl/test/jest-e2e.json).
-- Root Jest config currently covers 1 unit test file(s) under `src/` via `*.spec.ts`.
+- Root Jest config currently covers 4 unit test file(s) under `src/` via `*.spec.ts`.
 <!-- END AUTO-GENERATED:TEST_CURRENT_STATE -->
 
 ## Core Commands
