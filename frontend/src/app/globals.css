@@ -1,61 +1,137 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════
+   ZRL Design System — CSS Custom Properties
+   OKLCH color space with hex fallbacks
+   Dark mode via light-dark() — no JS needed
+   ═══════════════════════════════════════════════════ */
+
 :root {
-  /* ZRL Primary Brand */
+  color-scheme: light dark;
+
+  /* ── ZRL Brand ── */
   --zrl-primary: #6C5CE7;
   --zrl-primary-hover: #5936E0;
   --zrl-primary-light: #A29BFE;
   --zrl-primary-bg: rgba(108, 92, 231, 0.1);
 
-  /* ZRL Semantic */
+  /* ── ZRL Semantic ── */
   --zrl-success: #22C55E;
   --zrl-warning: #F59E0B;
   --zrl-error: #EF4444;
   --zrl-info: #3B82F6;
 
-  /* ZRL Domain-Specific */
+  /* ── ZRL Domain-Specific ── */
   --zrl-cold-chain: #14B8A6;
   --zrl-excursion: #EF4444;
   --zrl-completeness: #6C5CE7;
   --zrl-checkpoint: #F59E0B;
 
-  /* Surfaces (Light Mode) */
-  --background: #FAFBFC;
-  --foreground: #0F172A;
-  --zrl-bg-surface: #FFFFFF;
-  --zrl-bg-surface-secondary: #F8FAFC;
+  /* ── Surfaces (auto light/dark) ── */
+  --background: light-dark(#FAFBFC, #101022);
+  --foreground: light-dark(#0F172A, #EDEDED);
+  --zrl-bg-surface: light-dark(#FFFFFF, #1a1a2e);
+  --zrl-bg-surface-secondary: light-dark(#F8FAFC, #16162a);
+  --zrl-bg-surface-hover: light-dark(#F1F5F9, #2a2a4a);
 
-  /* Text */
-  --zrl-text-primary: #0F172A;
-  --zrl-text-secondary: #475569;
-  --zrl-text-muted: #64748B;
+  /* ── Text (auto light/dark) ── */
+  --zrl-text-primary: light-dark(#0F172A, #FFFFFF);
+  --zrl-text-secondary: light-dark(#475569, #E2E8F0);
+  --zrl-text-muted: light-dark(#64748B, #94A3B8);
+  --zrl-text-disabled: light-dark(#94A3B8, #64748B);
+
+  /* ── Borders (auto light/dark) ── */
+  --zrl-border: light-dark(#E2E8F0, #334155);
+  --zrl-border-light: light-dark(#F1F5F9, #1E293B);
+
+  /* ── shadcn/ui Convention Variables ── */
+  --card: light-dark(#FFFFFF, #1a1a2e);
+  --card-foreground: light-dark(#0F172A, #EDEDED);
+  --popover: light-dark(#FFFFFF, #1a1a2e);
+  --popover-foreground: light-dark(#0F172A, #EDEDED);
+  --primary: var(--zrl-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: light-dark(#F1F5F9, #232340);
+  --secondary-foreground: light-dark(#0F172A, #EDEDED);
+  --muted: light-dark(#F1F5F9, #232340);
+  --muted-foreground: light-dark(#64748B, #94A3B8);
+  --accent: light-dark(#F1F5F9, #232340);
+  --accent-foreground: light-dark(#0F172A, #EDEDED);
+  --destructive: var(--zrl-error);
+  --destructive-foreground: #FFFFFF;
+  --border: var(--zrl-border);
+  --input: var(--zrl-border);
+  --ring: var(--zrl-primary);
+  --radius: 0.75rem;
+
+  /* ── Chart Colors ── */
+  --chart-1: var(--zrl-primary);
+  --chart-2: var(--zrl-success);
+  --chart-3: var(--zrl-warning);
+  --chart-4: var(--zrl-info);
+  --chart-5: var(--zrl-cold-chain);
+
+  /* ── Shadows ── */
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
+/* ── Tailwind v4 Theme Extension ── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-primary: var(--zrl-primary);
-  --color-primary-hover: var(--zrl-primary-hover);
-  --color-primary-light: var(--zrl-primary-light);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-success: var(--zrl-success);
   --color-warning: var(--zrl-warning);
   --color-error: var(--zrl-error);
   --color-info: var(--zrl-info);
   --color-cold-chain: var(--zrl-cold-chain);
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
+  --color-surface: var(--zrl-bg-surface);
+  --color-surface-secondary: var(--zrl-bg-surface-secondary);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #101022;
-    --foreground: #ededed;
-    --zrl-bg-surface: #1a1a2e;
-    --zrl-bg-surface-secondary: #16162a;
-  }
-}
-
+/* ── Base Styles ── */
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* ── Focus Ring Utility ── */
+.focus-ring {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
