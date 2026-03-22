@@ -1,17 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Menu } from 'lucide-react';
-
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 
 export interface NavItem {
@@ -25,6 +21,8 @@ export interface SidebarProps {
   readonly items: readonly NavItem[];
   readonly activeHref?: string;
   readonly className?: string;
+  readonly mobileOpen?: boolean;
+  readonly onMobileOpenChange?: (open: boolean) => void;
 }
 
 function NavLink({
@@ -78,8 +76,16 @@ function NavList({
   );
 }
 
-export function Sidebar({ items, activeHref, className }: SidebarProps) {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+export function Sidebar({
+  items,
+  activeHref,
+  className,
+  mobileOpen: controlledOpen,
+  onMobileOpenChange: controlledOnChange,
+}: SidebarProps) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isOpen = controlledOpen ?? internalOpen;
+  const setIsOpen = controlledOnChange ?? setInternalOpen;
 
   return (
     <>
@@ -101,18 +107,8 @@ export function Sidebar({ items, activeHref, className }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile sidebar trigger + sheet */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            aria-label="Open navigation menu"
-          >
-            <Menu className="size-5" />
-          </Button>
-        </SheetTrigger>
+      {/* Mobile sidebar sheet */}
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent side="left" className="w-64 p-0">
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle className="text-xl font-bold tracking-tight">
