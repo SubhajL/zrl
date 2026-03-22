@@ -29,6 +29,34 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zrl-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://zrl:zrl_dev_password@postgres:5432/zrl_dev?schema=public
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: zrl-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '3001:3000'
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   redis_data:
