@@ -47,13 +47,13 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run db:generate
 
       - name: Run migrations
         run: npx prisma migrate deploy
 
       - name: Run seed
-        run: npx prisma db seed
+        run: npm run db:seed
 
   # Backend Tests (NestJS)
   test-backend:
@@ -98,7 +98,7 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run db:generate
 
       - name: Run TypeScript type checking
         run: npm run typecheck
@@ -110,7 +110,7 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Run backend tests
-        run: npm test -- --coverage
+        run: npm run test:cov
 
       - name: Upload backend coverage
         uses: actions/upload-artifact@v4
@@ -134,13 +134,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: cd frontend && npm ci
+        working-directory: frontend
+        run: npm ci
 
       - name: Run frontend lint
-        run: cd frontend && npm run lint
+        working-directory: frontend
+        run: npm run lint
 
       - name: Build frontend
-        run: cd frontend && npm run build
+        working-directory: frontend
+        run: npm run build
 
   # Integration Tests
   integration-tests:
@@ -186,15 +189,15 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run db:generate
 
       - name: Run migrations and seed
         run: |
           npx prisma migrate deploy
-          npx prisma db seed
+          npm run db:seed
 
       - name: Run E2E tests
-        run: npm run test:e2e || true
+        run: npm run test:e2e
 
   # Security Scan
   security-scan:
@@ -214,13 +217,17 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level=high || true
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
       - name: Install frontend dependencies
-        run: cd frontend && npm ci
+        working-directory: frontend
+        run: npm ci
 
       - name: Run frontend npm audit
-        run: cd frontend && npm audit --audit-level=high || true
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --audit-level=high
 
   # Build
   build:
@@ -241,10 +248,21 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm run db:generate
 
       - name: Build backend
         run: npm run build
 
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
       - name: Build frontend
-        run: cd frontend && npm ci && npm run build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Validate backend Docker image
+        run: docker build -f Dockerfile .
+
+      - name: Validate frontend Docker image
+        run: docker build -f frontend/Dockerfile frontend

@@ -159,6 +159,7 @@ model User {
   companyName  String?  @map("company_name")
   mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
   totpSecret   String?  @map("totp_secret")
+  sessionVersion Int    @default(0) @map("session_version")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
