@@ -1,3 +1,7 @@
+/**
+ * SHA-256 hashing service — core to ZRL evidence integrity.
+ * @module HashingService
+ */
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Readable } from 'node:stream';
 import type {
