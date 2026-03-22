@@ -21,20 +21,23 @@ export class AuditService {
   ) {}
 
   async createEntry(input: CreateAuditEntryInput) {
-    const store = this.requireStore();
+    return await this.createEntryWithStore(this.requireStore(), input);
+  }
 
+  async createEntryWithStore(store: AuditStore, input: CreateAuditEntryInput) {
     return await store.runInTransaction(async (transactionalStore) => {
-      const laneId = await transactionalStore.resolveLaneId(
+      const streamId = await transactionalStore.resolveStreamId(
         input.entityType,
         input.entityId,
       );
 
-      if (laneId === null) {
-        throw new Error('Unable to resolve lane for audit entry.');
+      if (streamId === null) {
+        throw new Error('Unable to resolve audit stream for audit entry.');
       }
 
-      await transactionalStore.lockLane(laneId);
-      const latestEntry = await transactionalStore.findLatestForLane(laneId);
+      await transactionalStore.lockStream(streamId);
+      const latestEntry =
+        await transactionalStore.findLatestForStream(streamId);
       const timestamp = input.timestamp ?? new Date();
       const prevHash = latestEntry?.entryHash ?? getGenesisHash();
       const entryHash = this.hashingService.computeEntryHash({

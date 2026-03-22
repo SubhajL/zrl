@@ -26,6 +26,7 @@ interface AuditEntryRow extends QueryResultRow {
 }
 
 type QueryExecutor = Pool | PoolClient;
+const GLOBAL_RULES_STREAM_ID = 'GLOBAL_RULES_STREAM';
 
 @Injectable()
 export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
@@ -75,14 +76,14 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
     return await operation(this);
   }
 
-  private static withExecutor(executor: QueryExecutor): PrismaAuditStore {
+  static withExecutor(executor: QueryExecutor): PrismaAuditStore {
     const store = new PrismaAuditStore();
     store.pool = undefined;
     store.executor = executor;
     return store;
   }
 
-  async resolveLaneId(
+  async resolveStreamId(
     entityType: AuditEntityType,
     entityId: string,
   ): Promise<string | null> {
@@ -117,25 +118,69 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           [entityId],
           'lane_id',
         );
+      case AuditEntityTypes.RULE_SET: {
+        const ruleSetId = await this.findSingleValue(
+          executor,
+          'SELECT id FROM rule_sets WHERE id = $1 LIMIT 1',
+          [entityId],
+          'id',
+        );
+        return ruleSetId === null ? null : GLOBAL_RULES_STREAM_ID;
+      }
+      case AuditEntityTypes.SUBSTANCE: {
+        const substanceId = await this.findSingleValue(
+          executor,
+          'SELECT id FROM substances WHERE id = $1 LIMIT 1',
+          [entityId],
+          'id',
+        );
+        return substanceId === null ? null : GLOBAL_RULES_STREAM_ID;
+      }
       default:
         return null;
     }
   }
 
-  async lockLane(laneId: string): Promise<void> {
+  async lockStream(streamId: string): Promise<void> {
     const executor = this.requireExecutor();
 
     if (!(executor instanceof Pool)) {
       await executor.query(
         'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
-        [laneId],
+        [streamId],
       );
     }
   }
 
-  async findLatestForLane(laneId: string): Promise<AuditEntryRecord | null> {
+  async findLatestForStream(
+    streamId: string,
+  ): Promise<AuditEntryRecord | null> {
     const executor = this.requireExecutor();
-    const { clause, values } = this.buildLaneWhereClause(laneId);
+
+    if (streamId === GLOBAL_RULES_STREAM_ID) {
+      const rows = await executor.query<AuditEntryRow>(
+        `
+          SELECT
+            id,
+            timestamp,
+            actor,
+            action,
+            entity_type,
+            entity_id,
+            payload_hash,
+            prev_hash,
+            entry_hash
+          FROM audit_entries
+          WHERE entity_type IN ('RULE_SET', 'SUBSTANCE')
+          ORDER BY timestamp DESC, id DESC
+          LIMIT 1
+        `,
+      );
+
+      return rows.rowCount === 0 ? null : this.mapEntry(rows.rows[0]);
+    }
+
+    const { clause, values } = this.buildLaneWhereClause(streamId);
     const rows = await executor.query<AuditEntryRow>(
       `
         SELECT

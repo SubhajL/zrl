@@ -111,6 +111,8 @@ enum AuditEntityType {
   ARTIFACT
   CHECKPOINT
   PROOF_PACK
+  RULE_SET
+  SUBSTANCE
 
   @@map("audit_entity_type")
 }
@@ -350,4 +352,54 @@ model RuleSnapshot {
   lane Lane @relation(fields: [laneId], references: [id])
 
   @@map("rule_snapshots")
+}
+
+model Substance {
+  id               String            @id @default(uuid())
+  market           DestinationMarket
+  name             String
+  cas              String
+  thaiMrl          Decimal           @map("thai_mrl") @db.Decimal(10, 4)
+  destinationMrl   Decimal           @map("destination_mrl") @db.Decimal(10, 4)
+  stringencyRatio  Decimal           @map("stringency_ratio") @db.Decimal(10, 2)
+  riskLevel        RiskLevel         @map("risk_level")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  @@unique([market, name])
+  @@map("substances")
+}
+
+model RuleSet {
+  id            String            @id @default(uuid())
+  market        DestinationMarket
+  product       ProductType
+  version       Int
+  effectiveDate DateTime          @map("effective_date") @db.Date
+  sourcePath    String?           @map("source_path")
+  rules         Json
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  versions RuleVersion[]
+
+  @@unique([market, product])
+  @@map("rule_sets")
+}
+
+model RuleVersion {
+  id             String            @id @default(uuid())
+  ruleSetId      String            @map("rule_set_id")
+  market         DestinationMarket
+  product        ProductType
+  version        Int
+  changesSummary String            @map("changes_summary")
+  rules          Json
+  changedAt      DateTime          @default(now()) @map("changed_at")
+
+  ruleSet RuleSet @relation(fields: [ruleSetId], references: [id], onDelete: Restrict)
+
+  @@unique([ruleSetId, version])
+  @@index([market, product])
+  @@map("rule_versions")
 }
