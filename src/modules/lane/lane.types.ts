@@ -1,0 +1,271 @@
+import type {
+  AuditAction,
+  AuditEntityType,
+} from '../../common/audit/audit.types';
+import type { AuthSessionUser } from '../../common/auth/auth.types';
+
+export const LaneStatus = {
+  CREATED: 'CREATED',
+  EVIDENCE_COLLECTING: 'EVIDENCE_COLLECTING',
+  VALIDATED: 'VALIDATED',
+  PACKED: 'PACKED',
+  CLOSED: 'CLOSED',
+  INCOMPLETE: 'INCOMPLETE',
+  CLAIM_DEFENSE: 'CLAIM_DEFENSE',
+  DISPUTE_RESOLVED: 'DISPUTE_RESOLVED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+
+export type LaneStatus = (typeof LaneStatus)[keyof typeof LaneStatus];
+
+export const LaneProduct = {
+  MANGO: 'MANGO',
+  DURIAN: 'DURIAN',
+  MANGOSTEEN: 'MANGOSTEEN',
+  LONGAN: 'LONGAN',
+} as const;
+
+export type LaneProduct = (typeof LaneProduct)[keyof typeof LaneProduct];
+
+export const LaneMarket = {
+  JAPAN: 'JAPAN',
+  CHINA: 'CHINA',
+  KOREA: 'KOREA',
+  EU: 'EU',
+} as const;
+
+export type LaneMarket = (typeof LaneMarket)[keyof typeof LaneMarket];
+
+export const LaneTransportMode = {
+  AIR: 'AIR',
+  SEA: 'SEA',
+  TRUCK: 'TRUCK',
+} as const;
+
+export type LaneTransportMode =
+  (typeof LaneTransportMode)[keyof typeof LaneTransportMode];
+
+export const LaneGrade = {
+  PREMIUM: 'PREMIUM',
+  A: 'A',
+  B: 'B',
+} as const;
+
+export type LaneGrade = (typeof LaneGrade)[keyof typeof LaneGrade];
+
+export type LaneColdChainMode = 'MANUAL' | 'LOGGER' | 'TELEMETRY' | null;
+
+export interface LaneGpsPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface CreateLaneInput {
+  product: LaneProduct;
+  batch: {
+    variety?: string;
+    quantityKg: number;
+    originProvince: string;
+    harvestDate: Date;
+    grade: LaneGrade;
+  };
+  destination: {
+    market: LaneMarket;
+  };
+  route: {
+    transportMode: LaneTransportMode;
+    carrier?: string;
+    originGps?: LaneGpsPoint;
+    destinationGps?: LaneGpsPoint;
+    estimatedTransitHours?: number;
+  };
+  checkpoints?: Array<{
+    sequence: number;
+    locationName: string;
+    gpsLat?: number;
+    gpsLng?: number;
+    timestamp?: Date;
+    temperature?: number;
+    signatureHash?: string;
+    signerName?: string;
+    conditionNotes?: string;
+    status?: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  }>;
+  coldChainMode?: LaneColdChainMode;
+}
+
+export interface UpdateLaneInput {
+  coldChainMode?: LaneColdChainMode;
+  batch?: Partial<CreateLaneInput['batch']>;
+  route?: Partial<CreateLaneInput['route']>;
+}
+
+export interface LaneListQuery {
+  page?: number;
+  limit?: number;
+  status?: LaneStatus;
+  product?: LaneProduct;
+  market?: LaneMarket;
+}
+
+export interface LaneSummary {
+  id: string;
+  laneId: string;
+  exporterId: string;
+  status: LaneStatus;
+  productType: LaneProduct;
+  destinationMarket: LaneMarket;
+  completenessScore: number;
+  coldChainMode: LaneColdChainMode;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LaneRuleSnapshot {
+  id: string;
+  laneId: string;
+  market: LaneMarket;
+  product: LaneProduct;
+  version: number;
+  rules: {
+    sourcePath?: string;
+    requiredDocuments?: string[];
+    completenessWeights?: {
+      regulatory: number;
+      quality: number;
+      coldChain: number;
+      chainOfCustody: number;
+    };
+    substances?: Array<{
+      name: string;
+      cas: string;
+      thaiMrl: number;
+      destinationMrl: number;
+      stringencyRatio: number;
+      riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+    }>;
+  };
+  effectiveDate: Date;
+  createdAt: Date;
+}
+
+export interface LaneDetail extends LaneSummary {
+  batch: {
+    id: string;
+    laneId: string;
+    batchId: string;
+    product: LaneProduct;
+    variety: string | null;
+    quantityKg: number;
+    originProvince: string;
+    harvestDate: Date;
+    grade: LaneGrade;
+  } | null;
+  route: {
+    id: string;
+    laneId: string;
+    transportMode: LaneTransportMode;
+    carrier: string | null;
+    originGps: LaneGpsPoint | null;
+    destinationGps: LaneGpsPoint | null;
+    estimatedTransitHours: number | null;
+  } | null;
+  checkpoints: Array<{
+    id: string;
+    laneId: string;
+    sequence: number;
+    locationName: string;
+    gpsLat: number | null;
+    gpsLng: number | null;
+    timestamp: Date | null;
+    temperature: number | null;
+    signatureHash: string | null;
+    signerName: string | null;
+    conditionNotes: string | null;
+    status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  }>;
+  ruleSnapshot: LaneRuleSnapshot | null;
+}
+
+export interface LaneRuleSnapshotPayload {
+  market: LaneMarket;
+  product: LaneProduct;
+  version: number;
+  effectiveDate: Date;
+  sourcePath?: string;
+  requiredDocuments: string[];
+  completenessWeights: {
+    regulatory: number;
+    quality: number;
+    coldChain: number;
+    chainOfCustody: number;
+  };
+  substances: Array<{
+    name: string;
+    cas: string;
+    thaiMrl: number;
+    destinationMrl: number;
+    stringencyRatio: number;
+    riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  }>;
+}
+
+export interface LaneRuleSnapshotResolver {
+  resolve(
+    market: LaneMarket,
+    product: LaneProduct,
+  ): Promise<LaneRuleSnapshotPayload | null>;
+}
+
+export interface LaneStore {
+  runInTransaction<T>(operation: (store: LaneStore) => Promise<T>): Promise<T>;
+  findLatestLaneIdByYear(year: number): Promise<string | null>;
+  findLatestBatchIdByPrefix(prefix: string): Promise<string | null>;
+  createLaneBundle(input: {
+    exporterId: string;
+    laneId: string;
+    status: LaneStatus;
+    productType: LaneProduct;
+    destinationMarket: LaneMarket;
+    completenessScore: number;
+    coldChainMode?: LaneColdChainMode;
+    batchId: string;
+    batch: CreateLaneInput['batch'];
+    route: CreateLaneInput['route'];
+    checkpoints: NonNullable<CreateLaneInput['checkpoints']>;
+    ruleSnapshot: LaneRuleSnapshotPayload | null;
+  }): Promise<LaneDetail>;
+  findLanes(filter: {
+    exporterId?: string;
+    page: number;
+    limit: number;
+    status?: LaneStatus;
+    product?: LaneProduct;
+    market?: LaneMarket;
+  }): Promise<{ items: LaneSummary[]; total: number }>;
+  findLaneById(id: string): Promise<LaneDetail | null>;
+  updateLaneBundle(
+    id: string,
+    input: UpdateLaneInput,
+  ): Promise<LaneDetail | null>;
+}
+
+export interface LaneAuditInput {
+  actor: string;
+  action: AuditAction;
+  entityType: AuditEntityType;
+  entityId: string;
+  payloadHash: string;
+}
+
+export interface LaneListResult {
+  data: LaneSummary[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export type LaneRequestUser = AuthSessionUser;

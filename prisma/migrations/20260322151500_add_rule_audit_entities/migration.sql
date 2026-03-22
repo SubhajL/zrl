@@ -1,0 +1,2 @@
+ALTER TYPE "audit_entity_type" ADD VALUE IF NOT EXISTS 'RULE_SET';
+ALTER TYPE "audit_entity_type" ADD VALUE IF NOT EXISTS 'SUBSTANCE';

@@ -75,17 +75,21 @@ async function seedUsers() {
   return { exporter, partner, admin, auditor };
 }
 
-function buildJapanMangoRuleSnapshot() {
+function buildJapanMangoRuleDefinition() {
+  const effectiveDate = new Date('2026-03-01');
+
   return {
     market: 'JAPAN',
     product: 'MANGO',
     version: 1,
+    effectiveDate,
+    sourcePath: 'rules/japan/mango.yaml',
     substances: [
       {
         name: 'Chlorpyrifos',
         cas: '2921-88-2',
         thaiMrl: 0.5,
-        japanMrl: 0.01,
+        destinationMrl: 0.01,
         stringencyRatio: 50,
         riskLevel: 'CRITICAL',
       },
@@ -93,7 +97,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Dithiocarbamates',
         cas: '111-54-6',
         thaiMrl: 2.0,
-        japanMrl: 0.1,
+        destinationMrl: 0.1,
         stringencyRatio: 20,
         riskLevel: 'CRITICAL',
       },
@@ -101,7 +105,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Carbendazim',
         cas: '10605-21-7',
         thaiMrl: 5.0,
-        japanMrl: 0.5,
+        destinationMrl: 0.5,
         stringencyRatio: 10,
         riskLevel: 'HIGH',
       },
@@ -109,7 +113,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Cypermethrin',
         cas: '52315-07-8',
         thaiMrl: 2.0,
-        japanMrl: 0.2,
+        destinationMrl: 0.2,
         stringencyRatio: 10,
         riskLevel: 'HIGH',
       },
@@ -117,7 +121,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Profenofos',
         cas: '41198-08-7',
         thaiMrl: 0.5,
-        japanMrl: 0.05,
+        destinationMrl: 0.05,
         stringencyRatio: 10,
         riskLevel: 'HIGH',
       },
@@ -125,7 +129,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Imidacloprid',
         cas: '138261-41-3',
         thaiMrl: 1.0,
-        japanMrl: 0.2,
+        destinationMrl: 0.2,
         stringencyRatio: 5,
         riskLevel: 'HIGH',
       },
@@ -133,7 +137,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Metalaxyl',
         cas: '57837-19-1',
         thaiMrl: 1.0,
-        japanMrl: 0.2,
+        destinationMrl: 0.2,
         stringencyRatio: 5,
         riskLevel: 'MEDIUM',
       },
@@ -141,7 +145,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Difenoconazole',
         cas: '119446-68-3',
         thaiMrl: 0.5,
-        japanMrl: 0.1,
+        destinationMrl: 0.1,
         stringencyRatio: 5,
         riskLevel: 'MEDIUM',
       },
@@ -149,7 +153,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Thiabendazole',
         cas: '148-79-8',
         thaiMrl: 10.0,
-        japanMrl: 3.0,
+        destinationMrl: 3.0,
         stringencyRatio: 3.3,
         riskLevel: 'MEDIUM',
       },
@@ -157,7 +161,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Prochloraz',
         cas: '67747-09-5',
         thaiMrl: 5.0,
-        japanMrl: 2.0,
+        destinationMrl: 2.0,
         stringencyRatio: 2.5,
         riskLevel: 'MEDIUM',
       },
@@ -165,7 +169,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Lambda-cyhalothrin',
         cas: '91465-08-6',
         thaiMrl: 0.5,
-        japanMrl: 0.2,
+        destinationMrl: 0.2,
         stringencyRatio: 2.5,
         riskLevel: 'MEDIUM',
       },
@@ -173,7 +177,7 @@ function buildJapanMangoRuleSnapshot() {
         name: 'Acetamiprid',
         cas: '135410-20-7',
         thaiMrl: 0.5,
-        japanMrl: 0.3,
+        destinationMrl: 0.3,
         stringencyRatio: 1.7,
         riskLevel: 'LOW',
       },
@@ -202,6 +206,101 @@ function buildJapanMangoRuleSnapshot() {
       chainOfCustody: 0.15,
     },
   };
+}
+
+function buildRulePayload(
+  definition: ReturnType<typeof buildJapanMangoRuleDefinition>,
+) {
+  return {
+    market: definition.market,
+    product: definition.product,
+    version: definition.version,
+    sourcePath: definition.sourcePath,
+    effectiveDate: definition.effectiveDate.toISOString().slice(0, 10),
+    requiredDocuments: definition.requiredDocuments,
+    completenessWeights: definition.completenessWeights,
+    substances: definition.substances,
+  };
+}
+
+async function seedRuleStore() {
+  const definition = buildJapanMangoRuleDefinition();
+  const payload = buildRulePayload(definition);
+
+  const ruleSet = await prisma.ruleSet.upsert({
+    where: {
+      market_product: {
+        market: definition.market,
+        product: definition.product,
+      },
+    },
+    update: {
+      version: definition.version,
+      effectiveDate: definition.effectiveDate,
+      sourcePath: definition.sourcePath,
+      rules: payload,
+    },
+    create: {
+      market: definition.market,
+      product: definition.product,
+      version: definition.version,
+      effectiveDate: definition.effectiveDate,
+      sourcePath: definition.sourcePath,
+      rules: payload,
+    },
+  });
+
+  await prisma.ruleVersion.upsert({
+    where: {
+      ruleSetId_version: {
+        ruleSetId: ruleSet.id,
+        version: definition.version,
+      },
+    },
+    update: {
+      market: definition.market,
+      product: definition.product,
+      changesSummary: 'Initial rules import',
+      rules: payload,
+    },
+    create: {
+      ruleSetId: ruleSet.id,
+      market: definition.market,
+      product: definition.product,
+      version: definition.version,
+      changesSummary: 'Initial rules import',
+      rules: payload,
+    },
+  });
+
+  for (const substance of definition.substances) {
+    await prisma.substance.upsert({
+      where: {
+        market_name: {
+          market: definition.market,
+          name: substance.name,
+        },
+      },
+      update: {
+        cas: substance.cas,
+        thaiMrl: substance.thaiMrl,
+        destinationMrl: substance.destinationMrl,
+        stringencyRatio: substance.stringencyRatio,
+        riskLevel: substance.riskLevel,
+      },
+      create: {
+        market: definition.market,
+        name: substance.name,
+        cas: substance.cas,
+        thaiMrl: substance.thaiMrl,
+        destinationMrl: substance.destinationMrl,
+        stringencyRatio: substance.stringencyRatio,
+        riskLevel: substance.riskLevel,
+      },
+    });
+  }
+
+  return definition;
 }
 
 async function seedSampleLane(exporterId: string) {
@@ -241,15 +340,16 @@ async function seedSampleLane(exporterId: string) {
     },
   });
 
-  const ruleSnapshot = buildJapanMangoRuleSnapshot();
+  const ruleDefinition = buildJapanMangoRuleDefinition();
+  const ruleSnapshot = buildRulePayload(ruleDefinition);
   await prisma.ruleSnapshot.create({
     data: {
       laneId: lane.id,
-      market: 'JAPAN',
-      product: 'MANGO',
-      version: 1,
+      market: ruleDefinition.market,
+      product: ruleDefinition.product,
+      version: ruleDefinition.version,
       rules: ruleSnapshot,
-      effectiveDate: new Date('2026-03-01'),
+      effectiveDate: ruleDefinition.effectiveDate,
     },
   });
 
@@ -340,6 +440,11 @@ async function main() {
 
   const users = await seedUsers();
   console.log(`  ✓ Created ${Object.keys(users).length} users`);
+
+  const definition = await seedRuleStore();
+  console.log(
+    `  ✓ Seeded rules store: ${definition.market} ${definition.product} v${definition.version}`,
+  );
 
   const lane = await seedSampleLane(users.exporter.id);
   console.log(`  ✓ Created sample lane: ${lane.laneId}`);

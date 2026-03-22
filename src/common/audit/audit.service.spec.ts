@@ -32,9 +32,9 @@ function buildEntry(
 }
 
 class MockAuditStore implements AuditStore {
-  lockLane = jest.fn<Promise<void>, [string]>();
-  resolveLaneId = jest.fn<Promise<string | null>, [string, string]>();
-  findLatestForLane = jest.fn<Promise<AuditEntryRecord | null>, [string]>();
+  lockStream = jest.fn<Promise<void>, [string]>();
+  resolveStreamId = jest.fn<Promise<string | null>, [string, string]>();
+  findLatestForStream = jest.fn<Promise<AuditEntryRecord | null>, [string]>();
   createEntry = jest.fn<Promise<AuditEntryRecord>, [AuditEntryRecord]>();
   findEntriesForLane = jest.fn<
     Promise<AuditEntryRecord[]>,
@@ -75,8 +75,8 @@ describe('AuditService', () => {
       timestamp,
     };
 
-    store.resolveLaneId.mockResolvedValue('lane-1');
-    store.findLatestForLane.mockResolvedValue(null);
+    store.resolveStreamId.mockResolvedValue('lane-1');
+    store.findLatestForStream.mockResolvedValue(null);
     store.createEntry.mockImplementation((entry) =>
       Promise.resolve({
         ...entry,
@@ -86,9 +86,9 @@ describe('AuditService', () => {
 
     const created = await service.createEntry(input);
 
-    expect(store.resolveLaneId).toHaveBeenCalledWith('LANE', 'lane-1');
-    expect(store.lockLane).toHaveBeenCalledWith('lane-1');
-    expect(store.findLatestForLane).toHaveBeenCalledWith('lane-1');
+    expect(store.resolveStreamId).toHaveBeenCalledWith('LANE', 'lane-1');
+    expect(store.lockStream).toHaveBeenCalledWith('lane-1');
+    expect(store.findLatestForStream).toHaveBeenCalledWith('lane-1');
     expect(created.prevHash).toBe(getGenesisHash());
     expect(created.entryHash).toBe(
       hashingService.computeEntryHash({
@@ -110,8 +110,8 @@ describe('AuditService', () => {
         'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
     });
 
-    store.resolveLaneId.mockResolvedValue('lane-1');
-    store.findLatestForLane.mockResolvedValue(latest);
+    store.resolveStreamId.mockResolvedValue('lane-1');
+    store.findLatestForStream.mockResolvedValue(latest);
     store.createEntry.mockImplementation((entry) =>
       Promise.resolve({
         ...entry,
@@ -129,12 +129,12 @@ describe('AuditService', () => {
       timestamp: new Date('2026-03-16T08:00:00.000Z'),
     });
 
-    expect(store.lockLane).toHaveBeenCalledWith('lane-1');
+    expect(store.lockStream).toHaveBeenCalledWith('lane-1');
     expect(created.prevHash).toBe(latest.entryHash);
   });
 
-  it('createEntry throws when the entity cannot resolve to a lane', async () => {
-    store.resolveLaneId.mockResolvedValue(null);
+  it('createEntry throws when the entity cannot resolve to an audit stream', async () => {
+    store.resolveStreamId.mockResolvedValue(null);
 
     await expect(
       service.createEntry({
@@ -145,7 +145,39 @@ describe('AuditService', () => {
         payloadHash:
           '3333333333333333333333333333333333333333333333333333333333333333',
       }),
-    ).rejects.toThrow('Unable to resolve lane for audit entry.');
+    ).rejects.toThrow('Unable to resolve audit stream for audit entry.');
+  });
+
+  it('createEntry chains rule changes in the global rules stream', async () => {
+    const latest = buildEntry({
+      id: 'audit-rules-1',
+      entityType: AuditEntityType.RULE_SET,
+      entityId: 'rule-set-1',
+      entryHash:
+        'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    });
+
+    store.resolveStreamId.mockResolvedValue('GLOBAL_RULES_STREAM');
+    store.findLatestForStream.mockResolvedValue(latest);
+    store.createEntry.mockImplementation((entry) =>
+      Promise.resolve({
+        ...entry,
+        id: 'audit-rules-2',
+      }),
+    );
+
+    const created = await service.createEntry({
+      actor: 'admin-1',
+      action: AuditAction.UPDATE,
+      entityType: AuditEntityType.SUBSTANCE,
+      entityId: 'substance-1',
+      payloadHash:
+        '6666666666666666666666666666666666666666666666666666666666666666',
+      timestamp: new Date('2026-03-16T09:00:00.000Z'),
+    });
+
+    expect(store.lockStream).toHaveBeenCalledWith('GLOBAL_RULES_STREAM');
+    expect(created.prevHash).toBe(latest.entryHash);
   });
 
   it('getEntriesForLane applies action, actor, and date filters', async () => {

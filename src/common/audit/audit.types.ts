@@ -14,6 +14,8 @@ export const AuditEntityType = {
   ARTIFACT: 'ARTIFACT',
   CHECKPOINT: 'CHECKPOINT',
   PROOF_PACK: 'PROOF_PACK',
+  RULE_SET: 'RULE_SET',
+  SUBSTANCE: 'SUBSTANCE',
 } as const;
 
 export type AuditEntityType =
@@ -84,12 +86,12 @@ export interface AuditedMetadata {
 
 export interface AuditStore {
   runInTransaction<T>(operation: (store: AuditStore) => Promise<T>): Promise<T>;
-  lockLane(laneId: string): Promise<void>;
-  resolveLaneId(
+  lockStream(streamId: string): Promise<void>;
+  resolveStreamId(
     entityType: AuditEntityType,
     entityId: string,
   ): Promise<string | null>;
-  findLatestForLane(laneId: string): Promise<AuditEntryRecord | null>;
+  findLatestForStream(streamId: string): Promise<AuditEntryRecord | null>;
   createEntry(entry: CreateAuditEntryRecord): Promise<AuditEntryRecord>;
   findEntriesForLane(
     laneId: string,
