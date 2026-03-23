@@ -16,7 +16,9 @@ import { LaneService } from './lane.service';
 import type {
   CreateLaneInput,
   LaneListQuery,
+  LaneColdChainConfigInput,
   LaneMarket,
+  LaneColdChainMode,
   LaneProduct,
   LaneStatus,
   LaneTransportMode,
@@ -116,6 +118,15 @@ function parseProduct(value: unknown): LaneProduct {
   return normalized as LaneProduct;
 }
 
+function parseColdChainMode(value: unknown): LaneColdChainMode {
+  const normalized = assertString(value, 'coldChainMode').toUpperCase();
+  if (!['MANUAL', 'LOGGER', 'TELEMETRY'].includes(normalized)) {
+    throw new BadRequestException('Unsupported cold-chain mode.');
+  }
+
+  return normalized as Exclude<LaneColdChainMode, null>;
+}
+
 function parseStatus(value: unknown): LaneStatus {
   const normalized = assertString(value, 'status').toUpperCase();
   if (
@@ -145,11 +156,45 @@ function parseGpsPoint(value: unknown, context: string) {
   };
 }
 
+function parseColdChainConfig(
+  value: unknown,
+  context: string,
+): LaneColdChainConfigInput {
+  const record = assertObject(value, context);
+
+  return {
+    mode: parseColdChainMode(record['mode']) as Exclude<
+      LaneColdChainMode,
+      null
+    >,
+    deviceId: assertOptionalString(record['deviceId']),
+    dataFrequencySeconds: assertOptionalNumber(record['dataFrequencySeconds']),
+  };
+}
+
 function parseCreateLaneInput(body: unknown): CreateLaneInput {
   const record = assertObject(body, 'lane payload');
   const batch = assertObject(record['batch'], 'batch');
   const destination = assertObject(record['destination'], 'destination');
   const route = assertObject(record['route'], 'route');
+  const coldChainMode =
+    record['coldChainMode'] === undefined
+      ? undefined
+      : parseColdChainMode(record['coldChainMode']);
+  const coldChainConfig =
+    record['coldChainConfig'] === undefined
+      ? undefined
+      : parseColdChainConfig(record['coldChainConfig'], 'coldChainConfig');
+
+  if (
+    coldChainMode !== undefined &&
+    coldChainConfig !== undefined &&
+    coldChainMode !== coldChainConfig.mode
+  ) {
+    throw new BadRequestException(
+      'coldChainMode must match coldChainConfig.mode when both are provided.',
+    );
+  }
 
   return {
     product: parseProduct(record['product']),
@@ -184,12 +229,39 @@ function parseCreateLaneInput(body: unknown): CreateLaneInput {
         route['estimatedTransitHours'],
       ),
     },
+    coldChainMode,
+    coldChainConfig,
   };
 }
 
 function parseUpdateLaneInput(body: unknown): UpdateLaneInput {
   const record = assertObject(body, 'lane update payload');
   const result: UpdateLaneInput = {};
+
+  if (record['coldChainMode'] !== undefined) {
+    result.coldChainMode =
+      record['coldChainMode'] === null
+        ? null
+        : parseColdChainMode(record['coldChainMode']);
+  }
+
+  if (record['coldChainConfig'] !== undefined) {
+    result.coldChainConfig = parseColdChainConfig(
+      record['coldChainConfig'],
+      'coldChainConfig',
+    );
+  }
+
+  if (
+    result.coldChainMode !== undefined &&
+    result.coldChainMode !== null &&
+    result.coldChainConfig !== undefined &&
+    result.coldChainMode !== result.coldChainConfig.mode
+  ) {
+    throw new BadRequestException(
+      'coldChainMode must match coldChainConfig.mode when both are provided.',
+    );
+  }
 
   if (record['batch'] !== undefined) {
     const batch = assertObject(record['batch'], 'batch');

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import {
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { ColdChainService } from '../cold-chain/cold-chain.service';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
@@ -18,6 +20,7 @@ import {
 import type {
   CreateLaneInput,
   LaneStatus,
+  LaneColdChainMode,
   LaneListQuery,
   LaneListResult,
   LaneRequestUser,
@@ -81,10 +84,12 @@ export class LaneService {
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
     private readonly ruleSnapshotResolver: LaneRuleSnapshotResolver,
+    private readonly coldChainService: ColdChainService,
   ) {}
 
   async create(input: CreateLaneInput, actor: LaneRequestUser) {
     const now = new Date();
+    const coldChainConfig = this.normalizeCreateColdChainConfig(input);
     const lane = await this.laneStore.runInTransaction(
       async (transactional) => {
         const latestLaneId = await transactional.findLatestLaneIdByYear(
@@ -120,7 +125,9 @@ export class LaneService {
           productType: input.product,
           destinationMarket: input.destination.market,
           completenessScore: 0,
-          coldChainMode: input.coldChainMode ?? null,
+          coldChainMode: coldChainConfig.mode,
+          coldChainDeviceId: coldChainConfig.deviceId,
+          coldChainDataFrequencySeconds: coldChainConfig.dataFrequencySeconds,
           batchId: generatedBatchId,
           batch: input.batch,
           route: input.route,
@@ -179,13 +186,89 @@ export class LaneService {
       throw new ForbiddenException('Lane ownership required.');
     }
 
-    const lane = await this.laneStore.updateLaneBundle(id, input);
+    const lane = await this.laneStore.updateLaneBundle(
+      id,
+      this.normalizeUpdateColdChainConfig(input),
+    );
     if (lane === null) {
       throw new NotFoundException('Lane not found.');
     }
 
     await this.appendAuditEntry(actor.id, AuditAction.UPDATE, lane);
     return { lane };
+  }
+
+  private normalizeCreateColdChainConfig(input: CreateLaneInput): {
+    mode: LaneColdChainMode;
+    deviceId: string | null;
+    dataFrequencySeconds: number | null;
+  } {
+    if (input.coldChainConfig !== undefined) {
+      return this.coldChainService.validateLaneConfiguration(
+        input.coldChainConfig,
+      );
+    }
+
+    if (input.coldChainMode === undefined || input.coldChainMode === null) {
+      return {
+        mode: null,
+        deviceId: null,
+        dataFrequencySeconds: null,
+      };
+    }
+
+    return this.coldChainService.validateLaneConfiguration({
+      mode: input.coldChainMode,
+    });
+  }
+
+  private normalizeUpdateColdChainConfig(
+    input: UpdateLaneInput,
+  ): UpdateLaneInput {
+    if (input.coldChainConfig !== undefined) {
+      const config = this.coldChainService.validateLaneConfiguration(
+        input.coldChainConfig,
+      );
+
+      return {
+        ...input,
+        coldChainMode: config.mode,
+        coldChainConfig: {
+          mode: config.mode,
+          deviceId: config.deviceId ?? undefined,
+          dataFrequencySeconds: config.dataFrequencySeconds ?? undefined,
+        },
+      };
+    }
+
+    if (input.coldChainMode === undefined) {
+      return input;
+    }
+
+    if (input.coldChainMode === null) {
+      return {
+        ...input,
+        coldChainMode: null,
+      };
+    }
+
+    if (input.coldChainConfig !== undefined) {
+      throw new BadRequestException('Conflicting cold-chain configuration.');
+    }
+
+    const config = this.coldChainService.validateLaneConfiguration({
+      mode: input.coldChainMode,
+    });
+
+    return {
+      ...input,
+      coldChainMode: config.mode,
+      coldChainConfig: {
+        mode: config.mode,
+        deviceId: config.deviceId ?? undefined,
+        dataFrequencySeconds: config.dataFrequencySeconds ?? undefined,
+      },
+    };
   }
 
   async getCompleteness(id: string) {

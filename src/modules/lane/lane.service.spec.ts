@@ -1,9 +1,11 @@
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
+import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { LaneService } from './lane.service';
 import type {
   CreateLaneInput,
+  LaneColdChainConfigInput,
   LaneDetail,
   LaneListQuery,
   LaneRuleSnapshotResolver,
@@ -21,6 +23,9 @@ function buildLaneDetail(overrides: Partial<LaneDetail> = {}): LaneDetail {
     productType: 'MANGO',
     destinationMarket: 'JAPAN',
     completenessScore: 0,
+    coldChainMode: null,
+    coldChainDeviceId: null,
+    coldChainDataFrequencySeconds: null,
     statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
     createdAt: new Date('2026-03-22T05:00:00.000Z'),
     updatedAt: new Date('2026-03-22T05:00:00.000Z'),
@@ -69,6 +74,8 @@ function buildLaneSummary(overrides: Partial<LaneSummary> = {}): LaneSummary {
     destinationMarket: 'JAPAN',
     completenessScore: 0,
     coldChainMode: null,
+    coldChainDeviceId: null,
+    coldChainDataFrequencySeconds: null,
     statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
     createdAt: new Date('2026-03-22T05:00:00.000Z'),
     updatedAt: new Date('2026-03-22T05:00:00.000Z'),
@@ -126,10 +133,21 @@ describe('LaneService', () => {
   const ruleSnapshotResolver = {
     resolve: resolveRuleSnapshotMock,
   } as unknown as LaneRuleSnapshotResolver;
+  const validateLaneConfigurationMock = jest.fn();
+  const coldChainService = {
+    validateLaneConfiguration: validateLaneConfigurationMock,
+  } as unknown as ColdChainService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(new Date('2026-03-22T05:00:00.000Z'));
+    validateLaneConfigurationMock.mockImplementation(
+      (config: LaneColdChainConfigInput) => ({
+        mode: config.mode,
+        deviceId: config.deviceId ?? null,
+        dataFrequencySeconds: config.dataFrequencySeconds ?? null,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -142,6 +160,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const createInput: CreateLaneInput = {
       product: 'MANGO',
@@ -168,6 +187,11 @@ describe('LaneService', () => {
           locationName: 'Packing House',
         },
       ],
+      coldChainConfig: {
+        mode: 'LOGGER',
+        deviceId: 'logger-1',
+        dataFrequencySeconds: 300,
+      },
     };
     const lane = buildLaneDetail();
     const snapshot = lane.ruleSnapshot;
@@ -198,6 +222,9 @@ describe('LaneService', () => {
         laneId: 'LN-2026-002',
         batchId: 'MNG-JPN-20260315-002',
         exporterId: 'user-1',
+        coldChainMode: 'LOGGER',
+        coldChainDeviceId: 'logger-1',
+        coldChainDataFrequencySeconds: 300,
       }),
     );
     expect(createAuditEntryMock).toHaveBeenCalledWith(
@@ -217,6 +244,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const summary = buildLaneSummary();
 
@@ -270,6 +298,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const lane = buildLaneDetail();
     findLaneByIdMock.mockResolvedValue(lane);
@@ -283,8 +312,14 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const updateInput: UpdateLaneInput = {
+      coldChainConfig: {
+        mode: 'TELEMETRY',
+        deviceId: 'telemetry-1',
+        dataFrequencySeconds: 60,
+      },
       batch: {
         variety: 'Mahachanok',
         quantityKg: 6000,
@@ -333,6 +368,11 @@ describe('LaneService', () => {
     expect(updateCall.batch?.variety).toBe('Mahachanok');
     expect(updateCall.batch?.quantityKg).toBe(6000);
     expect(updateCall.route?.carrier).toBe('Kerry Air');
+    expect(updateCall.coldChainConfig).toEqual({
+      mode: 'TELEMETRY',
+      deviceId: 'telemetry-1',
+      dataFrequencySeconds: 60,
+    });
     expect(createAuditEntryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: 'user-1',
@@ -350,6 +390,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const lane = buildLaneDetail({
       exporterId: 'user-2',
@@ -386,6 +427,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const existingLane = buildLaneDetail({
       status: 'EVIDENCE_COLLECTING',
@@ -465,6 +507,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const existingLane = buildLaneDetail({
       status: currentStatus,
@@ -507,6 +550,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const existingLane = buildLaneDetail({
       status: 'VALIDATED',
@@ -546,6 +590,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const existingLane = buildLaneDetail({
       status: 'CLOSED',
@@ -584,6 +629,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
 
     findLaneByIdMock.mockResolvedValue(
@@ -620,6 +666,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
 
     findLaneByIdMock.mockResolvedValue(
@@ -656,6 +703,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
 
     findLaneByIdMock.mockResolvedValue(
@@ -691,6 +739,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
     const closedLane = buildLaneDetail({
       status: 'CLOSED',
@@ -727,6 +776,7 @@ describe('LaneService', () => {
       hashingService,
       auditService,
       ruleSnapshotResolver,
+      coldChainService,
     );
 
     findLaneByIdMock.mockResolvedValue(

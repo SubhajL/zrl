@@ -49,6 +49,9 @@ describe('LaneController (e2e)', () => {
         productType: 'MANGO',
         destinationMarket: 'JAPAN',
         completenessScore: 0,
+        coldChainMode: 'LOGGER',
+        coldChainDeviceId: 'logger-1',
+        coldChainDataFrequencySeconds: 300,
         statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
         createdAt: new Date('2026-03-22T05:00:00.000Z'),
         updatedAt: new Date('2026-03-22T05:00:00.000Z'),
@@ -88,6 +91,8 @@ describe('LaneController (e2e)', () => {
           completenessScore: 0,
           statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
           coldChainMode: null,
+          coldChainDeviceId: null,
+          coldChainDataFrequencySeconds: null,
           createdAt: new Date('2026-03-22T05:00:00.000Z'),
           updatedAt: new Date('2026-03-22T05:00:00.000Z'),
         },
@@ -115,6 +120,9 @@ describe('LaneController (e2e)', () => {
         route: null,
         checkpoints: [],
         ruleSnapshot: null,
+        coldChainMode: 'LOGGER',
+        coldChainDeviceId: 'logger-1',
+        coldChainDataFrequencySeconds: 300,
       },
     }),
     update: jest.fn().mockResolvedValue({
@@ -133,6 +141,9 @@ describe('LaneController (e2e)', () => {
         route: null,
         checkpoints: [],
         ruleSnapshot: null,
+        coldChainMode: 'TELEMETRY',
+        coldChainDeviceId: 'telemetry-1',
+        coldChainDataFrequencySeconds: 60,
       },
     }),
     transition: jest.fn().mockResolvedValue({
@@ -151,6 +162,9 @@ describe('LaneController (e2e)', () => {
         route: null,
         checkpoints: [],
         ruleSnapshot: null,
+        coldChainMode: 'TELEMETRY',
+        coldChainDeviceId: 'telemetry-1',
+        coldChainDataFrequencySeconds: 60,
       },
     }),
   };
@@ -200,6 +214,11 @@ describe('LaneController (e2e)', () => {
           destinationGps: { lat: 35.772, lng: 140.3929 },
           estimatedTransitHours: 8,
         },
+        coldChainConfig: {
+          mode: 'LOGGER',
+          deviceId: 'logger-1',
+          dataFrequencySeconds: 300,
+        },
       })
       .expect(201)
       .expect((response: Response) => {
@@ -208,6 +227,16 @@ describe('LaneController (e2e)', () => {
         };
         expect(body.lane.laneId).toBe('LN-2026-002');
         expect(body.lane.batch.batchId).toBe('MNG-JPN-20260315-002');
+        expect(laneServiceMock.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            coldChainConfig: {
+              mode: 'LOGGER',
+              deviceId: 'logger-1',
+              dataFrequencySeconds: 300,
+            },
+          }),
+          expect.any(Object),
+        );
       });
   });
 
