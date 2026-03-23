@@ -303,6 +303,57 @@ async function seedRuleStore() {
   return definition;
 }
 
+async function seedFruitProfiles() {
+  const profiles = [
+    {
+      productType: 'MANGO' as const,
+      optimalMinC: 10,
+      optimalMaxC: 13,
+      chillingThresholdC: 10,
+      heatThresholdC: 15,
+      shelfLifeMinDays: 14,
+      shelfLifeMaxDays: 21,
+    },
+    {
+      productType: 'DURIAN' as const,
+      optimalMinC: 12,
+      optimalMaxC: 15,
+      chillingThresholdC: 10,
+      heatThresholdC: 18,
+      shelfLifeMinDays: 7,
+      shelfLifeMaxDays: 14,
+    },
+    {
+      productType: 'MANGOSTEEN' as const,
+      optimalMinC: 10,
+      optimalMaxC: 13,
+      chillingThresholdC: 8,
+      heatThresholdC: 15,
+      shelfLifeMinDays: 14,
+      shelfLifeMaxDays: 21,
+    },
+    {
+      productType: 'LONGAN' as const,
+      optimalMinC: 2,
+      optimalMaxC: 5,
+      chillingThresholdC: null,
+      heatThresholdC: 8,
+      shelfLifeMinDays: 21,
+      shelfLifeMaxDays: 30,
+    },
+  ];
+
+  for (const profile of profiles) {
+    await prisma.fruitProfile.upsert({
+      where: { productType: profile.productType },
+      update: profile,
+      create: profile,
+    });
+  }
+
+  return profiles;
+}
+
 async function seedSampleLane(exporterId: string) {
   const lane = await prisma.lane.create({
     data: {
@@ -313,6 +364,8 @@ async function seedSampleLane(exporterId: string) {
       destinationMarket: 'JAPAN',
       completenessScore: 0,
       coldChainMode: 'LOGGER',
+      coldChainDeviceId: 'seed-logger-1',
+      coldChainDataFrequencySeconds: 300,
     },
   });
 
@@ -445,6 +498,9 @@ async function main() {
   console.log(
     `  ✓ Seeded rules store: ${definition.market} ${definition.product} v${definition.version}`,
   );
+
+  const profiles = await seedFruitProfiles();
+  console.log(`  ✓ Seeded fruit profiles: ${profiles.length}`);
 
   const lane = await seedSampleLane(users.exporter.id);
   console.log(`  ✓ Created sample lane: ${lane.laneId}`);

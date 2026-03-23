@@ -210,6 +210,8 @@ model Lane {
   completenessScore Decimal           @default(0) @map("completeness_score") @db.Decimal(5, 2)
   coldChainMode     ColdChainMode?    @map("cold_chain_mode")
   statusChangedAt   DateTime          @default(now()) @map("status_changed_at")
+  coldChainDeviceId String?           @map("cold_chain_device_id")
+  coldChainDataFrequencySeconds Int?  @map("cold_chain_data_frequency_seconds")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
@@ -223,6 +225,21 @@ model Lane {
   proofPacks   ProofPack[]
 
   @@map("lanes")
+}
+
+model FruitProfile {
+  id                        String      @id @default(uuid())
+  productType               ProductType @unique @map("product_type")
+  optimalMinC               Decimal     @map("optimal_min_c") @db.Decimal(5, 2)
+  optimalMaxC               Decimal     @map("optimal_max_c") @db.Decimal(5, 2)
+  chillingThresholdC        Decimal?    @map("chilling_threshold_c") @db.Decimal(5, 2)
+  heatThresholdC            Decimal     @map("heat_threshold_c") @db.Decimal(5, 2)
+  shelfLifeMinDays          Int         @map("shelf_life_min_days")
+  shelfLifeMaxDays          Int         @map("shelf_life_max_days")
+  createdAt                 DateTime    @default(now()) @map("created_at")
+  updatedAt                 DateTime    @updatedAt @map("updated_at")
+
+  @@map("fruit_profiles")
 }
 
 model Batch {

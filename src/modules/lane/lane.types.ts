@@ -55,6 +55,12 @@ export type LaneGrade = (typeof LaneGrade)[keyof typeof LaneGrade];
 
 export type LaneColdChainMode = 'MANUAL' | 'LOGGER' | 'TELEMETRY' | null;
 
+export interface LaneColdChainConfigInput {
+  mode: Exclude<LaneColdChainMode, null>;
+  deviceId?: string;
+  dataFrequencySeconds?: number;
+}
+
 export interface LaneGpsPoint {
   lat: number;
   lng: number;
@@ -92,10 +98,12 @@ export interface CreateLaneInput {
     status?: 'PENDING' | 'COMPLETED' | 'OVERDUE';
   }>;
   coldChainMode?: LaneColdChainMode;
+  coldChainConfig?: LaneColdChainConfigInput;
 }
 
 export interface UpdateLaneInput {
   coldChainMode?: LaneColdChainMode;
+  coldChainConfig?: LaneColdChainConfigInput;
   batch?: Partial<CreateLaneInput['batch']>;
   route?: Partial<CreateLaneInput['route']>;
 }
@@ -117,6 +125,8 @@ export interface LaneSummary {
   destinationMarket: LaneMarket;
   completenessScore: number;
   coldChainMode: LaneColdChainMode;
+  coldChainDeviceId: string | null;
+  coldChainDataFrequencySeconds: number | null;
   createdAt: Date;
   updatedAt: Date;
   statusChangedAt: Date;
@@ -234,6 +244,8 @@ export interface LaneStore {
     destinationMarket: LaneMarket;
     completenessScore: number;
     coldChainMode?: LaneColdChainMode;
+    coldChainDeviceId?: string | null;
+    coldChainDataFrequencySeconds?: number | null;
     batchId: string;
     batch: CreateLaneInput['batch'];
     route: CreateLaneInput['route'];

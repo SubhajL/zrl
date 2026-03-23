@@ -28,6 +28,8 @@ interface LaneRow extends QueryResultRow {
   destination_market: LaneMarket;
   completeness_score: string | number;
   cold_chain_mode: LaneColdChainMode;
+  cold_chain_device_id: string | null;
+  cold_chain_data_frequency_seconds: number | null;
   created_at: Date | string;
   updated_at: Date | string;
   status_changed_at: Date | string;
@@ -172,6 +174,8 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
     destinationMarket: LaneMarket;
     completenessScore: number;
     coldChainMode?: LaneColdChainMode;
+    coldChainDeviceId?: string | null;
+    coldChainDataFrequencySeconds?: number | null;
     batchId: string;
     batch: CreateLaneInput['batch'];
     route: CreateLaneInput['route'];
@@ -195,10 +199,12 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           completeness_score,
           cold_chain_mode,
           status_changed_at,
+          cold_chain_device_id,
+          cold_chain_data_frequency_seconds,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, NOW(), NOW())
       `,
       [
         laneDbId,
@@ -209,6 +215,8 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
         input.destinationMarket,
         input.completenessScore,
         input.coldChainMode ?? null,
+        input.coldChainDeviceId ?? null,
+        input.coldChainDataFrequencySeconds ?? null,
       ],
     );
 
@@ -394,6 +402,9 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           completeness_score,
           cold_chain_mode,
           status_changed_at,
+          cold_chain_device_id,
+          cold_chain_data_frequency_seconds,
+          status_changed_at,
           created_at,
           updated_at
         FROM lanes
@@ -424,6 +435,9 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           destination_market,
           completeness_score,
           cold_chain_mode,
+          status_changed_at,
+          cold_chain_device_id,
+          cold_chain_data_frequency_seconds,
           status_changed_at,
           created_at,
           updated_at
@@ -575,14 +589,32 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       return null;
     }
 
-    if (input.coldChainMode !== undefined) {
+    if (
+      input.coldChainMode !== undefined ||
+      input.coldChainConfig !== undefined
+    ) {
+      const coldChainMode =
+        input.coldChainConfig?.mode ?? input.coldChainMode ?? null;
+      const coldChainDeviceId =
+        input.coldChainMode === null
+          ? null
+          : (input.coldChainConfig?.deviceId ?? null);
+      const coldChainDataFrequencySeconds =
+        input.coldChainMode === null
+          ? null
+          : (input.coldChainConfig?.dataFrequencySeconds ?? null);
+
       await executor.query(
         `
           UPDATE lanes
-          SET cold_chain_mode = $2, updated_at = NOW()
+          SET
+            cold_chain_mode = $2,
+            cold_chain_device_id = $3,
+            cold_chain_data_frequency_seconds = $4,
+            updated_at = NOW()
           WHERE id = $1
         `,
-        [id, input.coldChainMode],
+        [id, coldChainMode, coldChainDeviceId, coldChainDataFrequencySeconds],
       );
     }
 
@@ -705,6 +737,8 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       destinationMarket: row.destination_market,
       completenessScore: Number(row.completeness_score),
       coldChainMode: row.cold_chain_mode,
+      coldChainDeviceId: row.cold_chain_device_id,
+      coldChainDataFrequencySeconds: row.cold_chain_data_frequency_seconds,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       statusChangedAt: new Date(row.status_changed_at),
