@@ -16,6 +16,7 @@ import type {
   EvidenceListFilters,
   EvidenceVerificationStatus,
 } from './evidence.types';
+import type { RuleSnapshotPayload } from '../rules-engine/rules-engine.types';
 
 type QueryExecutor = Pool | PoolClient;
 
@@ -23,6 +24,20 @@ interface LaneRow extends QueryResultRow {
   id: string;
   lane_id: string;
   exporter_id: string;
+  completeness_score: string | number;
+}
+
+interface RuleSnapshotRow extends QueryResultRow {
+  market: string;
+  product: string;
+  version: number;
+  effective_date: Date | string;
+  rules: {
+    sourcePath?: string;
+    requiredDocuments?: string[];
+    completenessWeights?: RuleSnapshotPayload['completenessWeights'];
+    substances?: RuleSnapshotPayload['substances'];
+  };
 }
 
 interface ArtifactRow extends QueryResultRow {
@@ -113,25 +128,68 @@ export class PrismaEvidenceStore
   }
 
   async findLaneById(id: string): Promise<EvidenceLaneRecord | null> {
-    const result = await this.requireExecutor().query<LaneRow>(
-      `
-        SELECT
-          id,
-          lane_id,
-          exporter_id
-        FROM lanes
-        WHERE id = $1
-        LIMIT 1
-      `,
-      [id],
-    );
+    const [laneResult, ruleSnapshotResult] = await Promise.all([
+      this.requireExecutor().query<LaneRow>(
+        `
+          SELECT
+            id,
+            lane_id,
+            exporter_id,
+            completeness_score
+          FROM lanes
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id],
+      ),
+      this.requireExecutor().query<RuleSnapshotRow>(
+        `
+          SELECT
+            market,
+            product,
+            version,
+            effective_date,
+            rules
+          FROM rule_snapshots
+          WHERE lane_id = $1
+          LIMIT 1
+        `,
+        [id],
+      ),
+    ]);
 
-    return result.rowCount === 0
+    return laneResult.rowCount === 0
       ? null
       : {
-          id: result.rows[0].id,
-          laneId: result.rows[0].lane_id,
-          exporterId: result.rows[0].exporter_id,
+          id: laneResult.rows[0].id,
+          laneId: laneResult.rows[0].lane_id,
+          exporterId: laneResult.rows[0].exporter_id,
+          completenessScore: Number(laneResult.rows[0].completeness_score),
+          ruleSnapshot:
+            ruleSnapshotResult.rowCount === 0
+              ? null
+              : {
+                  market: ruleSnapshotResult.rows[0]
+                    .market as RuleSnapshotPayload['market'],
+                  product: ruleSnapshotResult.rows[0]
+                    .product as RuleSnapshotPayload['product'],
+                  version: ruleSnapshotResult.rows[0].version,
+                  effectiveDate:
+                    ruleSnapshotResult.rows[0].effective_date instanceof Date
+                      ? ruleSnapshotResult.rows[0].effective_date
+                      : new Date(ruleSnapshotResult.rows[0].effective_date),
+                  sourcePath: ruleSnapshotResult.rows[0].rules.sourcePath ?? '',
+                  requiredDocuments:
+                    ruleSnapshotResult.rows[0].rules.requiredDocuments ?? [],
+                  completenessWeights: ruleSnapshotResult.rows[0].rules
+                    .completenessWeights ?? {
+                    regulatory: 0.4,
+                    quality: 0.25,
+                    coldChain: 0.2,
+                    chainOfCustody: 0.15,
+                  },
+                  substances: ruleSnapshotResult.rows[0].rules.substances ?? [],
+                },
         };
   }
 
@@ -278,6 +336,45 @@ export class PrismaEvidenceStore
     };
   }
 
+  async listArtifactsForEvaluation(laneId: string) {
+    const rows = await this.requireExecutor().query<ArtifactRow>(
+      `
+        SELECT
+          ea.id,
+          ea.lane_id,
+          lanes.lane_id AS lane_public_id,
+          lanes.exporter_id,
+          ea.artifact_type,
+          ea.file_name,
+          ea.mime_type,
+          ea.file_size_bytes,
+          ea.file_path,
+          ea.content_hash,
+          ea.source,
+          ea.checkpoint_id,
+          ea.verification_status,
+          ea.metadata,
+          ea.uploaded_by,
+          ea.uploaded_at,
+          ea.updated_at,
+          ea.deleted_at
+        FROM evidence_artifacts ea
+        INNER JOIN lanes ON lanes.id = ea.lane_id
+        WHERE ea.lane_id = $1
+          AND ea.deleted_at IS NULL
+        ORDER BY ea.uploaded_at ASC, ea.id ASC
+      `,
+      [laneId],
+    );
+
+    return rows.rows.map((row) => ({
+      id: row.id,
+      artifactType: row.artifact_type,
+      fileName: row.file_name,
+      metadata: row.metadata,
+    }));
+  }
+
   async findArtifactById(id: string): Promise<EvidenceArtifactRecord | null> {
     return await this.findArtifactByIdInternal(id, false);
   }
@@ -340,6 +437,21 @@ export class PrismaEvidenceStore
         relationshipType: edge.relationship_type,
       })),
     };
+  }
+
+  async updateLaneCompletenessScore(
+    laneId: string,
+    score: number,
+  ): Promise<void> {
+    await this.requireExecutor().query(
+      `
+        UPDATE lanes
+        SET completeness_score = $2,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      [laneId, score],
+    );
   }
 
   async softDeleteArtifact(id: string): Promise<EvidenceArtifactRecord | null> {

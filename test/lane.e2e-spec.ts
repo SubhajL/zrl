@@ -167,6 +167,27 @@ describe('LaneController (e2e)', () => {
         coldChainDataFrequencySeconds: 60,
       },
     }),
+    getCompleteness: jest.fn().mockResolvedValue({
+      score: 73,
+      required: 4,
+      present: 3,
+      missing: ['VHT Certificate'],
+      checklist: [
+        {
+          key: 'phytosanitary-certificate',
+          label: 'Phytosanitary Certificate',
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: true,
+          present: true,
+          status: 'PRESENT',
+          artifactIds: ['artifact-1'],
+        },
+      ],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    }),
   };
 
   beforeEach(async () => {
@@ -263,6 +284,30 @@ describe('LaneController (e2e)', () => {
           totalPages: 1,
         });
       });
+  });
+
+  it('GET /lanes/:id/completeness returns the weighted checklist payload', async () => {
+    await request(app.getHttpServer())
+      .get('/lanes/lane-db-1/completeness')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          score: number;
+          missing: string[];
+          checklist: Array<{ label: string; category: string }>;
+        };
+        expect(body.score).toBe(73);
+        expect(body.missing).toEqual(['VHT Certificate']);
+        expect(body.checklist).toEqual([
+          expect.objectContaining({
+            label: 'Phytosanitary Certificate',
+            category: 'REGULATORY',
+          }),
+        ]);
+      });
+
+    expect(laneServiceMock.getCompleteness).toHaveBeenCalledWith('lane-db-1');
   });
 
   it('GET /lanes/:id returns lane detail with auth guard wiring', async () => {

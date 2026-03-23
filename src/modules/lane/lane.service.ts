@@ -10,6 +10,7 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
@@ -85,6 +86,7 @@ export class LaneService {
     private readonly auditService: AuditService,
     private readonly ruleSnapshotResolver: LaneRuleSnapshotResolver,
     private readonly coldChainService: ColdChainService,
+    private readonly rulesEngineService: RulesEngineService,
   ) {}
 
   async create(input: CreateLaneInput, actor: LaneRequestUser) {
@@ -276,19 +278,29 @@ export class LaneService {
     if (lane === null) {
       throw new NotFoundException('Lane not found.');
     }
+    const artifacts = await this.laneStore.listEvidenceArtifactsForLane(id);
 
-    const requiredDocuments = lane.ruleSnapshot?.rules.requiredDocuments ?? [];
-    const present = Math.min(
-      requiredDocuments.length,
-      Math.round((lane.completenessScore / 100) * requiredDocuments.length),
+    return this.rulesEngineService.evaluateLane(
+      lane.ruleSnapshot === null
+        ? null
+        : {
+            market: lane.ruleSnapshot.market,
+            product: lane.ruleSnapshot.product,
+            version: lane.ruleSnapshot.version,
+            effectiveDate: lane.ruleSnapshot.effectiveDate,
+            sourcePath: lane.ruleSnapshot.rules.sourcePath ?? '',
+            requiredDocuments: lane.ruleSnapshot.rules.requiredDocuments ?? [],
+            completenessWeights: lane.ruleSnapshot.rules
+              .completenessWeights ?? {
+              regulatory: 0.4,
+              quality: 0.25,
+              coldChain: 0.2,
+              chainOfCustody: 0.15,
+            },
+            substances: lane.ruleSnapshot.rules.substances ?? [],
+          },
+      artifacts,
     );
-
-    return {
-      score: lane.completenessScore,
-      required: requiredDocuments.length,
-      present,
-      missing: requiredDocuments.slice(present),
-    };
   }
 
   async transition(

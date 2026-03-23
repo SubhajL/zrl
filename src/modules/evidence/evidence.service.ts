@@ -11,6 +11,7 @@ import { extname } from 'node:path';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   DEFAULT_EVIDENCE_LIMIT,
   DEFAULT_EVIDENCE_PAGE,
@@ -65,6 +66,23 @@ function hasCheckpointCaptureMetadata(
   );
 }
 
+function normalizePartnerMetadata(
+  artifactType: 'MRL_TEST' | 'TEMP_DATA',
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {};
+
+  if (artifactType === 'MRL_TEST') {
+    const results =
+      payload['results'] ?? payload['substances'] ?? payload['labResults'];
+    if (Array.isArray(results)) {
+      metadata['results'] = results;
+    }
+  }
+
+  return metadata;
+}
+
 @Injectable()
 export class EvidenceService {
   constructor(
@@ -73,6 +91,7 @@ export class EvidenceService {
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
     private readonly photoMetadataExtractor: EvidencePhotoMetadataExtractor,
+    private readonly rulesEngineService: RulesEngineService,
   ) {}
 
   async uploadArtifact(input: UploadArtifactInput, actor: EvidenceRequestUser) {
@@ -285,6 +304,20 @@ export class EvidenceService {
             },
           );
 
+          if (lane.ruleSnapshot !== null && lane.ruleSnapshot !== undefined) {
+            const artifacts = await transactional.listArtifactsForEvaluation(
+              lane.id,
+            );
+            const evaluation = this.rulesEngineService.evaluateLane(
+              lane.ruleSnapshot,
+              artifacts,
+            );
+            await transactional.updateLaneCompletenessScore(
+              lane.id,
+              evaluation.score,
+            );
+          }
+
           return created;
         },
       );
@@ -341,6 +374,14 @@ export class EvidenceService {
         throw new BadRequestException(
           'Checkpoint photos must include EXIF timestamp and GPS metadata.',
         );
+      }
+    }
+
+    if (input.artifactType === 'MRL_TEST') {
+      const results =
+        metadata['results'] ?? metadata['substances'] ?? metadata['labResults'];
+      if (Array.isArray(results)) {
+        metadata['results'] = results;
       }
     }
 
@@ -414,6 +455,7 @@ export class EvidenceService {
             issuer: input.issuer ?? null,
             issuedAt: input.issuedAt ?? null,
             payloadType: input.artifactType,
+            ...normalizePartnerMetadata(input.artifactType, input.payload),
           },
           links: [],
         },

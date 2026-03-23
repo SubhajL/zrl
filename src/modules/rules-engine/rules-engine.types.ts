@@ -35,6 +35,16 @@ export interface RuleCompletenessWeights {
   chainOfCustody: number;
 }
 
+export const RuleChecklistCategory = {
+  REGULATORY: 'REGULATORY',
+  QUALITY: 'QUALITY',
+  COLD_CHAIN: 'COLD_CHAIN',
+  CHAIN_OF_CUSTODY: 'CHAIN_OF_CUSTODY',
+} as const;
+
+export type RuleChecklistCategory =
+  (typeof RuleChecklistCategory)[keyof typeof RuleChecklistCategory];
+
 export interface RuleSubstanceDefinition {
   name: string;
   cas: string;
@@ -100,6 +110,67 @@ export interface RuleSnapshotPayload {
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
   substances: RuleSubstanceDefinition[];
+}
+
+export interface RuleLaneArtifact {
+  id: string;
+  artifactType: string;
+  fileName: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface RuleChecklistItem {
+  key: string;
+  label: string;
+  category: RuleChecklistCategory;
+  weight: number;
+  required: boolean;
+  present: boolean;
+  status: 'PRESENT' | 'MISSING' | 'EXPIRED';
+  artifactIds: string[];
+}
+
+export interface RuleChecklistCategorySummary {
+  category: RuleChecklistCategory;
+  weight: number;
+  required: number;
+  present: number;
+  score: number;
+}
+
+export interface RuleLabValidationResultItem {
+  substance: string;
+  cas: string;
+  valueMgKg: number | null;
+  limitMgKg: number;
+  passed: boolean;
+  status: 'PASS' | 'FAIL' | 'UNKNOWN';
+  riskLevel: RuleRiskLevel;
+}
+
+export interface RuleLabValidationResult {
+  valid: boolean;
+  hasUnknowns: boolean;
+  results: RuleLabValidationResultItem[];
+}
+
+export interface RuleCertificationAlert {
+  artifactType: 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT';
+  status: 'MISSING' | 'EXPIRED' | 'VALID';
+  expiresAt: string | null;
+  artifactId: string | null;
+  message: string;
+}
+
+export interface RuleLaneEvaluation {
+  score: number;
+  required: number;
+  present: number;
+  missing: string[];
+  checklist: RuleChecklistItem[];
+  categories: RuleChecklistCategorySummary[];
+  labValidation: RuleLabValidationResult | null;
+  certificationAlerts: RuleCertificationAlert[];
 }
 
 export interface RuleReloadResult {

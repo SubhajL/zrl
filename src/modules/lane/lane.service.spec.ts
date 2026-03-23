@@ -2,6 +2,7 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
 import type {
   CreateLaneInput,
@@ -93,6 +94,7 @@ describe('LaneService', () => {
   const createLaneBundleMock = jest.fn();
   const findLanesMock = jest.fn();
   const findLaneByIdMock = jest.fn();
+  const listEvidenceArtifactsForLaneMock = jest.fn();
   const updateLaneBundleMock = jest.fn();
   const transitionLaneStatusMock = jest.fn();
   const countProofPacksForLaneMock = jest.fn();
@@ -105,6 +107,8 @@ describe('LaneService', () => {
     createLaneBundle: createLaneBundleMock as LaneStore['createLaneBundle'],
     findLanes: findLanesMock as LaneStore['findLanes'],
     findLaneById: findLaneByIdMock as LaneStore['findLaneById'],
+    listEvidenceArtifactsForLane:
+      listEvidenceArtifactsForLaneMock as LaneStore['listEvidenceArtifactsForLane'],
     updateLaneBundle: updateLaneBundleMock as LaneStore['updateLaneBundle'],
     transitionLaneStatus:
       transitionLaneStatusMock as LaneStore['transitionLaneStatus'],
@@ -137,6 +141,21 @@ describe('LaneService', () => {
   const coldChainService = {
     validateLaneConfiguration: validateLaneConfigurationMock,
   } as unknown as ColdChainService;
+  const evaluateLaneMock = jest.fn();
+  const rulesEngineService = {
+    evaluateLane: evaluateLaneMock,
+  } as unknown as RulesEngineService;
+
+  function createService() {
+    return new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+      coldChainService,
+      rulesEngineService,
+    );
+  }
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -148,6 +167,7 @@ describe('LaneService', () => {
         dataFrequencySeconds: config.dataFrequencySeconds ?? null,
       }),
     );
+    listEvidenceArtifactsForLaneMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -155,13 +175,7 @@ describe('LaneService', () => {
   });
 
   it('creates a lane with generated lane and batch ids', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const createInput: CreateLaneInput = {
       product: 'MANGO',
       batch: {
@@ -239,13 +253,7 @@ describe('LaneService', () => {
   });
 
   it('filters lanes for exporter viewers and paginates results', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const summary = buildLaneSummary();
 
     findLanesMock.mockResolvedValue({
@@ -292,14 +300,62 @@ describe('LaneService', () => {
     });
   });
 
-  it('returns lane detail from the store', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
+  it('getCompleteness returns rules-engine evaluation output', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const evaluation = {
+      score: 73,
+      required: 4,
+      present: 3,
+      missing: ['VHT Certificate'],
+      checklist: [
+        {
+          key: 'phytosanitary-certificate',
+          label: 'Phytosanitary Certificate',
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: true,
+          present: true,
+          status: 'PRESENT',
+          artifactIds: ['artifact-1'],
+        },
+      ],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    };
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    listEvidenceArtifactsForLaneMock.mockResolvedValue([
+      {
+        id: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: { expiresAt: '2026-04-01T00:00:00.000Z' },
+      },
+    ]);
+    evaluateLaneMock.mockReturnValue(evaluation);
+
+    await expect(service.getCompleteness('lane-db-1')).resolves.toEqual(
+      evaluation,
     );
+    expect(listEvidenceArtifactsForLaneMock).toHaveBeenCalledWith('lane-db-1');
+    expect(evaluateLaneMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        market: 'JAPAN',
+        product: 'MANGO',
+        version: 4,
+      }),
+      expect.arrayContaining([
+        expect.objectContaining({
+          artifactType: 'PHYTO_CERT',
+        }),
+      ]),
+    );
+  });
+
+  it('returns lane detail from the store', async () => {
+    const service = createService();
     const lane = buildLaneDetail();
     findLaneByIdMock.mockResolvedValue(lane);
 
@@ -307,13 +363,7 @@ describe('LaneService', () => {
   });
 
   it('updates a lane bundle and appends an audit entry', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const updateInput: UpdateLaneInput = {
       coldChainConfig: {
         mode: 'TELEMETRY',
@@ -385,13 +435,7 @@ describe('LaneService', () => {
   });
 
   it('rejects exporter updates before persisting another exporter lane', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const lane = buildLaneDetail({
       exporterId: 'user-2',
     });
@@ -422,13 +466,7 @@ describe('LaneService', () => {
   });
 
   it('transitions validated lanes when completeness threshold is met', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const existingLane = buildLaneDetail({
       status: 'EVIDENCE_COLLECTING',
       completenessScore: 95,
@@ -502,13 +540,7 @@ describe('LaneService', () => {
       targetStatus: 'DISPUTE_RESOLVED' as const,
     },
   ])('$name', async ({ currentStatus, targetStatus }) => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const existingLane = buildLaneDetail({
       status: currentStatus,
       completenessScore: 100,
@@ -545,13 +577,7 @@ describe('LaneService', () => {
   });
 
   it('transitions validated lanes to packed when proof packs exist', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const existingLane = buildLaneDetail({
       status: 'VALIDATED',
       completenessScore: 100,
@@ -585,13 +611,7 @@ describe('LaneService', () => {
   });
 
   it('transitions closed lanes to archived after retention window passes', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const existingLane = buildLaneDetail({
       status: 'CLOSED',
       completenessScore: 100,
@@ -624,13 +644,7 @@ describe('LaneService', () => {
   });
 
   it('rejects validated transition below completeness threshold', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
 
     findLaneByIdMock.mockResolvedValue(
       buildLaneDetail({
@@ -661,13 +675,7 @@ describe('LaneService', () => {
   });
 
   it('rejects illegal lifecycle jump with conflict exception', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
 
     findLaneByIdMock.mockResolvedValue(
       buildLaneDetail({
@@ -698,13 +706,7 @@ describe('LaneService', () => {
   });
 
   it('requires proof packs before packing a lane', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
 
     findLaneByIdMock.mockResolvedValue(
       buildLaneDetail({
@@ -734,13 +736,7 @@ describe('LaneService', () => {
   });
 
   it('requires retention window before archiving a closed lane', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
     const closedLane = buildLaneDetail({
       status: 'CLOSED',
       completenessScore: 100,
@@ -771,13 +767,7 @@ describe('LaneService', () => {
   });
 
   it('rejects exporter transitions for lanes they do not own', async () => {
-    const service = new LaneService(
-      laneStore,
-      hashingService,
-      auditService,
-      ruleSnapshotResolver,
-      coldChainService,
-    );
+    const service = createService();
 
     findLaneByIdMock.mockResolvedValue(
       buildLaneDetail({

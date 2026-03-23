@@ -87,6 +87,20 @@ describe('RulesEngineController (e2e)', () => {
         },
       ],
     }),
+    getChecklist: jest.fn().mockResolvedValue({
+      checklist: [
+        {
+          key: 'phytosanitary-certificate',
+          label: 'Phytosanitary Certificate',
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: true,
+          present: false,
+          status: 'MISSING',
+          artifactIds: [],
+        },
+      ],
+    }),
     listRuleVersions: jest.fn().mockResolvedValue([]),
     reloadRules: jest.fn().mockResolvedValue({ loaded: 1, ruleSets: [] }),
   };
@@ -182,6 +196,29 @@ describe('RulesEngineController (e2e)', () => {
         expect(body.product).toBe('MANGO');
         expect(body.version).toBe(1);
       });
+  });
+
+  it('GET /rules/markets/JAPAN/checklist returns the market checklist for a product', async () => {
+    await request(app.getHttpServer())
+      .get('/rules/markets/JAPAN/checklist?product=MANGO')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          checklist: Array<{ label: string; category: string }>;
+        };
+        expect(body.checklist).toEqual([
+          expect.objectContaining({
+            label: 'Phytosanitary Certificate',
+            category: 'REGULATORY',
+          }),
+        ]);
+      });
+
+    expect(rulesEngineServiceMock.getChecklist).toHaveBeenCalledWith(
+      'JAPAN',
+      'MANGO',
+    );
   });
 
   it('POST /rules/markets/JAPAN/substances forwards the authenticated actor to the service', async () => {
