@@ -4,11 +4,13 @@ import { tmpdir } from 'node:os';
 import {
   BadRequestException,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import type { AuditStore } from '../../common/audit/audit.types';
 import type { HashingService } from '../../common/hashing/hashing.service';
+import type { LaneService } from '../lane/lane.service';
 import { EvidenceService } from './evidence.service';
 import {
   ArtifactSource,
@@ -82,6 +84,7 @@ describe('EvidenceService', () => {
   let rulesEngineService: {
     evaluateLane: jest.Mock;
   };
+  let laneService: Pick<LaneService, 'reconcileAutomaticTransitions'>;
 
   beforeEach(() => {
     auditStore = {
@@ -161,6 +164,12 @@ describe('EvidenceService', () => {
         certificationAlerts: [],
       }),
     };
+    laneService = {
+      reconcileAutomaticTransitions: jest.fn().mockResolvedValue({
+        lane: null,
+        transitions: [],
+      }),
+    };
     service = new EvidenceService(
       store,
       objectStore,
@@ -168,6 +177,7 @@ describe('EvidenceService', () => {
       auditService as never,
       photoMetadataExtractor as never,
       rulesEngineService as never,
+      laneService as never,
     );
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
     uploadFilePath = join(tempDirectory, 'phyto.pdf');
@@ -578,6 +588,128 @@ describe('EvidenceService', () => {
       'lane-db-1',
       40,
     );
+    expect(laneService.reconcileAutomaticTransitions).toHaveBeenCalledWith(
+      'lane-db-1',
+      'exporter-1',
+    );
+  });
+
+  it('uploadArtifact does not trigger automatic lane transitions when no rule snapshot exists', async () => {
+    const createdArtifact = buildArtifact();
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(updateLaneCompletenessScoreMock).not.toHaveBeenCalled();
+    expect(laneService.reconcileAutomaticTransitions).not.toHaveBeenCalled();
+  });
+
+  it('uploadArtifact preserves the committed artifact when automatic lane reconciliation fails', async () => {
+    const createdArtifact = buildArtifact();
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        version: '2026-03-22',
+        market: 'JAPAN',
+        product: 'MANGO',
+        requiredDocuments: [],
+        completenessWeights: {
+          regulatory: 0.4,
+          quality: 0.25,
+          coldChain: 0.2,
+          chainOfCustody: 0.15,
+        },
+      },
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    listArtifactsForEvaluationMock.mockResolvedValue([]);
+    rulesEngineService.evaluateLane.mockReturnValue({
+      score: 100,
+      required: 1,
+      present: 1,
+      missing: [],
+      checklist: [],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    });
+    laneService.reconcileAutomaticTransitions = jest
+      .fn()
+      .mockRejectedValue(new Error('transition store unavailable'));
+    const loggerErrorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    const result = await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(result.artifact.id).toBe(createdArtifact.id);
+    expect(deleteObjectMock).not.toHaveBeenCalled();
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    loggerErrorSpy.mockRestore();
   });
 
   it('listLaneArtifacts applies filters through the store', async () => {

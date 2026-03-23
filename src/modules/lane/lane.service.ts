@@ -339,6 +339,47 @@ export class LaneService {
     return { lane };
   }
 
+  async reconcileAutomaticTransitions(laneId: string, actorId: string) {
+    const existingLane = await this.laneStore.findLaneById(laneId);
+    if (existingLane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    let lane = existingLane;
+    const transitions: LaneStatus[] = [];
+
+    while (true) {
+      const targetStatus = this.getAutomaticTransitionTarget(lane);
+      if (targetStatus === null) {
+        break;
+      }
+
+      this.assertTransitionGraph(lane.status, targetStatus);
+      await this.assertTransitionGuards(lane, targetStatus);
+
+      const transitionedAt = new Date();
+      const transitionedLane = await this.laneStore.transitionLaneStatus(
+        lane.id,
+        targetStatus,
+        transitionedAt,
+      );
+      if (transitionedLane === null) {
+        throw new NotFoundException('Lane not found.');
+      }
+
+      await this.appendTransitionAuditEntry(
+        actorId,
+        lane,
+        transitionedLane,
+        targetStatus,
+      );
+      transitions.push(targetStatus);
+      lane = transitionedLane;
+    }
+
+    return { lane, transitions };
+  }
+
   private generateLaneId(now: Date, latestLaneId: string | null): string {
     const year = now.getUTCFullYear();
     const latestSequence =
@@ -379,6 +420,22 @@ export class LaneService {
         `Invalid lane transition from ${currentStatus} to ${targetStatus}.`,
       );
     }
+  }
+
+  private getAutomaticTransitionTarget(lane: LaneDetail): LaneStatus | null {
+    if (lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD) {
+      return null;
+    }
+
+    if (lane.status === 'CREATED' || lane.status === 'INCOMPLETE') {
+      return 'EVIDENCE_COLLECTING';
+    }
+
+    if (lane.status === 'EVIDENCE_COLLECTING') {
+      return 'VALIDATED';
+    }
+
+    return null;
   }
 
   private async assertTransitionGuards(
