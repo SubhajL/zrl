@@ -5,6 +5,7 @@ export const AuditAction = {
   VERIFY: 'VERIFY',
   CREATE: 'CREATE',
   UPDATE: 'UPDATE',
+  DELETE: 'DELETE',
 } as const;
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

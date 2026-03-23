@@ -1,4 +1,63 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../../common/audit/audit.module';
+import { AuditService } from '../../common/audit/audit.service';
+import { AuthModule } from '../../common/auth/auth.module';
+import { HashingModule } from '../../common/hashing/hashing.module';
+import { HashingService } from '../../common/hashing/hashing.service';
+import {
+  EVIDENCE_OBJECT_STORE,
+  EVIDENCE_PHOTO_METADATA_EXTRACTOR,
+} from './evidence.constants';
+import { EvidenceController } from './evidence.controller';
+import { ExifPhotoMetadataExtractor } from './evidence.metadata';
+import { PrismaEvidenceStore } from './evidence.pg-store';
+import { EvidenceService } from './evidence.service';
+import {
+  createEvidenceObjectStoreFromEnv,
+  LocalEvidenceObjectStore,
+} from './evidence.storage';
 
-@Module({})
+@Module({
+  imports: [AuthModule, HashingModule, AuditModule],
+  controllers: [EvidenceController],
+  providers: [
+    PrismaEvidenceStore,
+    LocalEvidenceObjectStore,
+    {
+      provide: EVIDENCE_OBJECT_STORE,
+      useFactory: (localObjectStore: LocalEvidenceObjectStore) =>
+        createEvidenceObjectStoreFromEnv(localObjectStore),
+      inject: [LocalEvidenceObjectStore],
+    },
+    {
+      provide: EVIDENCE_PHOTO_METADATA_EXTRACTOR,
+      useFactory: () => new ExifPhotoMetadataExtractor(),
+    },
+    {
+      provide: EvidenceService,
+      useFactory: (
+        store: PrismaEvidenceStore,
+        objectStore: ReturnType<typeof createEvidenceObjectStoreFromEnv>,
+        hashingService: HashingService,
+        auditService: AuditService,
+        photoMetadataExtractor: ExifPhotoMetadataExtractor,
+      ) =>
+        new EvidenceService(
+          store,
+          objectStore,
+          hashingService,
+          auditService,
+          photoMetadataExtractor,
+        ),
+      inject: [
+        PrismaEvidenceStore,
+        EVIDENCE_OBJECT_STORE,
+        HashingService,
+        AuditService,
+        EVIDENCE_PHOTO_METADATA_EXTRACTOR,
+      ],
+    },
+  ],
+  exports: [EvidenceService],
+})
 export class EvidenceModule {}

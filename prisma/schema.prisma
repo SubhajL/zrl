@@ -71,6 +71,14 @@ enum ArtifactType {
   @@map("artifact_type")
 }
 
+enum ArtifactSource {
+  UPLOAD
+  PARTNER_API
+  CAMERA
+
+  @@map("artifact_source")
+}
+
 enum VerificationStatus {
   PENDING
   VERIFIED
@@ -102,6 +110,7 @@ enum AuditAction {
   VERIFY
   CREATE
   UPDATE
+  DELETE
 
   @@map("audit_action")
 }
@@ -262,7 +271,8 @@ model Checkpoint {
   status         CheckpointStatus @default(PENDING)
 
   // Relations
-  lane Lane @relation(fields: [laneId], references: [id])
+  lane      Lane               @relation(fields: [laneId], references: [id])
+  artifacts EvidenceArtifact[]
 
   @@unique([laneId, sequence])
   @@map("checkpoints")
@@ -272,21 +282,32 @@ model EvidenceArtifact {
   id                 String             @id @default(uuid())
   laneId             String             @map("lane_id")
   artifactType       ArtifactType       @map("artifact_type")
+  fileName           String             @map("file_name")
+  mimeType           String             @map("mime_type")
+  fileSizeBytes      Int                @map("file_size_bytes")
   filePath           String             @map("file_path")
   contentHash        String             @map("content_hash") @db.Char(64)
+  source             ArtifactSource     @default(UPLOAD)
+  checkpointId       String?            @map("checkpoint_id")
   issuer             String?
   issuedAt           DateTime?          @map("issued_at")
   uploadedBy         String             @map("uploaded_by")
   uploadedAt         DateTime           @default(now()) @map("uploaded_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
   metadata           Json?
+  deletedAt          DateTime?          @map("deleted_at")
 
   // Relations
   lane        Lane           @relation(fields: [laneId], references: [id], onDelete: Restrict)
+  checkpoint  Checkpoint?    @relation(fields: [checkpointId], references: [id], onDelete: SetNull)
   uploader    User           @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   sourceLinks ArtifactLink[] @relation("SourceArtifact")
   targetLinks ArtifactLink[] @relation("TargetArtifact")
 
+  @@index([laneId, artifactType])
+  @@index([laneId, verificationStatus])
+  @@index([checkpointId])
   @@map("evidence_artifacts")
 }
 
