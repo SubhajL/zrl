@@ -21,6 +21,7 @@ function buildLaneDetail(overrides: Partial<LaneDetail> = {}): LaneDetail {
     productType: 'MANGO',
     destinationMarket: 'JAPAN',
     completenessScore: 0,
+    statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
     createdAt: new Date('2026-03-22T05:00:00.000Z'),
     updatedAt: new Date('2026-03-22T05:00:00.000Z'),
     batch: {
@@ -68,6 +69,7 @@ function buildLaneSummary(overrides: Partial<LaneSummary> = {}): LaneSummary {
     destinationMarket: 'JAPAN',
     completenessScore: 0,
     coldChainMode: null,
+    statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
     createdAt: new Date('2026-03-22T05:00:00.000Z'),
     updatedAt: new Date('2026-03-22T05:00:00.000Z'),
     ...overrides,
@@ -85,6 +87,8 @@ describe('LaneService', () => {
   const findLanesMock = jest.fn();
   const findLaneByIdMock = jest.fn();
   const updateLaneBundleMock = jest.fn();
+  const transitionLaneStatusMock = jest.fn();
+  const countProofPacksForLaneMock = jest.fn();
   const laneStore: LaneStore = {
     runInTransaction: runInTransactionMock as LaneStore['runInTransaction'],
     findLatestLaneIdByYear:
@@ -95,6 +99,10 @@ describe('LaneService', () => {
     findLanes: findLanesMock as LaneStore['findLanes'],
     findLaneById: findLaneByIdMock as LaneStore['findLaneById'],
     updateLaneBundle: updateLaneBundleMock as LaneStore['updateLaneBundle'],
+    transitionLaneStatus:
+      transitionLaneStatusMock as LaneStore['transitionLaneStatus'],
+    countProofPacksForLane:
+      countProofPacksForLaneMock as LaneStore['countProofPacksForLane'],
   };
   const createAuditEntryMock = jest.fn().mockResolvedValue({
     id: 'audit-db-1',
@@ -107,8 +115,9 @@ describe('LaneService', () => {
     prevHash: 'genesis',
     entryHash: 'entry-hash',
   });
+  const hashStringMock = jest.fn().mockResolvedValue('payload-hash');
   const hashingService = {
-    hashString: jest.fn().mockResolvedValue('payload-hash'),
+    hashString: hashStringMock,
   } as unknown as HashingService;
   const auditService = {
     createEntry: createAuditEntryMock,
@@ -368,6 +377,382 @@ describe('LaneService', () => {
     ).rejects.toThrow('Lane ownership required.');
 
     expect(updateLaneBundleMock).not.toHaveBeenCalled();
+    expect(createAuditEntryMock).not.toHaveBeenCalled();
+  });
+
+  it('transitions validated lanes when completeness threshold is met', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+    const existingLane = buildLaneDetail({
+      status: 'EVIDENCE_COLLECTING',
+      completenessScore: 95,
+    });
+    const transitionedLane = buildLaneDetail({
+      status: 'VALIDATED',
+      completenessScore: 95,
+      updatedAt: new Date('2026-03-22T05:10:00.000Z'),
+    });
+
+    findLaneByIdMock.mockResolvedValue(existingLane);
+    transitionLaneStatusMock.mockResolvedValue(transitionedLane);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'VALIDATED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual({ lane: transitionedLane });
+
+    expect(transitionLaneStatusMock).toHaveBeenCalledWith(
+      'lane-db-1',
+      'VALIDATED',
+      expect.any(Date),
+    );
+    expect(createAuditEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'user-1',
+        action: AuditAction.UPDATE,
+        entityType: AuditEntityType.LANE,
+        entityId: 'lane-db-1',
+        payloadHash: 'payload-hash',
+      }),
+    );
+    const [firstHashPayload] = hashStringMock.mock.calls[0] as [string];
+    expect(firstHashPayload).toContain('"nextStatus":"VALIDATED"');
+  });
+
+  it.each([
+    {
+      name: 'transitions validated lanes to incomplete',
+      currentStatus: 'VALIDATED' as const,
+      targetStatus: 'INCOMPLETE' as const,
+    },
+    {
+      name: 'transitions incomplete lanes back to evidence collecting',
+      currentStatus: 'INCOMPLETE' as const,
+      targetStatus: 'EVIDENCE_COLLECTING' as const,
+    },
+    {
+      name: 'transitions packed lanes to closed',
+      currentStatus: 'PACKED' as const,
+      targetStatus: 'CLOSED' as const,
+    },
+    {
+      name: 'transitions closed lanes to claim defense',
+      currentStatus: 'CLOSED' as const,
+      targetStatus: 'CLAIM_DEFENSE' as const,
+    },
+    {
+      name: 'transitions claim defense lanes to dispute resolved',
+      currentStatus: 'CLAIM_DEFENSE' as const,
+      targetStatus: 'DISPUTE_RESOLVED' as const,
+    },
+  ])('$name', async ({ currentStatus, targetStatus }) => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+    const existingLane = buildLaneDetail({
+      status: currentStatus,
+      completenessScore: 100,
+    });
+    const transitionedLane = buildLaneDetail({
+      status: targetStatus,
+      completenessScore: 100,
+      updatedAt: new Date('2026-03-22T05:20:00.000Z'),
+    });
+
+    findLaneByIdMock.mockResolvedValue(existingLane);
+    transitionLaneStatusMock.mockResolvedValue(transitionedLane);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual({ lane: transitionedLane });
+
+    expect(transitionLaneStatusMock).toHaveBeenCalledWith(
+      'lane-db-1',
+      targetStatus,
+      expect.any(Date),
+    );
+  });
+
+  it('transitions validated lanes to packed when proof packs exist', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+    const existingLane = buildLaneDetail({
+      status: 'VALIDATED',
+      completenessScore: 100,
+    });
+    const transitionedLane = buildLaneDetail({
+      status: 'PACKED',
+      completenessScore: 100,
+      updatedAt: new Date('2026-03-22T05:25:00.000Z'),
+    });
+
+    findLaneByIdMock.mockResolvedValue(existingLane);
+    countProofPacksForLaneMock.mockResolvedValue(2);
+    transitionLaneStatusMock.mockResolvedValue(transitionedLane);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'PACKED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual({ lane: transitionedLane });
+
+    expect(countProofPacksForLaneMock).toHaveBeenCalledWith('lane-db-1');
+  });
+
+  it('transitions closed lanes to archived after retention window passes', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+    const existingLane = buildLaneDetail({
+      status: 'CLOSED',
+      completenessScore: 100,
+      statusChangedAt: new Date('2018-03-22T05:00:00.000Z'),
+    });
+    const transitionedLane = buildLaneDetail({
+      status: 'ARCHIVED',
+      completenessScore: 100,
+      statusChangedAt: new Date('2026-03-22T05:30:00.000Z'),
+      updatedAt: new Date('2026-03-22T05:30:00.000Z'),
+    });
+
+    findLaneByIdMock.mockResolvedValue(existingLane);
+    transitionLaneStatusMock.mockResolvedValue(transitionedLane);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'ARCHIVED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual({ lane: transitionedLane });
+  });
+
+  it('rejects validated transition below completeness threshold', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+
+    findLaneByIdMock.mockResolvedValue(
+      buildLaneDetail({
+        status: 'EVIDENCE_COLLECTING',
+        completenessScore: 94,
+      }),
+    );
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'VALIDATED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow(
+      'Lane completeness must be at least 95% before validation.',
+    );
+
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
+    expect(createAuditEntryMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects illegal lifecycle jump with conflict exception', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+
+    findLaneByIdMock.mockResolvedValue(
+      buildLaneDetail({
+        status: 'EVIDENCE_COLLECTING',
+        completenessScore: 100,
+      }),
+    );
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'PACKED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow(
+      'Invalid lane transition from EVIDENCE_COLLECTING to PACKED.',
+    );
+
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
+    expect(createAuditEntryMock).not.toHaveBeenCalled();
+  });
+
+  it('requires proof packs before packing a lane', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+
+    findLaneByIdMock.mockResolvedValue(
+      buildLaneDetail({
+        status: 'VALIDATED',
+        completenessScore: 100,
+      }),
+    );
+    countProofPacksForLaneMock.mockResolvedValue(0);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'PACKED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow('At least one proof pack is required before packing.');
+
+    expect(countProofPacksForLaneMock).toHaveBeenCalledWith('lane-db-1');
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
+  });
+
+  it('requires retention window before archiving a closed lane', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+    const closedLane = buildLaneDetail({
+      status: 'CLOSED',
+      completenessScore: 100,
+    }) as LaneDetail & {
+      statusChangedAt: Date;
+    };
+    closedLane.statusChangedAt = new Date('2021-03-23T05:00:00.000Z');
+    findLaneByIdMock.mockResolvedValue(closedLane);
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'ARCHIVED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow(
+      'Lane cannot be archived before the retention period ends.',
+    );
+
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects exporter transitions for lanes they do not own', async () => {
+    const service = new LaneService(
+      laneStore,
+      hashingService,
+      auditService,
+      ruleSnapshotResolver,
+    );
+
+    findLaneByIdMock.mockResolvedValue(
+      buildLaneDetail({
+        exporterId: 'user-2',
+        status: 'EVIDENCE_COLLECTING',
+        completenessScore: 100,
+      }),
+    );
+
+    await expect(
+      service.transition(
+        'lane-db-1',
+        { targetStatus: 'VALIDATED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow('Lane ownership required.');
+
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
     expect(createAuditEntryMock).not.toHaveBeenCalled();
   });
 });

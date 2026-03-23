@@ -30,6 +30,7 @@ interface LaneRow extends QueryResultRow {
   cold_chain_mode: LaneColdChainMode;
   created_at: Date | string;
   updated_at: Date | string;
+  status_changed_at: Date | string;
 }
 
 interface BatchRow extends QueryResultRow {
@@ -193,10 +194,11 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           destination_market,
           completeness_score,
           cold_chain_mode,
+          status_changed_at,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
       `,
       [
         laneDbId,
@@ -391,6 +393,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           destination_market,
           completeness_score,
           cold_chain_mode,
+          status_changed_at,
           created_at,
           updated_at
         FROM lanes
@@ -421,6 +424,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           destination_market,
           completeness_score,
           cold_chain_mode,
+          status_changed_at,
           created_at,
           updated_at
         FROM lanes
@@ -644,6 +648,45 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
     return await this.findLaneById(id);
   }
 
+  async transitionLaneStatus(
+    id: string,
+    targetStatus: LaneStatus,
+    transitionedAt: Date,
+  ): Promise<LaneDetail | null> {
+    const executor = this.requireExecutor();
+    const existing = await this.findLaneById(id);
+    if (existing === null) {
+      return null;
+    }
+
+    await executor.query(
+      `
+        UPDATE lanes
+        SET
+          status = $2,
+          status_changed_at = $3,
+          updated_at = $3
+        WHERE id = $1
+      `,
+      [id, targetStatus, transitionedAt],
+    );
+
+    return await this.findLaneById(id);
+  }
+
+  async countProofPacksForLane(id: string): Promise<number> {
+    const result = await this.requireExecutor().query<{ total: string }>(
+      `
+        SELECT COUNT(*)::text AS total
+        FROM proof_packs
+        WHERE lane_id = $1
+      `,
+      [id],
+    );
+
+    return Number(result.rows[0]?.total ?? 0);
+  }
+
   private requireExecutor(): QueryExecutor {
     if (this.executor === undefined) {
       throw new Error('Lane store is not configured.');
@@ -664,6 +707,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       coldChainMode: row.cold_chain_mode,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      statusChangedAt: new Date(row.status_changed_at),
     };
   }
 

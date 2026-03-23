@@ -209,6 +209,7 @@ model Lane {
   destinationMarket DestinationMarket @map("destination_market")
   completenessScore Decimal           @default(0) @map("completeness_score") @db.Decimal(5, 2)
   coldChainMode     ColdChainMode?    @map("cold_chain_mode")
+  statusChangedAt   DateTime          @default(now()) @map("status_changed_at")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 

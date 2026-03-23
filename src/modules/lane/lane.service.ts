@@ -1,7 +1,9 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
@@ -9,16 +11,20 @@ import { HashingService } from '../../common/hashing/hashing.service';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
+  LANE_ARCHIVE_RETENTION_YEARS,
+  LANE_VALIDATION_COMPLETENESS_THRESHOLD,
   MAX_LANE_LIMIT,
 } from './lane.constants';
 import type {
   CreateLaneInput,
+  LaneStatus,
   LaneListQuery,
   LaneListResult,
   LaneRequestUser,
   LaneRuleSnapshotResolver,
   LaneStore,
   LaneDetail,
+  TransitionLaneInput,
   UpdateLaneInput,
 } from './lane.types';
 
@@ -55,6 +61,18 @@ function marketCode(market: CreateLaneInput['destination']['market']): string {
 function formatDatePart(date: Date): string {
   return date.toISOString().slice(0, 10).replace(/-/g, '');
 }
+
+const ALLOWED_LANE_TRANSITIONS: Record<LaneStatus, LaneStatus[]> = {
+  CREATED: ['EVIDENCE_COLLECTING'],
+  EVIDENCE_COLLECTING: ['VALIDATED'],
+  VALIDATED: ['PACKED', 'INCOMPLETE'],
+  PACKED: ['CLOSED'],
+  CLOSED: ['CLAIM_DEFENSE', 'ARCHIVED'],
+  INCOMPLETE: ['EVIDENCE_COLLECTING'],
+  CLAIM_DEFENSE: ['DISPUTE_RESOLVED'],
+  DISPUTE_RESOLVED: [],
+  ARCHIVED: [],
+};
 
 @Injectable()
 export class LaneService {
@@ -190,6 +208,42 @@ export class LaneService {
     };
   }
 
+  async transition(
+    id: string,
+    input: TransitionLaneInput,
+    actor: LaneRequestUser,
+  ) {
+    const existingLane = await this.laneStore.findLaneById(id);
+    if (existingLane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    if (actor.role === 'EXPORTER' && existingLane.exporterId !== actor.id) {
+      throw new ForbiddenException('Lane ownership required.');
+    }
+
+    this.assertTransitionGraph(existingLane.status, input.targetStatus);
+    await this.assertTransitionGuards(existingLane, input.targetStatus);
+
+    const transitionedAt = new Date();
+    const lane = await this.laneStore.transitionLaneStatus(
+      id,
+      input.targetStatus,
+      transitionedAt,
+    );
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    await this.appendTransitionAuditEntry(
+      actor.id,
+      existingLane,
+      lane,
+      input.targetStatus,
+    );
+    return { lane };
+  }
+
   private generateLaneId(now: Date, latestLaneId: string | null): string {
     const year = now.getUTCFullYear();
     const latestSequence =
@@ -220,6 +274,56 @@ export class LaneService {
     return `${prefix}-${padSequence(latestSequence + 1)}`;
   }
 
+  private assertTransitionGraph(
+    currentStatus: LaneStatus,
+    targetStatus: LaneStatus,
+  ): void {
+    const allowedTargets = ALLOWED_LANE_TRANSITIONS[currentStatus] ?? [];
+    if (!allowedTargets.includes(targetStatus)) {
+      throw new ConflictException(
+        `Invalid lane transition from ${currentStatus} to ${targetStatus}.`,
+      );
+    }
+  }
+
+  private async assertTransitionGuards(
+    lane: LaneDetail,
+    targetStatus: LaneStatus,
+  ): Promise<void> {
+    if (
+      targetStatus === 'VALIDATED' &&
+      lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD
+    ) {
+      throw new UnprocessableEntityException(
+        'Lane completeness must be at least 95% before validation.',
+      );
+    }
+
+    if (targetStatus === 'PACKED') {
+      const proofPackCount = await this.laneStore.countProofPacksForLane(
+        lane.id,
+      );
+      if (proofPackCount < 1) {
+        throw new UnprocessableEntityException(
+          'At least one proof pack is required before packing.',
+        );
+      }
+    }
+
+    if (targetStatus === 'ARCHIVED') {
+      const archiveEligibleAt = new Date(lane.statusChangedAt);
+      archiveEligibleAt.setUTCFullYear(
+        archiveEligibleAt.getUTCFullYear() + LANE_ARCHIVE_RETENTION_YEARS,
+      );
+
+      if (archiveEligibleAt.getTime() > Date.now()) {
+        throw new UnprocessableEntityException(
+          'Lane cannot be archived before the retention period ends.',
+        );
+      }
+    }
+  }
+
   private async appendAuditEntry(
     actorId: string,
     action: AuditAction,
@@ -239,6 +343,33 @@ export class LaneService {
     await this.auditService.createEntry({
       actor: actorId,
       action,
+      entityType: AuditEntityType.LANE,
+      entityId: lane.id,
+      payloadHash,
+    });
+  }
+
+  private async appendTransitionAuditEntry(
+    actorId: string,
+    previousLane: LaneDetail,
+    lane: LaneDetail,
+    targetStatus: LaneStatus,
+  ): Promise<void> {
+    const payloadHash = await this.hashingService.hashString(
+      JSON.stringify({
+        laneId: lane.laneId,
+        exporterId: lane.exporterId,
+        previousStatus: previousLane.status,
+        nextStatus: targetStatus,
+        productType: lane.productType,
+        destinationMarket: lane.destinationMarket,
+        completenessScore: lane.completenessScore,
+      }),
+    );
+
+    await this.auditService.createEntry({
+      actor: actorId,
+      action: AuditAction.UPDATE,
       entityType: AuditEntityType.LANE,
       entityId: lane.id,
       payloadHash,

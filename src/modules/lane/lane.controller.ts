@@ -20,6 +20,7 @@ import type {
   LaneProduct,
   LaneStatus,
   LaneTransportMode,
+  TransitionLaneInput,
   UpdateLaneInput,
 } from './lane.types';
 
@@ -269,6 +270,14 @@ function parseListQuery(query: Record<string, unknown>): LaneListQuery {
   return parsed;
 }
 
+function parseTransitionLaneInput(body: unknown): TransitionLaneInput {
+  const record = assertObject(body, 'lane transition payload');
+
+  return {
+    targetStatus: parseStatus(record['targetStatus']),
+  };
+}
+
 @Controller('lanes')
 @UseGuards(JwtAuthGuard)
 export class LaneController {
@@ -306,6 +315,20 @@ export class LaneController {
     return await this.laneService.update(
       id,
       parseUpdateLaneInput(body),
+      request.user!,
+    );
+  }
+
+  @Post(':id/transition')
+  @UseGuards(LaneOwnerGuard)
+  async transition(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    return await this.laneService.transition(
+      id,
+      parseTransitionLaneInput(body),
       request.user!,
     );
   }

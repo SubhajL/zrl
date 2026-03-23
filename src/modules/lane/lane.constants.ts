@@ -1,3 +1,5 @@
 export const DEFAULT_LANE_PAGE = 1;
 export const DEFAULT_LANE_LIMIT = 20;
 export const MAX_LANE_LIMIT = 100;
+export const LANE_VALIDATION_COMPLETENESS_THRESHOLD = 95;
+export const LANE_ARCHIVE_RETENTION_YEARS = 7;
