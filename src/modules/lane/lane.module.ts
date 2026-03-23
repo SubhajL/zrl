@@ -7,6 +7,7 @@ import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainModule } from '../cold-chain/cold-chain.module';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { RulesEngineModule } from '../rules-engine/rules-engine.module';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneController } from './lane.controller';
 import { PrismaLaneStore } from './lane.pg-store';
 import { RulesEngineLaneRuleSnapshotResolver } from './lane.rules-resolver';
@@ -32,6 +33,7 @@ import { LaneService } from './lane.service';
         auditService: AuditService,
         ruleSnapshotResolver: RulesEngineLaneRuleSnapshotResolver,
         coldChainService: ColdChainService,
+        rulesEngineService: RulesEngineService,
       ) =>
         new LaneService(
           laneStore,
@@ -39,6 +41,7 @@ import { LaneService } from './lane.service';
           auditService,
           ruleSnapshotResolver,
           coldChainService,
+          rulesEngineService,
         ),
       inject: [
         PrismaLaneStore,
@@ -46,6 +49,7 @@ import { LaneService } from './lane.service';
         AuditService,
         RulesEngineLaneRuleSnapshotResolver,
         ColdChainService,
+        RulesEngineService,
       ],
     },
   ],

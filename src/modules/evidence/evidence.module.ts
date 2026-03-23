@@ -4,6 +4,8 @@ import { AuditService } from '../../common/audit/audit.service';
 import { AuthModule } from '../../common/auth/auth.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { RulesEngineModule } from '../rules-engine/rules-engine.module';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   EVIDENCE_OBJECT_STORE,
   EVIDENCE_PHOTO_METADATA_EXTRACTOR,
@@ -18,7 +20,7 @@ import {
 } from './evidence.storage';
 
 @Module({
-  imports: [AuthModule, HashingModule, AuditModule],
+  imports: [AuthModule, HashingModule, AuditModule, RulesEngineModule],
   controllers: [EvidenceController],
   providers: [
     PrismaEvidenceStore,
@@ -41,6 +43,7 @@ import {
         hashingService: HashingService,
         auditService: AuditService,
         photoMetadataExtractor: ExifPhotoMetadataExtractor,
+        rulesEngineService: RulesEngineService,
       ) =>
         new EvidenceService(
           store,
@@ -48,6 +51,7 @@ import {
           hashingService,
           auditService,
           photoMetadataExtractor,
+          rulesEngineService,
         ),
       inject: [
         PrismaEvidenceStore,
@@ -55,6 +59,7 @@ import {
         HashingService,
         AuditService,
         EVIDENCE_PHOTO_METADATA_EXTRACTOR,
+        RulesEngineService,
       ],
     },
   ],

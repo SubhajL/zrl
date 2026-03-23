@@ -37,6 +37,10 @@ function buildDefinition(
 }
 
 describe('RulesEngineService', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('reloadRules syncs loaded definitions to the rule store', async () => {
     const definition = buildDefinition();
     const loader = {
@@ -237,6 +241,237 @@ describe('RulesEngineService', () => {
         actor: 'admin-1',
         action: 'CREATE',
         substanceId: 'substance-2',
+      }),
+    );
+  });
+
+  it('getChecklist categorizes required evidence for a market and product', async () => {
+    const definition = buildDefinition({
+      requiredDocuments: [
+        'Phytosanitary Certificate',
+        'Commercial Invoice',
+        'Temperature Log',
+      ],
+    });
+    const loader = {
+      getRuleDefinition: jest.fn().mockResolvedValue(definition),
+      reload: jest.fn(),
+    } as unknown as RuleLoaderPort;
+    const store = {
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn().mockResolvedValue({
+        id: 'rule-set-1',
+        market: 'JAPAN',
+        product: 'MANGO',
+        version: 1,
+        effectiveDate: definition.effectiveDate,
+        sourcePath: definition.sourcePath,
+        payload: definition,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      }),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(loader, store, {
+      hashString: jest.fn(),
+    } as unknown as HashingService);
+
+    await expect(service.getChecklist('JAPAN', 'MANGO')).resolves.toEqual({
+      checklist: [
+        expect.objectContaining({
+          label: 'Phytosanitary Certificate',
+          category: 'REGULATORY',
+          present: false,
+          status: 'MISSING',
+        }),
+        expect.objectContaining({
+          label: 'Commercial Invoice',
+          category: 'CHAIN_OF_CUSTODY',
+          present: false,
+          status: 'MISSING',
+        }),
+        expect.objectContaining({
+          label: 'Temperature Log',
+          category: 'COLD_CHAIN',
+          present: false,
+          status: 'MISSING',
+        }),
+      ],
+    });
+  });
+
+  it('evaluateLane applies weighted completeness scoring and certification alerts', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T05:30:00.000Z'));
+    const definition = buildDefinition({
+      requiredDocuments: [
+        'Phytosanitary Certificate',
+        'VHT Certificate',
+        'Temperature Log',
+        'Commercial Invoice',
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: { expiresAt: '2026-04-01T00:00:00.000Z' },
+      },
+      {
+        id: 'artifact-2',
+        artifactType: 'TEMP_DATA',
+        fileName: 'temperature.json',
+        metadata: null,
+      },
+      {
+        id: 'artifact-3',
+        artifactType: 'INVOICE',
+        fileName: 'invoice.pdf',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.score).toBe(80);
+    expect(result.required).toBe(4);
+    expect(result.present).toBe(3);
+    expect(result.missing).toEqual(['VHT Certificate']);
+    expect(result.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'REGULATORY',
+          required: 2,
+          present: 1,
+          score: 0.5,
+        }),
+      ]),
+    );
+    expect(result.certificationAlerts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          artifactType: 'PHYTO_CERT',
+          status: 'VALID',
+        }),
+        expect.objectContaining({
+          artifactType: 'VHT_CERT',
+          status: 'MISSING',
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane flags any mrl exceedance and preserves unknown substances', () => {
+    const definition = buildDefinition({
+      substances: [
+        {
+          name: 'Chlorpyrifos',
+          cas: '2921-88-2',
+          thaiMrl: 0.5,
+          destinationMrl: 0.01,
+          stringencyRatio: 50,
+          riskLevel: 'CRITICAL',
+        },
+        {
+          name: 'Dithiocarbamates',
+          cas: '111-54-6',
+          thaiMrl: 2,
+          destinationMrl: 0.1,
+          stringencyRatio: 20,
+          riskLevel: 'CRITICAL',
+        },
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: 'Chlorpyrifos',
+              valueMgKg: 0.02,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        valid: false,
+        hasUnknowns: true,
+        results: [
+          expect.objectContaining({
+            substance: 'Chlorpyrifos',
+            valueMgKg: 0.02,
+            limitMgKg: 0.01,
+            status: 'FAIL',
+          }),
+          expect.objectContaining({
+            substance: 'Dithiocarbamates',
+            valueMgKg: null,
+            limitMgKg: 0.1,
+            status: 'UNKNOWN',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('evaluateLane treats a measured value at the destination limit as passing', () => {
+    const definition = buildDefinition();
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: 'Chlorpyrifos',
+              valueMgKg: 0.01,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        valid: true,
+        hasUnknowns: false,
+        results: [
+          expect.objectContaining({
+            substance: 'Chlorpyrifos',
+            valueMgKg: 0.01,
+            status: 'PASS',
+          }),
+        ],
       }),
     );
   });

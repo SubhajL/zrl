@@ -16,6 +16,7 @@ import type {
   LaneTransportMode,
   UpdateLaneInput,
 } from './lane.types';
+import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
 
 type QueryExecutor = Pool | PoolClient;
 
@@ -81,6 +82,13 @@ interface RuleSnapshotRow extends QueryResultRow {
   rules: LaneRuleSnapshot['rules'];
   effective_date: Date | string;
   created_at: Date | string;
+}
+
+interface ArtifactRow extends QueryResultRow {
+  id: string;
+  artifact_type: string;
+  file_name: string;
+  metadata: Record<string, unknown> | null;
 }
 
 @Injectable()
@@ -577,6 +585,30 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
           ? null
           : this.mapRuleSnapshot(ruleSnapshotResult.rows[0]),
     };
+  }
+
+  async listEvidenceArtifactsForLane(id: string): Promise<RuleLaneArtifact[]> {
+    const result = await this.requireExecutor().query<ArtifactRow>(
+      `
+        SELECT
+          id,
+          artifact_type,
+          file_name,
+          metadata
+        FROM evidence_artifacts
+        WHERE lane_id = $1
+          AND deleted_at IS NULL
+        ORDER BY uploaded_at ASC, id ASC
+      `,
+      [id],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      artifactType: row.artifact_type,
+      fileName: row.file_name,
+      metadata: row.metadata,
+    }));
   }
 
   async updateLaneBundle(

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -58,7 +59,6 @@ function parseSubstanceBody(body: unknown): SubstanceBody {
 
 @Controller('rules')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
 export class RulesEngineController {
   constructor(private readonly rulesEngineService: RulesEngineService) {}
 
@@ -68,9 +68,22 @@ export class RulesEngineController {
   }
 
   @Post('reload')
+  @Roles('ADMIN')
   async reloadRules() {
     const result = await this.rulesEngineService.reloadRules();
     return { loaded: result.loaded };
+  }
+
+  @Get('markets/:market/checklist')
+  async getChecklist(
+    @Param('market') market: string,
+    @Query('product') product: string | undefined,
+  ) {
+    if (typeof product !== 'string' || product.trim().length === 0) {
+      throw new BadRequestException('product query parameter is required.');
+    }
+
+    return await this.rulesEngineService.getChecklist(market, product);
   }
 
   @Get('markets/:market/products/:product/ruleset')
@@ -96,6 +109,7 @@ export class RulesEngineController {
   }
 
   @Post('markets/:market/substances')
+  @Roles('ADMIN')
   async createSubstance(
     @Param('market') market: string,
     @Body() body: unknown,
@@ -109,6 +123,7 @@ export class RulesEngineController {
   }
 
   @Patch('substances/:id')
+  @Roles('ADMIN')
   async updateSubstance(
     @Param('id') id: string,
     @Body() body: unknown,

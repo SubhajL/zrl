@@ -3,6 +3,10 @@ import type {
   AuditEntityType,
 } from '../../common/audit/audit.types';
 import type { AuthSessionUser } from '../../common/auth/auth.types';
+import type {
+  RuleLaneArtifact,
+  RuleLaneEvaluation,
+} from '../rules-engine/rules-engine.types';
 
 export const LaneStatus = {
   CREATED: 'CREATED',
@@ -261,6 +265,7 @@ export interface LaneStore {
     market?: LaneMarket;
   }): Promise<{ items: LaneSummary[]; total: number }>;
   findLaneById(id: string): Promise<LaneDetail | null>;
+  listEvidenceArtifactsForLane(id: string): Promise<RuleLaneArtifact[]>;
   updateLaneBundle(
     id: string,
     input: UpdateLaneInput,
@@ -272,6 +277,8 @@ export interface LaneStore {
   ): Promise<LaneDetail | null>;
   countProofPacksForLane(id: string): Promise<number>;
 }
+
+export type LaneCompletenessResponse = RuleLaneEvaluation;
 
 export interface LaneAuditInput {
   actor: string;

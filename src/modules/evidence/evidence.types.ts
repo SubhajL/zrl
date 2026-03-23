@@ -1,6 +1,10 @@
 import type { AuthSessionUser } from '../../common/auth/auth.types';
 import type { AuditStore } from '../../common/audit/audit.types';
 import type { Readable } from 'node:stream';
+import type {
+  RuleLaneArtifact,
+  RuleSnapshotPayload,
+} from '../rules-engine/rules-engine.types';
 
 export const ArtifactSource = {
   UPLOAD: 'UPLOAD',
@@ -29,6 +33,8 @@ export interface EvidenceLaneRecord {
   id: string;
   laneId: string;
   exporterId: string;
+  completenessScore: number;
+  ruleSnapshot: RuleSnapshotPayload | null;
 }
 
 export interface EvidenceArtifactRecord {
@@ -146,12 +152,14 @@ export interface EvidenceArtifactStore {
     laneId: string,
     filters: EvidenceListFilters,
   ): Promise<{ items: EvidenceArtifactRecord[]; total: number }>;
+  listArtifactsForEvaluation(laneId: string): Promise<RuleLaneArtifact[]>;
   findArtifactById(id: string): Promise<EvidenceArtifactRecord | null>;
   updateArtifactVerificationStatus(
     id: string,
     status: EvidenceVerificationStatus,
   ): Promise<EvidenceArtifactRecord>;
   findArtifactGraphForLane(laneId: string): Promise<EvidenceArtifactGraph>;
+  updateLaneCompletenessScore(laneId: string, score: number): Promise<void>;
   softDeleteArtifact(id: string): Promise<EvidenceArtifactRecord | null>;
 }
 

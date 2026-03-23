@@ -68,10 +68,15 @@ describe('EvidenceService', () => {
   let createArtifactMock: jest.Mock;
   let createArtifactLinksMock: jest.Mock;
   let listArtifactsForLaneMock: jest.Mock;
+  let listArtifactsForEvaluationMock: jest.Mock;
   let findArtifactByIdMock: jest.Mock;
   let updateArtifactVerificationStatusMock: jest.Mock;
   let findArtifactGraphForLaneMock: jest.Mock;
+  let updateLaneCompletenessScoreMock: jest.Mock;
   let softDeleteArtifactMock: jest.Mock;
+  let rulesEngineService: {
+    evaluateLane: jest.Mock;
+  };
 
   beforeEach(() => {
     auditStore = {
@@ -98,6 +103,8 @@ describe('EvidenceService', () => {
     findArtifactByIdMock = jest.fn();
     updateArtifactVerificationStatusMock = jest.fn();
     findArtifactGraphForLaneMock = jest.fn();
+    listArtifactsForEvaluationMock = jest.fn();
+    updateLaneCompletenessScoreMock = jest.fn();
     softDeleteArtifactMock = jest.fn();
     const transactionalStore = {} as EvidenceArtifactStore;
     Object.assign(transactionalStore, {
@@ -111,9 +118,11 @@ describe('EvidenceService', () => {
       createArtifact: createArtifactMock,
       createArtifactLinks: createArtifactLinksMock,
       listArtifactsForLane: listArtifactsForLaneMock,
+      listArtifactsForEvaluation: listArtifactsForEvaluationMock,
       findArtifactById: findArtifactByIdMock,
       updateArtifactVerificationStatus: updateArtifactVerificationStatusMock,
       findArtifactGraphForLane: findArtifactGraphForLaneMock,
+      updateLaneCompletenessScore: updateLaneCompletenessScoreMock,
       softDeleteArtifact: softDeleteArtifactMock,
     });
     store = transactionalStore;
@@ -127,12 +136,25 @@ describe('EvidenceService', () => {
     photoMetadataExtractor = {
       extract: jest.fn().mockResolvedValue(null),
     };
+    rulesEngineService = {
+      evaluateLane: jest.fn().mockReturnValue({
+        score: 0,
+        required: 0,
+        present: 0,
+        missing: [],
+        checklist: [],
+        categories: [],
+        labValidation: null,
+        certificationAlerts: [],
+      }),
+    };
     service = new EvidenceService(
       store,
       objectStore,
       hashingService,
       auditService as never,
       photoMetadataExtractor as never,
+      rulesEngineService as never,
     );
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
     uploadFilePath = join(tempDirectory, 'phyto.pdf');
@@ -246,6 +268,104 @@ describe('EvidenceService', () => {
         },
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('uploadArtifact recalculates lane completeness after evidence persistence', async () => {
+    const createdArtifact = buildArtifact({ artifactType: 'MRL_TEST' });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'JAPAN',
+        product: 'MANGO',
+        version: 1,
+        effectiveDate: new Date('2026-03-01T00:00:00.000Z'),
+        sourcePath: '/rules/japan/mango.yaml',
+        requiredDocuments: ['MRL Test Results'],
+        completenessWeights: {
+          regulatory: 0.4,
+          quality: 0.25,
+          coldChain: 0.2,
+          chainOfCustody: 0.15,
+        },
+        substances: [],
+      },
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    listArtifactsForEvaluationMock.mockResolvedValue([
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [{ substance: 'Chlorpyrifos', valueMgKg: 0.01 }],
+        },
+      },
+    ]);
+    rulesEngineService.evaluateLane.mockReturnValue({
+      score: 40,
+      required: 1,
+      present: 1,
+      missing: [],
+      checklist: [],
+      categories: [],
+      labValidation: {
+        valid: true,
+        hasUnknowns: false,
+        results: [],
+      },
+      certificationAlerts: [],
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        mimeType: 'application/json',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.PARTNER_API,
+        checkpointId: null,
+        metadata: {
+          results: [{ substance: 'Chlorpyrifos', valueMgKg: 0.01 }],
+        },
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(listArtifactsForEvaluationMock).toHaveBeenCalledWith('lane-db-1');
+    expect(rulesEngineService.evaluateLane).toHaveBeenCalledWith(
+      expect.objectContaining({
+        market: 'JAPAN',
+        product: 'MANGO',
+      }),
+      expect.arrayContaining([
+        expect.objectContaining({
+          artifactType: 'MRL_TEST',
+        }),
+      ]),
+    );
+    expect(updateLaneCompletenessScoreMock).toHaveBeenCalledWith(
+      'lane-db-1',
+      40,
+    );
   });
 
   it('listLaneArtifacts applies filters through the store', async () => {
