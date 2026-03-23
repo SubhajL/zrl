@@ -81,7 +81,7 @@ export interface EvidenceGraphNode {
   artifactId: string;
   artifactType: EvidenceArtifactType;
   label: string;
-  status: 'COMPLETE' | 'PENDING' | 'FAILED';
+  status: EvidenceVerificationStatus;
   hashPreview: string;
 }
 
@@ -95,6 +95,12 @@ export interface EvidenceGraphEdge {
 export interface EvidenceArtifactGraph {
   nodes: EvidenceGraphNode[];
   edges: EvidenceGraphEdge[];
+}
+
+export interface EvidenceGraphVerificationResult {
+  valid: boolean;
+  invalidNodeIds: string[];
+  checkedCount: number;
 }
 
 export interface EvidenceListFilters {
@@ -148,11 +154,24 @@ export interface EvidenceArtifactStore {
     sourceArtifactId: string,
     links: Array<{ targetArtifactId: string; relationshipType: string }>,
   ): Promise<void>;
+  findLatestArtifactForLane(
+    laneId: string,
+  ): Promise<EvidenceArtifactRecord | null>;
+  findLatestArtifactForCheckpoint(
+    checkpointId: string,
+  ): Promise<EvidenceArtifactRecord | null>;
+  linkCreatesCycle(
+    sourceArtifactId: string,
+    targetArtifactId: string,
+  ): Promise<boolean>;
   listArtifactsForLane(
     laneId: string,
     filters: EvidenceListFilters,
   ): Promise<{ items: EvidenceArtifactRecord[]; total: number }>;
   listArtifactsForEvaluation(laneId: string): Promise<RuleLaneArtifact[]>;
+  listArtifactsForIntegrityCheck(
+    laneId: string,
+  ): Promise<EvidenceArtifactRecord[]>;
   findArtifactById(id: string): Promise<EvidenceArtifactRecord | null>;
   updateArtifactVerificationStatus(
     id: string,

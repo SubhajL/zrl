@@ -15,6 +15,7 @@ import {
   type EvidenceArtifactGraph,
   type EvidenceArtifactRecord,
   type EvidenceArtifactStore,
+  type EvidenceGraphVerificationResult,
   type EvidenceListFilters,
   type EvidenceObjectStore,
 } from './evidence.types';
@@ -67,8 +68,12 @@ describe('EvidenceService', () => {
   let findLaneByIdMock: jest.Mock;
   let createArtifactMock: jest.Mock;
   let createArtifactLinksMock: jest.Mock;
+  let findLatestArtifactForLaneMock: jest.Mock;
+  let findLatestArtifactForCheckpointMock: jest.Mock;
+  let linkCreatesCycleMock: jest.Mock;
   let listArtifactsForLaneMock: jest.Mock;
   let listArtifactsForEvaluationMock: jest.Mock;
+  let listArtifactsForIntegrityCheckMock: jest.Mock;
   let findArtifactByIdMock: jest.Mock;
   let updateArtifactVerificationStatusMock: jest.Mock;
   let findArtifactGraphForLaneMock: jest.Mock;
@@ -99,7 +104,11 @@ describe('EvidenceService', () => {
     findLaneByIdMock = jest.fn();
     createArtifactMock = jest.fn();
     createArtifactLinksMock = jest.fn();
+    findLatestArtifactForLaneMock = jest.fn();
+    findLatestArtifactForCheckpointMock = jest.fn();
+    linkCreatesCycleMock = jest.fn().mockResolvedValue(false);
     listArtifactsForLaneMock = jest.fn();
+    listArtifactsForIntegrityCheckMock = jest.fn();
     findArtifactByIdMock = jest.fn();
     updateArtifactVerificationStatusMock = jest.fn();
     findArtifactGraphForLaneMock = jest.fn();
@@ -117,8 +126,12 @@ describe('EvidenceService', () => {
       findLaneById: findLaneByIdMock,
       createArtifact: createArtifactMock,
       createArtifactLinks: createArtifactLinksMock,
+      findLatestArtifactForLane: findLatestArtifactForLaneMock,
+      findLatestArtifactForCheckpoint: findLatestArtifactForCheckpointMock,
+      linkCreatesCycle: linkCreatesCycleMock,
       listArtifactsForLane: listArtifactsForLaneMock,
       listArtifactsForEvaluation: listArtifactsForEvaluationMock,
+      listArtifactsForIntegrityCheck: listArtifactsForIntegrityCheckMock,
       findArtifactById: findArtifactByIdMock,
       updateArtifactVerificationStatus: updateArtifactVerificationStatusMock,
       findArtifactGraphForLane: findArtifactGraphForLaneMock,
@@ -239,6 +252,205 @@ describe('EvidenceService', () => {
       createdAt: createdArtifact.uploadedAt.toISOString(),
       updatedAt: createdArtifact.updatedAt.toISOString(),
     });
+  });
+
+  it('uploadArtifact auto-links a checkpoint artifact to prior lane and checkpoint parents', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+    });
+    findLatestArtifactForLaneMock.mockResolvedValue(
+      buildArtifact({ id: 'artifact-lane-parent', checkpointId: null }),
+    );
+    findLatestArtifactForCheckpointMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-checkpoint-parent',
+        checkpointId: 'checkpoint-1',
+      }),
+    );
+    findArtifactByIdMock.mockImplementation((id: string) => {
+      if (id === 'artifact-lane-parent') {
+        return buildArtifact({
+          id: 'artifact-lane-parent',
+          checkpointId: null,
+        });
+      }
+
+      if (id === 'artifact-checkpoint-parent') {
+        return buildArtifact({
+          id: 'artifact-checkpoint-parent',
+          checkpointId: 'checkpoint-1',
+        });
+      }
+
+      return null;
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-new',
+        checkpointId: 'checkpoint-1',
+        contentHash:
+          'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+        filePath:
+          'evidence/LN-2026-001/CHECKPOINT_PHOTO/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff.jpg',
+        fileName: 'checkpoint.jpg',
+        mimeType: 'image/jpeg',
+        fileSizeBytes: 4096,
+        artifactType: 'CHECKPOINT_PHOTO',
+      }),
+    );
+    photoMetadataExtractor.extract.mockResolvedValue({
+      cameraModel: 'iPhone 15 Pro',
+      exifTimestamp: '2026-03-22T11:02:03.000Z',
+      capturedAt: '2026-03-22T11:02:03.000Z',
+      gpsLat: 13.6904,
+      gpsLng: 101.0779,
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'CHECKPOINT_PHOTO',
+        fileName: 'checkpoint.jpg',
+        mimeType: 'image/jpeg',
+        fileSizeBytes: 4096,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.CAMERA,
+        checkpointId: 'checkpoint-1',
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(createArtifactLinksMock).toHaveBeenCalledWith(
+      'artifact-new',
+      expect.arrayContaining([
+        {
+          targetArtifactId: 'artifact-lane-parent',
+          relationshipType: 'LANE_PREDECESSOR',
+        },
+        {
+          targetArtifactId: 'artifact-checkpoint-parent',
+          relationshipType: 'CHECKPOINT_PREDECESSOR',
+        },
+      ]),
+    );
+  });
+
+  it('uploadArtifact rejects links that would introduce a graph cycle', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+    });
+    findLatestArtifactForLaneMock.mockResolvedValue(null);
+    findLatestArtifactForCheckpointMock.mockResolvedValue(null);
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    createArtifactMock.mockResolvedValue(buildArtifact({ id: 'artifact-new' }));
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({ id: 'artifact-parent', laneId: 'lane-db-1' }),
+    );
+    linkCreatesCycleMock.mockResolvedValue(true);
+
+    await expect(
+      service.uploadArtifact(
+        {
+          laneId: 'lane-db-1',
+          artifactType: 'PHYTO_CERT',
+          fileName: 'phyto.pdf',
+          mimeType: 'application/pdf',
+          fileSizeBytes: 2048,
+          tempFilePath: uploadFilePath,
+          source: ArtifactSource.UPLOAD,
+          checkpointId: null,
+          metadata: null,
+          links: [
+            {
+              targetArtifactId: 'artifact-parent',
+              relationshipType: 'SUPPORTS',
+            },
+          ],
+        },
+        {
+          id: 'exporter-1',
+          email: 'exporter@example.com',
+          role: 'EXPORTER',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(createArtifactLinksMock).not.toHaveBeenCalled();
+  });
+
+  it('uploadArtifact rejects links to artifacts outside the lane', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+    });
+    findLatestArtifactForLaneMock.mockResolvedValue(null);
+    findLatestArtifactForCheckpointMock.mockResolvedValue(null);
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-other-lane',
+        laneId: 'lane-db-2',
+        lanePublicId: 'LN-2026-002',
+      }),
+    );
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    createArtifactMock.mockResolvedValue(buildArtifact({ id: 'artifact-new' }));
+
+    await expect(
+      service.uploadArtifact(
+        {
+          laneId: 'lane-db-1',
+          artifactType: 'PHYTO_CERT',
+          fileName: 'phyto.pdf',
+          mimeType: 'application/pdf',
+          fileSizeBytes: 2048,
+          tempFilePath: uploadFilePath,
+          source: ArtifactSource.UPLOAD,
+          checkpointId: null,
+          metadata: null,
+          links: [
+            {
+              targetArtifactId: 'artifact-other-lane',
+              relationshipType: 'SUPPORTS',
+            },
+          ],
+        },
+        {
+          id: 'exporter-1',
+          email: 'exporter@example.com',
+          role: 'EXPORTER',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(createArtifactLinksMock).not.toHaveBeenCalled();
   });
 
   it('uploadArtifact rejects uploads for unknown lanes', async () => {
@@ -476,6 +688,194 @@ describe('EvidenceService', () => {
 
     await expect(service.getLaneGraph('lane-db-1')).resolves.toEqual(graph);
     expect(findArtifactGraphForLaneMock).toHaveBeenCalledWith('lane-db-1');
+  });
+
+  it('verifyLaneGraph flags invalid nodes and appends a lane audit entry', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+    });
+    findArtifactGraphForLaneMock.mockResolvedValue({
+      nodes: [
+        {
+          id: 'artifact-1',
+          artifactId: 'artifact-1',
+          artifactType: 'PHYTO_CERT',
+          label: 'Phyto Certificate',
+          status: 'PENDING',
+          hashPreview: 'aaaaaaaa',
+        },
+        {
+          id: 'artifact-2',
+          artifactId: 'artifact-2',
+          artifactType: 'MRL_TEST',
+          label: 'MRL Test',
+          status: 'PENDING',
+          hashPreview: 'bbbbbbbb',
+        },
+      ],
+      edges: [],
+    });
+    listArtifactsForIntegrityCheckMock.mockResolvedValue([
+      buildArtifact({ id: 'artifact-1', filePath: 'object-1' }),
+      buildArtifact({
+        id: 'artifact-2',
+        filePath: 'object-2',
+        contentHash:
+          'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      }),
+    ]);
+    createReadStreamMock
+      .mockResolvedValueOnce('object-stream-1')
+      .mockResolvedValueOnce('object-stream-2');
+    (hashingService.hashFile as jest.Mock)
+      .mockResolvedValueOnce(
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      )
+      .mockResolvedValueOnce(
+        'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      );
+    updateArtifactVerificationStatusMock
+      .mockResolvedValueOnce(
+        buildArtifact({ id: 'artifact-1', verificationStatus: 'VERIFIED' }),
+      )
+      .mockResolvedValueOnce(
+        buildArtifact({
+          id: 'artifact-2',
+          verificationStatus: 'FAILED',
+          contentHash:
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        }),
+      );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    );
+
+    const result = await service.verifyLaneGraph('lane-db-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(result).toEqual<EvidenceGraphVerificationResult>({
+      valid: false,
+      invalidNodeIds: ['artifact-2'],
+      checkedCount: 2,
+    });
+    expect(updateArtifactVerificationStatusMock).toHaveBeenNthCalledWith(
+      1,
+      'artifact-1',
+      'VERIFIED',
+    );
+    expect(updateArtifactVerificationStatusMock).toHaveBeenNthCalledWith(
+      2,
+      'artifact-2',
+      'FAILED',
+    );
+    expect(auditService.createEntryWithStore).toHaveBeenCalledWith(
+      auditStore,
+      expect.objectContaining({
+        actor: 'exporter-1',
+        action: AuditAction.VERIFY,
+        entityType: AuditEntityType.LANE,
+        entityId: 'lane-db-1',
+      }),
+    );
+  });
+
+  it('verifyLaneGraph fails when the persisted graph contains a cycle', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+    });
+    listArtifactsForIntegrityCheckMock.mockResolvedValue([
+      buildArtifact({ id: 'artifact-1', filePath: 'object-1' }),
+      buildArtifact({ id: 'artifact-2', filePath: 'object-2' }),
+    ]);
+    findArtifactGraphForLaneMock.mockResolvedValue({
+      nodes: [
+        {
+          id: 'artifact-1',
+          artifactId: 'artifact-1',
+          artifactType: 'PHYTO_CERT',
+          label: 'Phyto Certificate',
+          status: 'PENDING',
+          hashPreview: 'aaaaaaaa',
+        },
+        {
+          id: 'artifact-2',
+          artifactId: 'artifact-2',
+          artifactType: 'MRL_TEST',
+          label: 'MRL Test',
+          status: 'PENDING',
+          hashPreview: 'bbbbbbbb',
+        },
+      ],
+      edges: [
+        {
+          id: 'edge-1',
+          sourceArtifactId: 'artifact-1',
+          targetArtifactId: 'artifact-2',
+          relationshipType: 'SUPPORTS',
+        },
+        {
+          id: 'edge-2',
+          sourceArtifactId: 'artifact-2',
+          targetArtifactId: 'artifact-1',
+          relationshipType: 'SUPPORTS',
+        },
+      ],
+    });
+    createReadStreamMock
+      .mockResolvedValueOnce('object-stream-1')
+      .mockResolvedValueOnce('object-stream-2');
+    (hashingService.hashFile as jest.Mock)
+      .mockResolvedValueOnce(
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      )
+      .mockResolvedValueOnce(
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+    updateArtifactVerificationStatusMock
+      .mockResolvedValueOnce(
+        buildArtifact({ id: 'artifact-1', verificationStatus: 'FAILED' }),
+      )
+      .mockResolvedValueOnce(
+        buildArtifact({ id: 'artifact-2', verificationStatus: 'FAILED' }),
+      );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    );
+
+    const result = await service.verifyLaneGraph('lane-db-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.checkedCount).toBe(2);
+    expect(result.invalidNodeIds).toEqual(
+      expect.arrayContaining(['artifact-1', 'artifact-2']),
+    );
+    expect(updateArtifactVerificationStatusMock).toHaveBeenNthCalledWith(
+      1,
+      'artifact-1',
+      'FAILED',
+    );
+    expect(updateArtifactVerificationStatusMock).toHaveBeenNthCalledWith(
+      2,
+      'artifact-2',
+      'FAILED',
+    );
   });
 
   it('uploadArtifact enriches checkpoint photos with extracted EXIF metadata', async () => {
