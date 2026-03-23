@@ -18,7 +18,10 @@ import {
   MAX_EVIDENCE_LIMIT,
 } from './evidence.constants';
 import type {
+  EvidenceArtifactRecord,
+  EvidenceArtifactGraph,
   EvidenceArtifactResponse,
+  EvidenceGraphVerificationResult,
   EvidenceArtifactStore,
   EvidenceListFilters,
   EvidenceObjectStore,
@@ -81,6 +84,76 @@ function normalizePartnerMetadata(
   }
 
   return metadata;
+}
+
+function mergeLinks(
+  explicitLinks: Array<{ targetArtifactId: string; relationshipType: string }>,
+  automaticLinks: Array<{ targetArtifactId: string; relationshipType: string }>,
+) {
+  const deduped = new Map<
+    string,
+    { targetArtifactId: string; relationshipType: string }
+  >();
+
+  for (const link of [...explicitLinks, ...automaticLinks]) {
+    deduped.set(`${link.targetArtifactId}:${link.relationshipType}`, link);
+  }
+
+  return [...deduped.values()];
+}
+
+function findCycleNodeIds(graph: EvidenceArtifactGraph): string[] {
+  const adjacency = new Map<string, string[]>();
+  for (const node of graph.nodes) {
+    adjacency.set(node.id, []);
+  }
+
+  for (const edge of graph.edges) {
+    if (adjacency.has(edge.sourceArtifactId)) {
+      adjacency.get(edge.sourceArtifactId)!.push(edge.targetArtifactId);
+    }
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const cycleNodeIds = new Set<string>();
+  const path: string[] = [];
+
+  const visit = (nodeId: string) => {
+    visiting.add(nodeId);
+    path.push(nodeId);
+
+    for (const neighborId of adjacency.get(nodeId) ?? []) {
+      if (!adjacency.has(neighborId)) {
+        continue;
+      }
+
+      if (visiting.has(neighborId)) {
+        const cycleStartIndex = path.indexOf(neighborId);
+        for (const cycleNodeId of path.slice(cycleStartIndex)) {
+          cycleNodeIds.add(cycleNodeId);
+        }
+        cycleNodeIds.add(neighborId);
+        continue;
+      }
+
+      if (!visited.has(neighborId)) {
+        visit(neighborId);
+      }
+    }
+
+    path.pop();
+    visiting.delete(nodeId);
+    visited.add(nodeId);
+  };
+
+  for (const nodeId of adjacency.keys()) {
+    if (!visited.has(nodeId)) {
+      visit(nodeId);
+    }
+  }
+
+  return [...cycleNodeIds];
 }
 
 @Injectable()
@@ -198,6 +271,88 @@ export class EvidenceService {
     return await this.store.findArtifactGraphForLane(laneId);
   }
 
+  async verifyLaneGraph(
+    laneId: string,
+    actor: EvidenceRequestUser,
+  ): Promise<EvidenceGraphVerificationResult> {
+    const lane = await this.store.findLaneById(laneId);
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    this.assertLaneAccess(lane.exporterId, actor);
+
+    const [artifacts, graph] = await Promise.all([
+      this.store.listArtifactsForIntegrityCheck(laneId),
+      this.store.findArtifactGraphForLane(laneId),
+    ]);
+    const structurallyInvalidNodeIds = new Set(findCycleNodeIds(graph));
+    const verificationResults: Array<{
+      artifactId: string;
+      status: 'VERIFIED' | 'FAILED';
+    }> = [];
+
+    for (const artifact of artifacts) {
+      try {
+        const storedObject = await this.objectStore.createReadStream(
+          artifact.filePath,
+        );
+        const computedHash = await this.hashingService.hashFile(storedObject);
+        verificationResults.push({
+          artifactId: artifact.id,
+          status:
+            computedHash === artifact.contentHash &&
+            !structurallyInvalidNodeIds.has(artifact.id)
+              ? 'VERIFIED'
+              : 'FAILED',
+        });
+      } catch {
+        verificationResults.push({
+          artifactId: artifact.id,
+          status: 'FAILED',
+        });
+      }
+    }
+
+    const result: EvidenceGraphVerificationResult = {
+      valid: verificationResults.every(
+        (verification) => verification.status === 'VERIFIED',
+      ),
+      invalidNodeIds: verificationResults
+        .filter((verification) => verification.status === 'FAILED')
+        .map((verification) => verification.artifactId),
+      checkedCount: verificationResults.length,
+    };
+
+    await this.store.runInTransaction(async (transactional) => {
+      for (const verification of verificationResults) {
+        await transactional.updateArtifactVerificationStatus(
+          verification.artifactId,
+          verification.status,
+        );
+      }
+
+      const payloadHash = await this.hashingService.hashString(
+        JSON.stringify({
+          laneId,
+          ...result,
+        }),
+      );
+      await this.auditService.createEntryWithStore(
+        transactional.asAuditStore(),
+        {
+          actor: actor.id,
+          action: AuditAction.VERIFY,
+          entityType: AuditEntityType.LANE,
+          entityId: laneId,
+          payloadHash,
+        },
+      );
+    });
+
+    return result;
+  }
+
   async createPartnerLabArtifact(
     input: {
       laneId: string;
@@ -271,6 +426,14 @@ export class EvidenceService {
     try {
       const artifact = await this.store.runInTransaction(
         async (transactional) => {
+          const latestLaneArtifact =
+            await transactional.findLatestArtifactForLane(lane.id);
+          const latestCheckpointArtifact =
+            input.checkpointId === null
+              ? null
+              : await transactional.findLatestArtifactForCheckpoint(
+                  input.checkpointId,
+                );
           const created = await transactional.createArtifact({
             laneId: lane.id,
             artifactType: input.artifactType,
@@ -286,8 +449,35 @@ export class EvidenceService {
             uploadedBy: actor.id,
           });
 
-          if (input.links.length > 0) {
-            await transactional.createArtifactLinks(created.id, input.links);
+          const automaticLinks = this.buildAutomaticLinks(
+            latestLaneArtifact,
+            latestCheckpointArtifact,
+          );
+          const links = mergeLinks(input.links, automaticLinks);
+
+          for (const link of links) {
+            const targetArtifact = await transactional.findArtifactById(
+              link.targetArtifactId,
+            );
+            if (targetArtifact === null || targetArtifact.laneId !== lane.id) {
+              throw new BadRequestException(
+                'Artifact links must target existing artifacts in the same lane.',
+              );
+            }
+
+            const createsCycle = await transactional.linkCreatesCycle(
+              created.id,
+              link.targetArtifactId,
+            );
+            if (createsCycle) {
+              throw new BadRequestException(
+                'Artifact link would create a cycle.',
+              );
+            }
+          }
+
+          if (links.length > 0) {
+            await transactional.createArtifactLinks(created.id, links);
           }
 
           const payloadHash = await this.hashingService.hashString(
@@ -324,7 +514,9 @@ export class EvidenceService {
 
       return { artifact: this.mapArtifact(artifact) };
     } catch (error) {
-      await this.objectStore.deleteObject(filePath).catch(() => undefined);
+      await Promise.resolve(this.objectStore.deleteObject(filePath)).catch(
+        () => undefined,
+      );
       throw error;
     } finally {
       await rm(input.tempFilePath, { force: true }).catch(() => undefined);
@@ -338,6 +530,35 @@ export class EvidenceService {
     }
 
     return artifact;
+  }
+
+  private buildAutomaticLinks(
+    latestLaneArtifact: EvidenceArtifactRecord | null | undefined,
+    latestCheckpointArtifact: EvidenceArtifactRecord | null | undefined,
+  ): Array<{ targetArtifactId: string; relationshipType: string }> {
+    const automaticLinks: Array<{
+      targetArtifactId: string;
+      relationshipType: string;
+    }> = [];
+
+    if (latestCheckpointArtifact != null) {
+      automaticLinks.push({
+        targetArtifactId: latestCheckpointArtifact.id,
+        relationshipType: 'CHECKPOINT_PREDECESSOR',
+      });
+    }
+
+    if (
+      latestLaneArtifact != null &&
+      latestLaneArtifact.id !== latestCheckpointArtifact?.id
+    ) {
+      automaticLinks.push({
+        targetArtifactId: latestLaneArtifact.id,
+        relationshipType: 'LANE_PREDECESSOR',
+      });
+    }
+
+    return automaticLinks;
   }
 
   private assertLaneAccess(exporterId: string, actor: EvidenceRequestUser) {

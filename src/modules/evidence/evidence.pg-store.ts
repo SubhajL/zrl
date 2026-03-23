@@ -266,6 +266,114 @@ export class PrismaEvidenceStore
     }
   }
 
+  async findLatestArtifactForLane(
+    laneId: string,
+  ): Promise<EvidenceArtifactRecord | null> {
+    const result = await this.requireExecutor().query<ArtifactRow>(
+      `
+        SELECT
+          ea.id,
+          ea.lane_id,
+          lanes.lane_id AS lane_public_id,
+          lanes.exporter_id,
+          ea.artifact_type,
+          ea.file_name,
+          ea.mime_type,
+          ea.file_size_bytes,
+          ea.file_path,
+          ea.content_hash,
+          ea.source,
+          ea.checkpoint_id,
+          ea.verification_status,
+          ea.metadata,
+          ea.uploaded_by,
+          ea.uploaded_at,
+          ea.updated_at,
+          ea.deleted_at
+        FROM evidence_artifacts ea
+        INNER JOIN lanes ON lanes.id = ea.lane_id
+        WHERE ea.lane_id = $1
+          AND ea.deleted_at IS NULL
+        ORDER BY ea.uploaded_at DESC, ea.id DESC
+        LIMIT 1
+      `,
+      [laneId],
+    );
+
+    return result.rowCount === 0 ? null : this.mapArtifact(result.rows[0]);
+  }
+
+  async findLatestArtifactForCheckpoint(
+    checkpointId: string,
+  ): Promise<EvidenceArtifactRecord | null> {
+    const result = await this.requireExecutor().query<ArtifactRow>(
+      `
+        SELECT
+          ea.id,
+          ea.lane_id,
+          lanes.lane_id AS lane_public_id,
+          lanes.exporter_id,
+          ea.artifact_type,
+          ea.file_name,
+          ea.mime_type,
+          ea.file_size_bytes,
+          ea.file_path,
+          ea.content_hash,
+          ea.source,
+          ea.checkpoint_id,
+          ea.verification_status,
+          ea.metadata,
+          ea.uploaded_by,
+          ea.uploaded_at,
+          ea.updated_at,
+          ea.deleted_at
+        FROM evidence_artifacts ea
+        INNER JOIN lanes ON lanes.id = ea.lane_id
+        WHERE ea.checkpoint_id = $1
+          AND ea.deleted_at IS NULL
+        ORDER BY ea.uploaded_at DESC, ea.id DESC
+        LIMIT 1
+      `,
+      [checkpointId],
+    );
+
+    return result.rowCount === 0 ? null : this.mapArtifact(result.rows[0]);
+  }
+
+  async linkCreatesCycle(
+    sourceArtifactId: string,
+    targetArtifactId: string,
+  ): Promise<boolean> {
+    const result = await this.requireExecutor().query<{
+      creates_cycle: boolean;
+    }>(
+      `
+        WITH RECURSIVE reachable(artifact_id) AS (
+          SELECT target_ea.id
+          FROM evidence_artifacts target_ea
+          WHERE target_ea.id = $1::uuid
+            AND target_ea.deleted_at IS NULL
+          UNION
+          SELECT al.target_artifact_id
+          FROM artifact_links al
+          INNER JOIN evidence_artifacts source_ea ON source_ea.id = al.source_artifact_id
+          INNER JOIN evidence_artifacts target_ea ON target_ea.id = al.target_artifact_id
+          INNER JOIN reachable r ON r.artifact_id = al.source_artifact_id
+          WHERE source_ea.deleted_at IS NULL
+            AND target_ea.deleted_at IS NULL
+        )
+        SELECT EXISTS(
+          SELECT 1
+          FROM reachable
+          WHERE artifact_id = $2::uuid
+        ) AS creates_cycle
+      `,
+      [targetArtifactId, sourceArtifactId],
+    );
+
+    return result.rows[0]?.creates_cycle === true;
+  }
+
   async listArtifactsForLane(
     laneId: string,
     filters: EvidenceListFilters,
@@ -337,7 +445,7 @@ export class PrismaEvidenceStore
   }
 
   async listArtifactsForEvaluation(laneId: string) {
-    const rows = await this.requireExecutor().query<ArtifactRow>(
+    const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
           ea.id,
@@ -367,12 +475,48 @@ export class PrismaEvidenceStore
       [laneId],
     );
 
-    return rows.rows.map((row) => ({
+    return result.rows.map((row) => ({
       id: row.id,
       artifactType: row.artifact_type,
       fileName: row.file_name,
       metadata: row.metadata,
     }));
+  }
+
+  async listArtifactsForIntegrityCheck(
+    laneId: string,
+  ): Promise<EvidenceArtifactRecord[]> {
+    const result = await this.requireExecutor().query<ArtifactRow>(
+      `
+        SELECT
+          ea.id,
+          ea.lane_id,
+          lanes.lane_id AS lane_public_id,
+          lanes.exporter_id,
+          ea.artifact_type,
+          ea.file_name,
+          ea.mime_type,
+          ea.file_size_bytes,
+          ea.file_path,
+          ea.content_hash,
+          ea.source,
+          ea.checkpoint_id,
+          ea.verification_status,
+          ea.metadata,
+          ea.uploaded_by,
+          ea.uploaded_at,
+          ea.updated_at,
+          ea.deleted_at
+        FROM evidence_artifacts ea
+        INNER JOIN lanes ON lanes.id = ea.lane_id
+        WHERE ea.lane_id = $1
+          AND ea.deleted_at IS NULL
+        ORDER BY ea.uploaded_at ASC, ea.id ASC
+      `,
+      [laneId],
+    );
+
+    return result.rows.map((row) => this.mapArtifact(row));
   }
 
   async findArtifactById(id: string): Promise<EvidenceArtifactRecord | null> {
@@ -408,9 +552,12 @@ export class PrismaEvidenceStore
           al.target_artifact_id,
           al.relationship_type
         FROM artifact_links al
-        INNER JOIN evidence_artifacts ea ON ea.id = al.source_artifact_id
-        WHERE ea.lane_id = $1
-          AND ea.deleted_at IS NULL
+        INNER JOIN evidence_artifacts source_ea ON source_ea.id = al.source_artifact_id
+        INNER JOIN evidence_artifacts target_ea ON target_ea.id = al.target_artifact_id
+        WHERE source_ea.lane_id = $1
+          AND target_ea.lane_id = $1
+          AND source_ea.deleted_at IS NULL
+          AND target_ea.deleted_at IS NULL
       `,
       [laneId],
     );
@@ -424,10 +571,7 @@ export class PrismaEvidenceStore
           artifact.artifactType,
           artifact.fileName,
         ),
-        status:
-          artifact.verificationStatus === 'VERIFIED'
-            ? 'COMPLETE'
-            : artifact.verificationStatus,
+        status: artifact.verificationStatus,
         hashPreview: artifact.contentHash.slice(0, 8),
       })),
       edges: edges.rows.map((edge) => ({

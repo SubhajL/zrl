@@ -113,6 +113,11 @@ describe('EvidenceController (e2e)', () => {
       ],
       edges: [],
     }),
+    verifyLaneGraph: jest.fn().mockResolvedValue({
+      valid: false,
+      invalidNodeIds: ['artifact-1'],
+      checkedCount: 1,
+    }),
     createPartnerLabArtifact: jest.fn().mockResolvedValue({
       artifact: {
         id: 'artifact-2',
@@ -225,6 +230,23 @@ describe('EvidenceController (e2e)', () => {
         const body = response.body as { nodes: unknown[]; edges: unknown[] };
         expect(body.nodes).toHaveLength(1);
         expect(body.edges).toHaveLength(0);
+      });
+  });
+
+  it('POST /lanes/:id/evidence/graph/verify returns verification data', async () => {
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/evidence/graph/verify')
+      .set('Authorization', 'Bearer access-token')
+      .expect(201)
+      .expect((response: Response) => {
+        const body = response.body as {
+          valid: boolean;
+          invalidNodeIds: string[];
+          checkedCount: number;
+        };
+        expect(body.valid).toBe(false);
+        expect(body.invalidNodeIds).toEqual(['artifact-1']);
+        expect(body.checkedCount).toBe(1);
       });
   });
 

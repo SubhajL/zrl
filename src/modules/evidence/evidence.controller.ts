@@ -261,6 +261,15 @@ export class EvidenceController {
     return await this.evidenceService.getLaneGraph(laneId);
   }
 
+  @Post('lanes/:id/evidence/graph/verify')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
+  async verifyLaneEvidenceGraph(
+    @Param('id') laneId: string,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    return await this.evidenceService.verifyLaneGraph(laneId, request.user!);
+  }
+
   @Get('evidence/:id')
   @UseGuards(JwtAuthGuard)
   async getArtifact(
