@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { tmpdir } from 'node:os';
@@ -11,6 +12,7 @@ import { extname } from 'node:path';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { LaneService } from '../lane/lane.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   DEFAULT_EVIDENCE_LIMIT,
@@ -158,6 +160,8 @@ function findCycleNodeIds(graph: EvidenceArtifactGraph): string[] {
 
 @Injectable()
 export class EvidenceService {
+  private readonly logger = new Logger(EvidenceService.name);
+
   constructor(
     private readonly store: EvidenceArtifactStore,
     private readonly objectStore: EvidenceObjectStore,
@@ -165,6 +169,7 @@ export class EvidenceService {
     private readonly auditService: AuditService,
     private readonly photoMetadataExtractor: EvidencePhotoMetadataExtractor,
     private readonly rulesEngineService: RulesEngineService,
+    private readonly laneService: LaneService,
   ) {}
 
   async uploadArtifact(input: UploadArtifactInput, actor: EvidenceRequestUser) {
@@ -512,6 +517,8 @@ export class EvidenceService {
         },
       );
 
+      await this.reconcileLaneTransitionsAfterUpload(lane, actor.id);
+
       return { artifact: this.mapArtifact(artifact) };
     } catch (error) {
       await Promise.resolve(this.objectStore.deleteObject(filePath)).catch(
@@ -520,6 +527,30 @@ export class EvidenceService {
       throw error;
     } finally {
       await rm(input.tempFilePath, { force: true }).catch(() => undefined);
+    }
+  }
+
+  private async reconcileLaneTransitionsAfterUpload(
+    lane: {
+      id: string;
+      ruleSnapshot?: unknown;
+    },
+    actorId: string,
+  ) {
+    if (lane.ruleSnapshot === null || lane.ruleSnapshot === undefined) {
+      return;
+    }
+
+    try {
+      await this.laneService.reconcileAutomaticTransitions(lane.id, actorId);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown reconciliation error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Automatic lane transition reconciliation failed for lane ${lane.id}: ${message}`,
+        stack,
+      );
     }
   }
 

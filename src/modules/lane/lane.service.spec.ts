@@ -795,4 +795,109 @@ describe('LaneService', () => {
     expect(transitionLaneStatusMock).not.toHaveBeenCalled();
     expect(createAuditEntryMock).not.toHaveBeenCalled();
   });
+
+  it('reconcileAutomaticTransitions validates evidence-collecting lanes once completeness reaches threshold', async () => {
+    const service = createService();
+    findLaneByIdMock.mockReset();
+    transitionLaneStatusMock.mockReset();
+    const collectingLane = buildLaneDetail({
+      status: 'EVIDENCE_COLLECTING',
+      completenessScore: 97,
+    });
+    const validatedLane = buildLaneDetail({
+      status: 'VALIDATED',
+      completenessScore: 97,
+      updatedAt: new Date('2026-03-22T05:35:00.000Z'),
+    });
+
+    findLaneByIdMock
+      .mockResolvedValueOnce(collectingLane)
+      .mockResolvedValueOnce(validatedLane);
+    transitionLaneStatusMock.mockResolvedValue(validatedLane);
+
+    await expect(
+      service.reconcileAutomaticTransitions('lane-db-1', 'user-1'),
+    ).resolves.toEqual({ lane: validatedLane, transitions: ['VALIDATED'] });
+
+    expect(transitionLaneStatusMock).toHaveBeenCalledWith(
+      'lane-db-1',
+      'VALIDATED',
+      expect.any(Date),
+    );
+    expect(createAuditEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'user-1',
+        action: AuditAction.UPDATE,
+        entityType: AuditEntityType.LANE,
+        entityId: 'lane-db-1',
+      }),
+    );
+  });
+
+  it('reconcileAutomaticTransitions moves incomplete lanes back into collecting before validation', async () => {
+    const service = createService();
+    findLaneByIdMock.mockReset();
+    transitionLaneStatusMock.mockReset();
+    const incompleteLane = buildLaneDetail({
+      status: 'INCOMPLETE',
+      completenessScore: 98,
+    });
+    const collectingLane = buildLaneDetail({
+      status: 'EVIDENCE_COLLECTING',
+      completenessScore: 98,
+      updatedAt: new Date('2026-03-22T05:40:00.000Z'),
+    });
+    const validatedLane = buildLaneDetail({
+      status: 'VALIDATED',
+      completenessScore: 98,
+      updatedAt: new Date('2026-03-22T05:41:00.000Z'),
+    });
+
+    findLaneByIdMock
+      .mockResolvedValueOnce(incompleteLane)
+      .mockResolvedValueOnce(collectingLane)
+      .mockResolvedValueOnce(validatedLane);
+    transitionLaneStatusMock
+      .mockResolvedValueOnce(collectingLane)
+      .mockResolvedValueOnce(validatedLane);
+
+    await expect(
+      service.reconcileAutomaticTransitions('lane-db-1', 'user-1'),
+    ).resolves.toEqual({
+      lane: validatedLane,
+      transitions: ['EVIDENCE_COLLECTING', 'VALIDATED'],
+    });
+
+    expect(transitionLaneStatusMock).toHaveBeenNthCalledWith(
+      1,
+      'lane-db-1',
+      'EVIDENCE_COLLECTING',
+      expect.any(Date),
+    );
+    expect(transitionLaneStatusMock).toHaveBeenNthCalledWith(
+      2,
+      'lane-db-1',
+      'VALIDATED',
+      expect.any(Date),
+    );
+    expect(createAuditEntryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconcileAutomaticTransitions is a no-op when no automatic transition applies', async () => {
+    const service = createService();
+    findLaneByIdMock.mockReset();
+    const packedLane = buildLaneDetail({
+      status: 'PACKED',
+      completenessScore: 100,
+    });
+
+    findLaneByIdMock.mockResolvedValue(packedLane);
+
+    await expect(
+      service.reconcileAutomaticTransitions('lane-db-1', 'user-1'),
+    ).resolves.toEqual({ lane: packedLane, transitions: [] });
+
+    expect(transitionLaneStatusMock).not.toHaveBeenCalled();
+    expect(createAuditEntryMock).not.toHaveBeenCalled();
+  });
 });
