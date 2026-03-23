@@ -119,6 +119,7 @@ export interface LaneSummary {
   coldChainMode: LaneColdChainMode;
   createdAt: Date;
   updatedAt: Date;
+  statusChangedAt: Date;
 }
 
 export interface LaneRuleSnapshot {
@@ -187,6 +188,10 @@ export interface LaneDetail extends LaneSummary {
   ruleSnapshot: LaneRuleSnapshot | null;
 }
 
+export interface TransitionLaneInput {
+  targetStatus: LaneStatus;
+}
+
 export interface LaneRuleSnapshotPayload {
   market: LaneMarket;
   product: LaneProduct;
@@ -248,6 +253,12 @@ export interface LaneStore {
     id: string,
     input: UpdateLaneInput,
   ): Promise<LaneDetail | null>;
+  transitionLaneStatus(
+    id: string,
+    targetStatus: LaneStatus,
+    transitionedAt: Date,
+  ): Promise<LaneDetail | null>;
+  countProofPacksForLane(id: string): Promise<number>;
 }
 
 export interface LaneAuditInput {

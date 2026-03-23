@@ -1,5 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import {
+  ConflictException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import request, { type Response } from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
@@ -45,6 +49,7 @@ describe('LaneController (e2e)', () => {
         productType: 'MANGO',
         destinationMarket: 'JAPAN',
         completenessScore: 0,
+        statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
         createdAt: new Date('2026-03-22T05:00:00.000Z'),
         updatedAt: new Date('2026-03-22T05:00:00.000Z'),
         batch: {
@@ -81,6 +86,7 @@ describe('LaneController (e2e)', () => {
           productType: 'MANGO',
           destinationMarket: 'JAPAN',
           completenessScore: 0,
+          statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
           coldChainMode: null,
           createdAt: new Date('2026-03-22T05:00:00.000Z'),
           updatedAt: new Date('2026-03-22T05:00:00.000Z'),
@@ -102,6 +108,7 @@ describe('LaneController (e2e)', () => {
         productType: 'MANGO',
         destinationMarket: 'JAPAN',
         completenessScore: 0,
+        statusChangedAt: new Date('2026-03-22T05:00:00.000Z'),
         createdAt: new Date('2026-03-22T05:00:00.000Z'),
         updatedAt: new Date('2026-03-22T05:00:00.000Z'),
         batch: null,
@@ -119,8 +126,27 @@ describe('LaneController (e2e)', () => {
         productType: 'MANGO',
         destinationMarket: 'JAPAN',
         completenessScore: 0,
+        statusChangedAt: new Date('2026-03-22T05:10:00.000Z'),
         createdAt: new Date('2026-03-22T05:00:00.000Z'),
         updatedAt: new Date('2026-03-22T05:10:00.000Z'),
+        batch: null,
+        route: null,
+        checkpoints: [],
+        ruleSnapshot: null,
+      },
+    }),
+    transition: jest.fn().mockResolvedValue({
+      lane: {
+        id: 'lane-db-1',
+        laneId: 'LN-2026-002',
+        exporterId: 'user-1',
+        status: 'VALIDATED',
+        productType: 'MANGO',
+        destinationMarket: 'JAPAN',
+        completenessScore: 95,
+        statusChangedAt: new Date('2026-03-22T05:15:00.000Z'),
+        createdAt: new Date('2026-03-22T05:00:00.000Z'),
+        updatedAt: new Date('2026-03-22T05:15:00.000Z'),
         batch: null,
         route: null,
         checkpoints: [],
@@ -251,6 +277,64 @@ describe('LaneController (e2e)', () => {
         batch: {
           variety: 'Nam Doc Mai',
         },
+      })
+      .expect(400);
+  });
+
+  it('POST /lanes/:id/transition transitions a lane', async () => {
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/transition')
+      .set('Authorization', 'Bearer access-token')
+      .send({
+        targetStatus: 'VALIDATED',
+      })
+      .expect(201)
+      .expect((response: Response) => {
+        const body = response.body as {
+          lane: { status: string };
+        };
+        expect(body.lane.status).toBe('VALIDATED');
+      });
+  });
+
+  it('POST /lanes/:id/transition returns 409 for illegal transition', async () => {
+    laneServiceMock.transition.mockRejectedValueOnce(
+      new ConflictException(
+        'Invalid lane transition from EVIDENCE_COLLECTING to PACKED.',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/transition')
+      .set('Authorization', 'Bearer access-token')
+      .send({
+        targetStatus: 'PACKED',
+      })
+      .expect(409);
+  });
+
+  it('POST /lanes/:id/transition returns 422 for unmet guard', async () => {
+    laneServiceMock.transition.mockRejectedValueOnce(
+      new UnprocessableEntityException(
+        'Lane completeness must be at least 95% before validation.',
+      ),
+    );
+
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/transition')
+      .set('Authorization', 'Bearer access-token')
+      .send({
+        targetStatus: 'VALIDATED',
+      })
+      .expect(422);
+  });
+
+  it('POST /lanes/:id/transition rejects invalid payloads', async () => {
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/transition')
+      .set('Authorization', 'Bearer access-token')
+      .send({
+        targetStatus: 'SHIPPED',
       })
       .expect(400);
   });
