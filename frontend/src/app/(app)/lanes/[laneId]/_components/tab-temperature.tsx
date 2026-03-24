@@ -1,11 +1,11 @@
 'use client';
 
-import { Thermometer, AlertTriangle, Clock } from 'lucide-react';
+import { Thermometer, AlertTriangle } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type Column } from '@/components/zrl/data-table';
+import { formatTimestamp } from '@/lib/format';
 import type {
   TemperatureReading,
   Excursion,
@@ -13,17 +13,6 @@ import type {
   TemperatureProfile,
   SlaStatus,
 } from '@/lib/types';
-
-/* ── Helpers ── */
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 const SLA_BADGE_VARIANT: Record<
   SlaStatus,
@@ -100,7 +89,7 @@ const excursionColumns: readonly Column<Excursion>[] = [
     header: 'Duration',
     sortable: true,
     render: (value: unknown) => (
-      <span className="font-mono text-sm">{String(value)} min</span>
+      <span className="font-mono tabular-nums text-sm">{String(value)} min</span>
     ),
   },
   {
@@ -108,7 +97,7 @@ const excursionColumns: readonly Column<Excursion>[] = [
     header: 'Max Deviation',
     sortable: true,
     render: (value: unknown) => (
-      <span className="font-mono text-sm">{String(value)}°C</span>
+      <span className="font-mono tabular-nums text-sm">{String(value)}°C</span>
     ),
   },
   {
@@ -116,7 +105,7 @@ const excursionColumns: readonly Column<Excursion>[] = [
     header: 'Impact',
     sortable: true,
     render: (value: unknown) => (
-      <span className="font-mono text-sm">{String(value)}%</span>
+      <span className="font-mono tabular-nums text-sm">{String(value)}%</span>
     ),
   },
 ] as const;
@@ -193,7 +182,7 @@ export function TabTemperature({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" />
+            <AlertTriangle className="size-4 text-warning" />
             <CardTitle className="text-sm font-bold">Excursion Log</CardTitle>
           </div>
         </CardHeader>

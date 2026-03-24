@@ -1,26 +1,13 @@
 'use client';
 
-import { ShieldCheck, Download, Copy } from 'lucide-react';
+import { ShieldCheck, Download } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/zrl/data-table';
+import { formatTimestamp } from '@/lib/format';
 import type { AuditEntry } from '@/lib/types';
-
-/* ── Helpers ── */
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
 
 /* ── Column definitions ── */
 

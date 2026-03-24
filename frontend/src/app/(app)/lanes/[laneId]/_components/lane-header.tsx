@@ -34,7 +34,7 @@ export function LaneHeader({ lane }: LaneHeaderProps) {
       {/* Row 1: Lane ID + Status Badge + Temperature StatusDot */}
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-mono font-bold">{lane.laneId}</h1>
-        <Badge variant={STATUS_VARIANT[lane.status] as 'default'}>
+        <Badge variant={STATUS_VARIANT[lane.status]}>
           {STATUS_LABELS[lane.status]}
         </Badge>
         <StatusDot

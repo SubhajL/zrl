@@ -6,7 +6,7 @@ import {
   FileText,
 } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+import { formatTimestamp } from '@/lib/format';
 import {
   Card,
   CardHeader,
@@ -67,23 +67,14 @@ const SOURCE_VARIANT: Record<string, 'default' | 'secondary' | 'info'> = {
 
 /* ── Helpers ── */
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function StatusIcon({ status }: { readonly status: string }) {
   switch (status) {
     case 'VERIFIED':
-      return <CheckCircle className="size-5 text-emerald-600" />;
+      return <CheckCircle className="size-5 text-success" />;
     case 'PENDING':
-      return <Loader2 className="size-5 text-blue-500 animate-spin" />;
+      return <Loader2 className="size-5 text-info animate-spin" />;
     case 'FAILED':
-      return <AlertTriangle className="size-5 text-amber-500" />;
+      return <AlertTriangle className="size-5 text-warning" />;
     default:
       return <FileText className="size-5 text-muted-foreground" />;
   }
@@ -163,7 +154,7 @@ export function TabEvidence({ evidence, graph }: TabEvidenceProps) {
                       {artifact.source}
                     </Badge>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDate(artifact.createdAt)}
+                      {formatTimestamp(artifact.createdAt)}
                     </span>
                   </div>
                 );

@@ -3,18 +3,8 @@ import { MapPin, Thermometer, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatTimestamp } from '@/lib/format';
 import type { Checkpoint } from '@/lib/types';
-
-/* ── Helpers ── */
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -26,9 +16,9 @@ const STATUS_BADGE_VARIANT: Record<
 };
 
 const CIRCLE_COLOR: Record<string, string> = {
-  COMPLETED: 'bg-emerald-500',
-  PENDING: 'bg-gray-400',
-  OVERDUE: 'bg-red-500',
+  COMPLETED: 'bg-success',
+  PENDING: 'bg-muted-foreground',
+  OVERDUE: 'bg-destructive',
 };
 
 /* ── Component ── */
@@ -65,7 +55,7 @@ export function TabCheckpoints({ checkpoints }: TabCheckpointsProps) {
           <div
             className={cn(
               'absolute left-2.5 w-3 h-3 rounded-full',
-              CIRCLE_COLOR[checkpoint.status] ?? 'bg-gray-400',
+              CIRCLE_COLOR[checkpoint.status] ?? 'bg-muted-foreground',
             )}
           />
 
@@ -100,7 +90,7 @@ export function TabCheckpoints({ checkpoints }: TabCheckpointsProps) {
                   {checkpoint.temperature != null && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Thermometer className="size-3.5" />
-                      <span className="font-mono">
+                      <span className="font-mono tabular-nums">
                         {checkpoint.temperature}°C
                       </span>
                     </div>

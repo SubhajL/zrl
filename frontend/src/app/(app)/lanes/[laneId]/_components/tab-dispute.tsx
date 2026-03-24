@@ -1,6 +1,5 @@
 import { ShieldOff, Shield, AlertTriangle } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,7 @@ export function TabDispute({ laneId, hasDispute }: TabDisputeProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="size-5 text-red-500" />
+              <AlertTriangle className="size-5 text-destructive" />
               <CardTitle className="text-base">Dispute Status</CardTitle>
             </div>
             <Badge variant="destructive">Dispute Active</Badge>

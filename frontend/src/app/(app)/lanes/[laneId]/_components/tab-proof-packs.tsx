@@ -26,7 +26,7 @@ const PACK_DEFINITIONS: readonly PackDefinition[] = [
     name: 'Regulator Pack',
     icon: FileCheck,
     tint: 'blue',
-    iconBg: 'bg-blue-500/10',
+    iconBg: 'bg-info/10',
     description:
       'All MRL results, phyto cert, VHT cert, customs forms (Thai+English)',
   },
@@ -34,7 +34,7 @@ const PACK_DEFINITIONS: readonly PackDefinition[] = [
     name: 'Buyer Pack',
     icon: Package,
     tint: 'emerald',
-    iconBg: 'bg-emerald-500/10',
+    iconBg: 'bg-success/10',
     description:
       'MRL summary, phyto, VHT, temp SLA, checkpoint photos (English+Japanese)',
   },
@@ -42,7 +42,7 @@ const PACK_DEFINITIONS: readonly PackDefinition[] = [
     name: 'Defense Pack',
     icon: Shield,
     tint: 'amber',
-    iconBg: 'bg-amber-500/10',
+    iconBg: 'bg-warning/10',
     description:
       'Full chain-of-custody, temp graphs, excursion analysis, audit trail',
   },
