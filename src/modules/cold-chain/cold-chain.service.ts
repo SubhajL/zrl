@@ -4,92 +4,111 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
-  LaneColdChainConfigPayload,
   ColdChainStore,
   FruitProfile,
+  IngestLaneReadingsInput,
+  IngestLaneReadingsResult,
+  LaneColdChainConfigPayload,
+  LaneTemperatureContext,
+  LaneTemperatureDataResult,
+  LaneTemperatureQuery,
+  NewTemperatureExcursion,
+  TemperatureClassification,
+  TemperatureExcursion,
+  TemperatureReading,
+  TemperatureReadingInput,
+  TemperatureSlaReport,
 } from './cold-chain.types';
 import type { LaneColdChainConfigInput, LaneProduct } from '../lane/lane.types';
 
-interface FruitTemperatureProfile {
-  fruit: LaneProduct;
-  optimalMinC: number;
-  optimalMaxC: number;
-  chillingThresholdC: number | null;
-  heatThresholdC: number;
-  baseShelfLifeDays: number;
-  minShelfLifeDays: number;
-}
-
-interface TemperatureReadingInput {
-  timestamp: Date;
-  temperatureC: number;
-}
-
-interface TemperatureExcursion {
-  severity: 'MINOR' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
-  direction: 'LOW' | 'HIGH';
-  thresholdC: number;
-  observedC: number;
-  durationMinutes: number;
-}
-
-interface TemperatureReport {
-  status: 'PASS' | 'CONDITIONAL' | 'FAIL';
-  defensibilityScore: number;
-  shelfLifeImpactPercent: number;
-  remainingShelfLifeDays: number;
-}
-
-const CANONICAL_PROFILES: FruitTemperatureProfile[] = [
+const CANONICAL_PROFILES: FruitProfile[] = [
   {
-    fruit: 'MANGO',
+    id: 'canonical-mango',
+    productType: 'MANGO',
     optimalMinC: 10,
     optimalMaxC: 13,
     chillingThresholdC: 10,
     heatThresholdC: 15,
-    baseShelfLifeDays: 21,
-    minShelfLifeDays: 14,
+    shelfLifeMinDays: 14,
+    shelfLifeMaxDays: 21,
   },
   {
-    fruit: 'DURIAN',
+    id: 'canonical-durian',
+    productType: 'DURIAN',
     optimalMinC: 12,
     optimalMaxC: 15,
     chillingThresholdC: 10,
     heatThresholdC: 18,
-    baseShelfLifeDays: 14,
-    minShelfLifeDays: 7,
+    shelfLifeMinDays: 7,
+    shelfLifeMaxDays: 14,
   },
   {
-    fruit: 'MANGOSTEEN',
+    id: 'canonical-mangosteen',
+    productType: 'MANGOSTEEN',
     optimalMinC: 10,
     optimalMaxC: 13,
     chillingThresholdC: 8,
     heatThresholdC: 15,
-    baseShelfLifeDays: 21,
-    minShelfLifeDays: 14,
+    shelfLifeMinDays: 14,
+    shelfLifeMaxDays: 21,
   },
   {
-    fruit: 'LONGAN',
+    id: 'canonical-longan',
+    productType: 'LONGAN',
     optimalMinC: 2,
     optimalMaxC: 5,
     chillingThresholdC: null,
     heatThresholdC: 8,
-    baseShelfLifeDays: 30,
-    minShelfLifeDays: 21,
+    shelfLifeMinDays: 21,
+    shelfLifeMaxDays: 30,
   },
 ];
+
+const SHELF_LIFE_IMPACT_BY_SEVERITY: Record<
+  TemperatureExcursion['severity'],
+  number
+> = {
+  MINOR: 5,
+  MODERATE: 12,
+  SEVERE: 25,
+  CRITICAL: 100,
+};
+
+interface ClassifiedReading {
+  direction: TemperatureExcursion['direction'];
+  type: TemperatureExcursion['type'];
+  thresholdC: number;
+  observedC: number;
+  deviationC: number;
+  critical: boolean;
+}
+
+interface ExcursionAccumulator {
+  startedAt: Date;
+  laneId: string;
+  direction: TemperatureExcursion['direction'];
+  type: TemperatureExcursion['type'];
+  thresholdC: number;
+  minObservedC: number;
+  maxObservedC: number;
+  maxDeviationC: number;
+  durationMinutes: number;
+  critical: boolean;
+  lastTimestamp: Date;
+  lastDurationMinutes: number;
+}
 
 @Injectable()
 export class ColdChainService {
   constructor(private readonly coldChainStore?: ColdChainStore) {}
 
-  listFruitProfiles(): FruitTemperatureProfile[] {
+  listFruitProfiles(): FruitProfile[] {
     return [...CANONICAL_PROFILES];
   }
 
-  getFruitProfile(productType: LaneProduct): FruitTemperatureProfile {
+  getFruitProfile(productType: LaneProduct): FruitProfile {
     const profile = CANONICAL_PROFILES.find(
-      ({ fruit }) => fruit === productType,
+      (entry) => entry.productType === productType,
     );
     if (profile === undefined) {
       throw new BadRequestException('Unsupported product.');
@@ -100,11 +119,11 @@ export class ColdChainService {
 
   evaluateReadings(
     productType: LaneProduct,
-    readings: TemperatureReadingInput[],
+    readings: Array<{ timestamp: Date; temperatureC: number }>,
   ): {
-    profile: FruitTemperatureProfile;
-    excursions: TemperatureExcursion[];
-    report: TemperatureReport;
+    profile: FruitProfile;
+    excursions: NewTemperatureExcursion[];
+    report: TemperatureSlaReport;
   } {
     if (readings.length === 0) {
       throw new BadRequestException(
@@ -113,19 +132,18 @@ export class ColdChainService {
     }
 
     const profile = this.getFruitProfile(productType);
-    const excursions = readings
-      .map((reading, index) =>
-        this.classifyReading(
-          profile,
-          reading,
-          this.resolveDurationMinutes(readings, index),
-        ),
-      )
-      .filter(
-        (excursion): excursion is TemperatureExcursion => excursion !== null,
-      );
-
-    const report = this.buildReport(profile, excursions);
+    const normalized = this.normalizeReadings(
+      readings.map((reading) => ({
+        ...reading,
+        deviceId: null,
+      })),
+    ).map((reading, index) => ({
+      ...reading,
+      id: `memory-${index + 1}`,
+      laneId: 'memory-lane',
+    }));
+    const excursions = this.detectExcursionsSync(profile, normalized, null);
+    const report = this.calculateShelfLifeImpactSync(profile, excursions);
 
     return {
       profile,
@@ -139,9 +157,7 @@ export class ColdChainService {
       return await this.coldChainStore.listProfiles();
     }
 
-    return CANONICAL_PROFILES.map((profile, index) =>
-      this.mapCanonicalProfile(profile, `canonical-${index + 1}`),
-    );
+    return this.listFruitProfiles();
   }
 
   async getProfile(productType: LaneProduct): Promise<FruitProfile> {
@@ -155,21 +171,13 @@ export class ColdChainService {
       return profile;
     }
 
-    return this.mapCanonicalProfile(
-      this.getFruitProfile(productType),
-      `canonical-${productType.toLowerCase()}`,
-    );
+    return this.getFruitProfile(productType);
   }
 
   classifyTemperature(
     productType: LaneProduct,
     temperatureC: number,
-  ): Promise<{
-    productType: LaneProduct;
-    temperatureC: number;
-    status: 'OPTIMAL' | 'CHILLING_INJURY' | 'HEAT_DAMAGE';
-    isExcursion: boolean;
-  }> {
+  ): Promise<TemperatureClassification> {
     const profile = this.getFruitProfile(productType);
 
     if (
@@ -199,6 +207,277 @@ export class ColdChainService {
       status: 'OPTIMAL',
       isExcursion: false,
     });
+  }
+
+  async ingestLaneReadings(
+    laneId: string,
+    input: IngestLaneReadingsInput,
+  ): Promise<IngestLaneReadingsResult> {
+    if (input.readings.length === 0) {
+      throw new BadRequestException(
+        'At least one temperature reading is required.',
+      );
+    }
+
+    const context = await this.requireLaneTemperatureContext(laneId);
+    const normalized = this.normalizeReadings(input.readings);
+
+    if (this.coldChainStore === undefined) {
+      throw new Error('Cold-chain store is not configured.');
+    }
+
+    await this.coldChainStore.createTemperatureReadings(laneId, normalized);
+    const readings = await this.coldChainStore.listTemperatureReadings(laneId);
+    const excursions = await this.detectExcursions(
+      context.profile,
+      readings,
+      this.resolveCadenceMinutes(context),
+    );
+    const storedExcursions = await this.coldChainStore.replaceExcursions(
+      laneId,
+      excursions,
+    );
+    const sla = await this.calculateShelfLifeImpact(
+      context.profile,
+      storedExcursions,
+    );
+
+    return {
+      count: normalized.length,
+      excursionsDetected: storedExcursions.length,
+      sla,
+    };
+  }
+
+  async listLaneTemperatureData(
+    laneId: string,
+    query: LaneTemperatureQuery,
+  ): Promise<LaneTemperatureDataResult> {
+    const context = await this.requireLaneTemperatureContext(laneId);
+    if (this.coldChainStore === undefined) {
+      throw new Error('Cold-chain store is not configured.');
+    }
+
+    const readings = await this.coldChainStore.listTemperatureReadings(laneId, {
+      from: query.from,
+      to: query.to,
+    });
+    const excursions = await this.coldChainStore.listLaneExcursions(laneId, {
+      from: query.from,
+      to: query.to,
+    });
+
+    const resolution = query.resolution ?? 'raw';
+
+    return {
+      readings: this.downsampleReadings(readings, resolution),
+      excursions,
+      sla: await this.calculateShelfLifeImpact(context.profile, excursions),
+      meta: {
+        resolution,
+        from: query.from ?? null,
+        to: query.to ?? null,
+        totalReadings: readings.length,
+      },
+    };
+  }
+
+  detectExcursions(
+    profile: FruitProfile,
+    readings: TemperatureReading[],
+    cadenceMinutes: number | null,
+  ): Promise<NewTemperatureExcursion[]> {
+    return Promise.resolve(
+      this.detectExcursionsSync(profile, readings, cadenceMinutes),
+    );
+  }
+
+  private detectExcursionsSync(
+    profile: FruitProfile,
+    readings: TemperatureReading[],
+    cadenceMinutes: number | null,
+  ): NewTemperatureExcursion[] {
+    if (readings.length === 0) {
+      return [];
+    }
+
+    const sortedReadings = [...readings].sort(
+      (left, right) => left.timestamp.getTime() - right.timestamp.getTime(),
+    );
+    const excursions: NewTemperatureExcursion[] = [];
+    let current: ExcursionAccumulator | null = null;
+
+    for (let index = 0; index < sortedReadings.length; index += 1) {
+      const reading = sortedReadings[index];
+      const classified = this.classifyExcursionReading(profile, reading);
+      const durationMinutes = this.resolveSampleDurationMinutes(
+        sortedReadings,
+        index,
+        cadenceMinutes,
+      );
+
+      if (classified === null) {
+        if (current !== null) {
+          excursions.push(
+            this.finalizeExcursion(
+              current,
+              false,
+              this.addMinutes(
+                current.lastTimestamp,
+                current.lastDurationMinutes,
+              ),
+            ),
+          );
+          current = null;
+        }
+        continue;
+      }
+
+      if (
+        current === null ||
+        current.direction !== classified.direction ||
+        current.type !== classified.type
+      ) {
+        if (current !== null) {
+          excursions.push(
+            this.finalizeExcursion(
+              current,
+              false,
+              this.addMinutes(
+                current.lastTimestamp,
+                current.lastDurationMinutes,
+              ),
+            ),
+          );
+        }
+
+        current = {
+          laneId: reading.laneId,
+          startedAt: reading.timestamp,
+          direction: classified.direction,
+          type: classified.type,
+          thresholdC: classified.thresholdC,
+          minObservedC: reading.temperatureC,
+          maxObservedC: reading.temperatureC,
+          maxDeviationC: classified.deviationC,
+          durationMinutes,
+          critical: classified.critical,
+          lastTimestamp: reading.timestamp,
+          lastDurationMinutes: durationMinutes,
+        };
+        continue;
+      }
+
+      current.durationMinutes += durationMinutes;
+      current.maxDeviationC = Math.max(
+        current.maxDeviationC,
+        classified.deviationC,
+      );
+      current.minObservedC = Math.min(
+        current.minObservedC,
+        reading.temperatureC,
+      );
+      current.maxObservedC = Math.max(
+        current.maxObservedC,
+        reading.temperatureC,
+      );
+      current.critical = current.critical || classified.critical;
+      if (classified.critical) {
+        current.thresholdC = classified.thresholdC;
+      }
+      current.lastTimestamp = reading.timestamp;
+      current.lastDurationMinutes = durationMinutes;
+    }
+
+    if (current !== null) {
+      excursions.push(this.finalizeExcursion(current, true, null));
+    }
+
+    return excursions;
+  }
+
+  calculateShelfLifeImpact(
+    profile: FruitProfile,
+    excursions: Array<
+      Pick<
+        TemperatureExcursion,
+        | 'severity'
+        | 'durationMinutes'
+        | 'maxDeviationC'
+        | 'shelfLifeImpactPercent'
+      >
+    >,
+  ): Promise<TemperatureSlaReport> {
+    return Promise.resolve(
+      this.calculateShelfLifeImpactSync(profile, excursions),
+    );
+  }
+
+  private calculateShelfLifeImpactSync(
+    profile: FruitProfile,
+    excursions: Array<
+      Pick<
+        TemperatureExcursion,
+        | 'severity'
+        | 'durationMinutes'
+        | 'maxDeviationC'
+        | 'shelfLifeImpactPercent'
+      >
+    >,
+  ): TemperatureSlaReport {
+    if (excursions.length === 0) {
+      return {
+        status: 'PASS',
+        defensibilityScore: 100,
+        shelfLifeImpactPercent: 0,
+        remainingShelfLifeDays: profile.shelfLifeMaxDays,
+        excursionCount: 0,
+        totalExcursionMinutes: 0,
+        maxDeviationC: 0,
+      };
+    }
+
+    const impactPercent = Math.min(
+      100,
+      excursions.reduce(
+        (total, excursion) =>
+          total +
+          (excursion.shelfLifeImpactPercent ||
+            SHELF_LIFE_IMPACT_BY_SEVERITY[excursion.severity]),
+        0,
+      ),
+    );
+    const totalExcursionMinutes = excursions.reduce(
+      (total, excursion) => total + excursion.durationMinutes,
+      0,
+    );
+    const maxDeviationC = Math.max(
+      ...excursions.map((excursion) => excursion.maxDeviationC),
+    );
+    const worstSeverity = excursions.reduce<TemperatureExcursion['severity']>(
+      (worst, current) => {
+        const currentImpact = SHELF_LIFE_IMPACT_BY_SEVERITY[current.severity];
+        const worstImpact = SHELF_LIFE_IMPACT_BY_SEVERITY[worst];
+        return currentImpact > worstImpact ? current.severity : worst;
+      },
+      excursions[0].severity,
+    );
+
+    return {
+      status:
+        worstSeverity === 'SEVERE' || worstSeverity === 'CRITICAL'
+          ? 'FAIL'
+          : 'CONDITIONAL',
+      defensibilityScore: Math.max(0, 100 - impactPercent),
+      shelfLifeImpactPercent: impactPercent,
+      remainingShelfLifeDays: Math.max(
+        0,
+        Math.round(profile.shelfLifeMaxDays * (1 - impactPercent / 100)),
+      ),
+      excursionCount: excursions.length,
+      totalExcursionMinutes,
+      maxDeviationC,
+    };
   }
 
   validateLaneConfiguration(
@@ -255,73 +534,155 @@ export class ColdChainService {
     };
   }
 
-  private classifyReading(
-    profile: FruitTemperatureProfile,
-    reading: TemperatureReadingInput,
-    durationMinutes: number,
-  ): TemperatureExcursion | null {
-    if (
-      profile.chillingThresholdC !== null &&
-      reading.temperatureC < profile.chillingThresholdC
-    ) {
-      return {
-        severity: 'CRITICAL',
-        direction: 'LOW',
-        thresholdC: profile.chillingThresholdC,
-        observedC: reading.temperatureC,
-        durationMinutes,
-      };
+  private async requireLaneTemperatureContext(
+    laneId: string,
+  ): Promise<LaneTemperatureContext> {
+    if (this.coldChainStore === undefined) {
+      throw new Error('Cold-chain store is not configured.');
     }
 
-    if (reading.temperatureC > profile.heatThresholdC) {
+    const context =
+      await this.coldChainStore.findLaneTemperatureContext(laneId);
+    if (context === null) {
+      throw new NotFoundException('Lane or fruit profile not found.');
+    }
+
+    return context;
+  }
+
+  private normalizeReadings(
+    readings: TemperatureReadingInput[],
+  ): TemperatureReadingInput[] {
+    return [...readings]
+      .map((reading) => ({
+        timestamp: new Date(reading.timestamp),
+        temperatureC: Number(reading.temperatureC),
+        deviceId: reading.deviceId?.trim() || null,
+      }))
+      .map((reading) => {
+        if (Number.isNaN(reading.timestamp.getTime())) {
+          throw new BadRequestException(
+            'Invalid temperature reading timestamp.',
+          );
+        }
+
+        if (!Number.isFinite(reading.temperatureC)) {
+          throw new BadRequestException('Invalid temperature reading value.');
+        }
+
+        return reading;
+      })
+      .sort(
+        (left, right) => left.timestamp.getTime() - right.timestamp.getTime(),
+      );
+  }
+
+  private resolveCadenceMinutes(
+    context: LaneTemperatureContext,
+  ): number | null {
+    if (context.coldChainDataFrequencySeconds === null) {
+      return null;
+    }
+
+    return Math.max(1, Math.round(context.coldChainDataFrequencySeconds / 60));
+  }
+
+  private classifyExcursionReading(
+    profile: FruitProfile,
+    reading: Pick<TemperatureReading, 'temperatureC'>,
+  ): ClassifiedReading | null {
+    if (reading.temperatureC > profile.optimalMaxC) {
       return {
-        severity: this.resolveSeverity(
-          reading.temperatureC - profile.optimalMaxC,
-          durationMinutes,
-        ),
         direction: 'HIGH',
-        thresholdC: profile.heatThresholdC,
+        type: 'HEAT',
+        thresholdC: profile.optimalMaxC,
         observedC: reading.temperatureC,
-        durationMinutes,
+        deviationC: reading.temperatureC - profile.optimalMaxC,
+        critical: false,
       };
     }
 
     if (reading.temperatureC < profile.optimalMinC) {
+      const critical =
+        profile.chillingThresholdC !== null &&
+        reading.temperatureC < profile.chillingThresholdC;
+
       return {
-        severity: this.resolveSeverity(
-          profile.optimalMinC - reading.temperatureC,
-          durationMinutes,
-        ),
         direction: 'LOW',
-        thresholdC: profile.optimalMinC,
+        type: 'CHILLING',
+        thresholdC: critical
+          ? (profile.chillingThresholdC as number)
+          : profile.optimalMinC,
         observedC: reading.temperatureC,
-        durationMinutes,
+        deviationC: profile.optimalMinC - reading.temperatureC,
+        critical,
       };
     }
 
     return null;
   }
 
-  private resolveDurationMinutes(
-    readings: TemperatureReadingInput[],
+  private resolveSampleDurationMinutes(
+    readings: TemperatureReading[],
     index: number,
+    cadenceMinutes: number | null,
   ): number {
     const current = readings[index];
     const next = readings[index + 1];
 
-    if (next === undefined) {
-      return index === 0
-        ? 0
-        : Math.round(
-            (current.timestamp.getTime() -
-              readings[index - 1].timestamp.getTime()) /
-              60000,
-          );
+    if (next !== undefined) {
+      return Math.max(
+        0,
+        Math.round(
+          (next.timestamp.getTime() - current.timestamp.getTime()) / 60000,
+        ),
+      );
     }
 
-    return Math.round(
-      (next.timestamp.getTime() - current.timestamp.getTime()) / 60000,
+    if (cadenceMinutes !== null) {
+      return cadenceMinutes;
+    }
+
+    const previous = readings[index - 1];
+    if (previous === undefined) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      Math.round(
+        (current.timestamp.getTime() - previous.timestamp.getTime()) / 60000,
+      ),
     );
+  }
+
+  private finalizeExcursion(
+    accumulator: ExcursionAccumulator,
+    ongoing: boolean,
+    endedAt: Date | null,
+  ): NewTemperatureExcursion {
+    const severity = accumulator.critical
+      ? 'CRITICAL'
+      : this.resolveSeverity(
+          accumulator.maxDeviationC,
+          accumulator.durationMinutes,
+        );
+
+    return {
+      laneId: accumulator.laneId,
+      startedAt: accumulator.startedAt,
+      endedAt,
+      ongoing,
+      durationMinutes: accumulator.durationMinutes,
+      severity,
+      direction: accumulator.direction,
+      type: accumulator.type,
+      thresholdC: accumulator.thresholdC,
+      minObservedC: accumulator.minObservedC,
+      maxObservedC: accumulator.maxObservedC,
+      maxDeviationC: accumulator.maxDeviationC,
+      shelfLifeImpactPercent: SHELF_LIFE_IMPACT_BY_SEVERITY[severity],
+    };
   }
 
   private resolveSeverity(
@@ -339,76 +700,76 @@ export class ColdChainService {
     return 'MINOR';
   }
 
-  private buildReport(
-    profile: FruitTemperatureProfile,
-    excursions: TemperatureExcursion[],
-  ): TemperatureReport {
-    if (excursions.length === 0) {
-      return {
-        status: 'PASS',
-        defensibilityScore: 100,
-        shelfLifeImpactPercent: 0,
-        remainingShelfLifeDays: profile.baseShelfLifeDays,
-      };
+  private downsampleReadings(
+    readings: TemperatureReading[],
+    resolution: LaneTemperatureDataResult['meta']['resolution'],
+  ): TemperatureReading[] {
+    if (resolution === 'raw') {
+      return readings;
     }
 
-    const impactPercent = Math.max(
-      ...excursions.map((excursion) =>
-        this.shelfLifeImpact(excursion.severity),
-      ),
-    );
-    const worstSeverity = excursions.reduce(
-      (worst, current) =>
-        this.shelfLifeImpact(current.severity) > this.shelfLifeImpact(worst)
-          ? current.severity
-          : worst,
-      excursions[0].severity,
-    );
+    const bucketMinutes = this.getResolutionMinutes(resolution);
+    const bucketMs = bucketMinutes * 60000;
+    const buckets = new Map<
+      number,
+      {
+        laneId: string;
+        sum: number;
+        count: number;
+        deviceIds: Set<string>;
+      }
+    >();
 
-    return {
-      status:
-        worstSeverity === 'SEVERE' || worstSeverity === 'CRITICAL'
-          ? 'FAIL'
-          : 'CONDITIONAL',
-      defensibilityScore:
-        worstSeverity === 'CRITICAL' ? 0 : 100 - impactPercent,
-      shelfLifeImpactPercent: impactPercent,
-      remainingShelfLifeDays:
-        worstSeverity === 'CRITICAL'
-          ? profile.minShelfLifeDays
-          : Math.max(
-              profile.minShelfLifeDays,
-              Math.round(profile.baseShelfLifeDays * (1 - impactPercent / 100)),
-            ),
-    };
+    for (const reading of readings) {
+      const bucketStart =
+        Math.floor(reading.timestamp.getTime() / bucketMs) * bucketMs;
+      const existing = buckets.get(bucketStart);
+      if (existing === undefined) {
+        buckets.set(bucketStart, {
+          laneId: reading.laneId,
+          sum: reading.temperatureC,
+          count: 1,
+          deviceIds: new Set(
+            reading.deviceId === null ? [] : [reading.deviceId],
+          ),
+        });
+        continue;
+      }
+
+      existing.sum += reading.temperatureC;
+      existing.count += 1;
+      if (reading.deviceId !== null) {
+        existing.deviceIds.add(reading.deviceId);
+      }
+    }
+
+    return [...buckets.entries()]
+      .sort(([left], [right]) => left - right)
+      .map(([timestamp, bucket], index) => ({
+        id: `bucket-${index + 1}`,
+        laneId: bucket.laneId,
+        timestamp: new Date(timestamp),
+        temperatureC: Number((bucket.sum / bucket.count).toFixed(2)),
+        deviceId: bucket.deviceIds.size === 1 ? [...bucket.deviceIds][0] : null,
+      }));
   }
 
-  private shelfLifeImpact(severity: TemperatureExcursion['severity']): number {
-    switch (severity) {
-      case 'MINOR':
+  private getResolutionMinutes(
+    resolution: LaneTemperatureDataResult['meta']['resolution'],
+  ): number {
+    switch (resolution) {
+      case '5m':
         return 5;
-      case 'MODERATE':
+      case '15m':
         return 15;
-      case 'SEVERE':
-        return 30;
-      case 'CRITICAL':
-        return 100;
+      case '1h':
+        return 60;
+      case 'raw':
+        return 0;
     }
   }
 
-  private mapCanonicalProfile(
-    profile: FruitTemperatureProfile,
-    id: string,
-  ): FruitProfile {
-    return {
-      id,
-      productType: profile.fruit,
-      optimalMinC: profile.optimalMinC,
-      optimalMaxC: profile.optimalMaxC,
-      chillingThresholdC: profile.chillingThresholdC,
-      heatThresholdC: profile.heatThresholdC,
-      shelfLifeMinDays: profile.minShelfLifeDays,
-      shelfLifeMaxDays: profile.baseShelfLifeDays,
-    };
+  private addMinutes(timestamp: Date, minutes: number): Date {
+    return new Date(timestamp.getTime() + minutes * 60000);
   }
 }

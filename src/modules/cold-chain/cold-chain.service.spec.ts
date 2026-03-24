@@ -19,6 +19,11 @@ function buildProfile(overrides: Partial<FruitProfile> = {}): FruitProfile {
 describe('ColdChainService', () => {
   let listProfilesMock: jest.Mock;
   let findProfileByProductMock: jest.Mock;
+  let findLaneTemperatureContextMock: jest.Mock;
+  let createTemperatureReadingsMock: jest.Mock;
+  let listTemperatureReadingsMock: jest.Mock;
+  let replaceExcursionsMock: jest.Mock;
+  let listLaneExcursionsMock: jest.Mock;
   let service: ColdChainService;
 
   beforeEach(() => {
@@ -56,11 +61,28 @@ describe('ColdChainService', () => {
       }),
     ]);
     findProfileByProductMock = jest.fn().mockResolvedValue(buildProfile());
+    findLaneTemperatureContextMock = jest.fn().mockResolvedValue({
+      laneId: 'lane-db-1',
+      productType: 'MANGO',
+      coldChainMode: 'LOGGER',
+      coldChainDeviceId: 'logger-1',
+      coldChainDataFrequencySeconds: 300,
+      profile: buildProfile(),
+    });
+    createTemperatureReadingsMock = jest.fn().mockResolvedValue(undefined);
+    listTemperatureReadingsMock = jest.fn().mockResolvedValue([]);
+    replaceExcursionsMock = jest.fn().mockResolvedValue([]);
+    listLaneExcursionsMock = jest.fn().mockResolvedValue([]);
 
-    const store: ColdChainStore = {
+    const store = {
       listProfiles: listProfilesMock,
       findProfileByProduct: findProfileByProductMock,
-    };
+      findLaneTemperatureContext: findLaneTemperatureContextMock,
+      createTemperatureReadings: createTemperatureReadingsMock,
+      listTemperatureReadings: listTemperatureReadingsMock,
+      replaceExcursions: replaceExcursionsMock,
+      listLaneExcursions: listLaneExcursionsMock,
+    } as unknown as ColdChainStore;
 
     findProfileByProductMock.mockImplementation((productType: string) => {
       if (productType === 'DURIAN') {
@@ -199,5 +221,236 @@ describe('ColdChainService', () => {
         dataFrequencySeconds: 120,
       }),
     ).toThrow(BadRequestException);
+  });
+
+  it('ingestLaneReadings stores sorted readings and returns recomputed excursions', async () => {
+    listTemperatureReadingsMock.mockResolvedValue([
+      {
+        id: 'reading-1',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:00:00.000Z'),
+        temperatureC: 9,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-2',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:05:00.000Z'),
+        temperatureC: 9,
+        deviceId: 'logger-1',
+      },
+    ]);
+    replaceExcursionsMock.mockResolvedValue([
+      {
+        id: 'exc-1',
+        laneId: 'lane-db-1',
+        startedAt: new Date('2026-03-24T00:00:00.000Z'),
+        endedAt: new Date('2026-03-24T00:10:00.000Z'),
+        ongoing: false,
+        durationMinutes: 10,
+        severity: 'MINOR',
+        direction: 'LOW',
+        type: 'CHILLING',
+        thresholdC: 10,
+        minObservedC: 9,
+        maxObservedC: 9,
+        maxDeviationC: 1,
+        shelfLifeImpactPercent: 5,
+      },
+    ]);
+
+    const result = await service.ingestLaneReadings('lane-db-1', {
+      readings: [
+        {
+          timestamp: new Date('2026-03-24T00:05:00.000Z'),
+          temperatureC: 9,
+          deviceId: 'logger-1',
+        },
+        {
+          timestamp: new Date('2026-03-24T00:00:00.000Z'),
+          temperatureC: 9,
+          deviceId: 'logger-1',
+        },
+      ],
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.excursionsDetected).toBe(1);
+    expect(result.sla.status).toBe('CONDITIONAL');
+    expect(result.sla.shelfLifeImpactPercent).toBe(5);
+
+    expect(createTemperatureReadingsMock).toHaveBeenCalledWith('lane-db-1', [
+      expect.objectContaining({
+        timestamp: new Date('2026-03-24T00:00:00.000Z'),
+      }),
+      expect.objectContaining({
+        timestamp: new Date('2026-03-24T00:05:00.000Z'),
+      }),
+    ]);
+    expect(replaceExcursionsMock).toHaveBeenCalled();
+  });
+
+  it('detectExcursions classifies minor, moderate, severe, and critical boundaries', async () => {
+    const profile = buildProfile();
+
+    await expect(
+      service.detectExcursions(
+        profile,
+        [
+          {
+            id: 'reading-1',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T00:00:00.000Z'),
+            temperatureC: 14,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-2',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T00:05:00.000Z'),
+            temperatureC: 11,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-3',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T00:10:00.000Z'),
+            temperatureC: 15,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-4',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T00:50:00.000Z'),
+            temperatureC: 11,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-5',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T01:00:00.000Z'),
+            temperatureC: 9,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-6',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T01:05:00.000Z'),
+            temperatureC: 11,
+            deviceId: 'logger-1',
+          },
+          {
+            id: 'reading-7',
+            laneId: 'lane-db-1',
+            timestamp: new Date('2026-03-24T01:10:00.000Z'),
+            temperatureC: 16,
+            deviceId: 'logger-1',
+          },
+        ],
+        5,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ severity: 'MINOR' }),
+        expect.objectContaining({ severity: 'MODERATE' }),
+        expect.objectContaining({ severity: 'CRITICAL' }),
+        expect.objectContaining({ severity: 'SEVERE' }),
+      ]),
+    );
+  });
+
+  it('listLaneTemperatureData downsamples readings by requested resolution', async () => {
+    listTemperatureReadingsMock.mockResolvedValue([
+      {
+        id: 'reading-1',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:00:00.000Z'),
+        temperatureC: 10,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-2',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:04:00.000Z'),
+        temperatureC: 12,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-3',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:16:00.000Z'),
+        temperatureC: 13,
+        deviceId: 'logger-1',
+      },
+    ]);
+
+    await expect(
+      service.listLaneTemperatureData('lane-db-1', {
+        resolution: '15m',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        readings: [
+          expect.objectContaining({
+            timestamp: new Date('2026-03-24T00:00:00.000Z'),
+            temperatureC: 11,
+          }),
+          expect.objectContaining({
+            timestamp: new Date('2026-03-24T00:15:00.000Z'),
+            temperatureC: 13,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('calculateShelfLifeImpact caps cumulative reduction at one hundred percent', async () => {
+    const profile = buildProfile({
+      shelfLifeMinDays: 14,
+      shelfLifeMaxDays: 21,
+    });
+
+    await expect(
+      service.calculateShelfLifeImpact(profile, [
+        {
+          id: 'exc-1',
+          laneId: 'lane-db-1',
+          startedAt: new Date('2026-03-24T00:00:00.000Z'),
+          endedAt: new Date('2026-03-24T01:00:00.000Z'),
+          ongoing: false,
+          durationMinutes: 60,
+          severity: 'CRITICAL',
+          direction: 'LOW',
+          type: 'CHILLING',
+          thresholdC: 10,
+          minObservedC: 6,
+          maxObservedC: 6,
+          maxDeviationC: 4,
+          shelfLifeImpactPercent: 100,
+        },
+        {
+          id: 'exc-2',
+          laneId: 'lane-db-1',
+          startedAt: new Date('2026-03-24T02:00:00.000Z'),
+          endedAt: new Date('2026-03-24T03:00:00.000Z'),
+          ongoing: false,
+          durationMinutes: 60,
+          severity: 'SEVERE',
+          direction: 'HIGH',
+          type: 'HEAT',
+          thresholdC: 13,
+          minObservedC: 17,
+          maxObservedC: 17,
+          maxDeviationC: 4,
+          shelfLifeImpactPercent: 25,
+        },
+      ]),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        shelfLifeImpactPercent: 100,
+        remainingShelfLifeDays: 0,
+        status: 'FAIL',
+      }),
+    );
   });
 });
