@@ -151,6 +151,20 @@ enum ExcursionSeverity {
   @@map("excursion_severity")
 }
 
+enum ExcursionDirection {
+  LOW
+  HIGH
+
+  @@map("excursion_direction")
+}
+
+enum ExcursionType {
+  CHILLING
+  HEAT
+
+  @@map("excursion_type")
+}
+
 enum RiskLevel {
   CRITICAL
   HIGH
@@ -223,6 +237,8 @@ model Lane {
   checkpoints  Checkpoint[]
   artifacts    EvidenceArtifact[]
   proofPacks   ProofPack[]
+  temperatureReadings TemperatureReading[]
+  excursions   Excursion[]
 
   @@map("lanes")
 }
@@ -240,6 +256,44 @@ model FruitProfile {
   updatedAt                 DateTime    @updatedAt @map("updated_at")
 
   @@map("fruit_profiles")
+}
+
+model TemperatureReading {
+  id           String   @id @default(uuid())
+  laneId       String   @map("lane_id")
+  recordedAt   DateTime @map("recorded_at")
+  temperatureC Decimal  @map("temperature_c") @db.Decimal(5, 2)
+  deviceId     String?  @map("device_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lane Lane @relation(fields: [laneId], references: [id], onDelete: Restrict)
+
+  @@index([laneId, recordedAt])
+  @@map("temperature_readings")
+}
+
+model Excursion {
+  id                     String             @id @default(uuid())
+  laneId                 String             @map("lane_id")
+  startedAt              DateTime           @map("started_at")
+  endedAt                DateTime?          @map("ended_at")
+  ongoing                Boolean            @default(false)
+  durationMinutes        Int                @map("duration_minutes")
+  severity               ExcursionSeverity
+  direction              ExcursionDirection
+  excursionType          ExcursionType      @map("excursion_type")
+  thresholdC             Decimal            @map("threshold_c") @db.Decimal(5, 2)
+  minObservedC           Decimal            @map("min_observed_c") @db.Decimal(5, 2)
+  maxObservedC           Decimal            @map("max_observed_c") @db.Decimal(5, 2)
+  maxDeviationC          Decimal            @map("max_deviation_c") @db.Decimal(5, 2)
+  shelfLifeImpactPercent Int                @map("shelf_life_impact_percent")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  lane Lane @relation(fields: [laneId], references: [id], onDelete: Restrict)
+
+  @@index([laneId, startedAt])
+  @@map("excursions")
 }
 
 model Batch {
