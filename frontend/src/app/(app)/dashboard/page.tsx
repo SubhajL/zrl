@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Truck,
   CheckCircle,
@@ -192,10 +193,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full" size="lg">
-                  <a href="/lanes/new">
+                  <Link href="/lanes/new">
                     <Plus className="size-4" />
                     Create New Lane
-                  </a>
+                  </Link>
                 </Button>
               </CardContent>
             </Card>

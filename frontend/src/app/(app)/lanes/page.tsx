@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Package, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -84,10 +85,10 @@ export default function LanesListPage() {
           </p>
         </div>
         <Button asChild>
-          <a href="/lanes/new">
+          <Link href="/lanes/new">
             <Plus className="size-4" />
             Create New Lane
-          </a>
+          </Link>
         </Button>
       </div>
 

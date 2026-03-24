@@ -11,6 +11,11 @@ import type {
   MrlSubstance,
   AuditEntry,
   User,
+  LaneDetail,
+  TemperatureReading,
+  Excursion,
+  TemperatureSlaResult,
+  EvidenceGraph,
 } from './types';
 
 // ── Current User ──
@@ -311,3 +316,153 @@ export const ADMIN_NAV_ITEMS = [
   { label: 'Rules Engine', href: '/admin/rules', iconName: 'ListChecks' as const },
   { label: 'Partner Portal', href: '/partner', iconName: 'Users' as const },
 ] as const;
+
+// ── Lane Detail (full LaneDetail for LN-2026-001) ──
+
+export const MOCK_LANE_DETAIL: LaneDetail = {
+  id: '1',
+  laneId: 'LN-2026-001',
+  exporterId: 'usr-001',
+  status: 'EVIDENCE_COLLECTING',
+  productType: 'MANGO',
+  destinationMarket: 'JAPAN',
+  completenessScore: 80,
+  coldChainMode: 'TELEMETRY',
+  createdAt: '2026-03-18T08:00:00Z',
+  updatedAt: '2026-03-22T10:30:00Z',
+  batch: {
+    id: 'b-001',
+    laneId: 'LN-2026-001',
+    batchId: 'MNG-JPN-20260318-001',
+    product: 'MANGO',
+    variety: 'Nam Doc Mai',
+    quantityKg: 5000,
+    originProvince: 'Chachoengsao',
+    harvestDate: '2026-03-15',
+    grade: 'PREMIUM' as const,
+  },
+  route: {
+    id: 'r-001',
+    laneId: 'LN-2026-001',
+    transportMode: 'AIR' as const,
+    carrier: 'Thai Airways Cargo',
+    originGps: { lat: 13.7563, lng: 100.5018 },
+    destinationGps: { lat: 35.6762, lng: 139.6503 },
+    estimatedTransitHours: 8,
+  },
+  checkpoints: MOCK_CHECKPOINTS,
+  ruleSnapshot: {
+    market: 'JAPAN',
+    product: 'MANGO',
+    version: 3,
+    effectiveDate: '2026-03-01',
+    requiredDocuments: [
+      'Phytosanitary Certificate',
+      'VHT Certificate',
+      'MRL Lab Results',
+      'GAP Certificate',
+      'Commercial Invoice',
+      'Packing List',
+      'Temperature Log',
+      'Carrier SLA',
+    ],
+    completenessWeights: {
+      regulatory: 0.4,
+      quality: 0.25,
+      coldChain: 0.2,
+      chainOfCustody: 0.15,
+    },
+    substances: [],
+  },
+  temperatureProfile: {
+    fruit: 'MANGO',
+    optimalMinC: 10,
+    optimalMaxC: 13,
+    chillingThresholdC: 10,
+    heatThresholdC: 15,
+    baseShelfLifeDays: 21,
+    minShelfLifeDays: 14,
+  },
+};
+
+// ── Temperature Readings (48 hours, ~20 readings) ──
+
+export const MOCK_TEMPERATURE_READINGS: TemperatureReading[] = [
+  { id: 'tr-001', timestamp: '2026-03-20T06:00:00Z', valueC: 12.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: 'cp-001' },
+  { id: 'tr-002', timestamp: '2026-03-20T08:30:00Z', valueC: 11.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-003', timestamp: '2026-03-20T11:00:00Z', valueC: 12.2, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-004', timestamp: '2026-03-20T13:30:00Z', valueC: 12.8, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-005', timestamp: '2026-03-20T14:30:00Z', valueC: 11.8, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: 'cp-002' },
+  { id: 'tr-006', timestamp: '2026-03-20T16:00:00Z', valueC: 13.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-007', timestamp: '2026-03-20T18:30:00Z', valueC: 15.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-008', timestamp: '2026-03-20T21:00:00Z', valueC: 13.2, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-009', timestamp: '2026-03-20T23:30:00Z', valueC: 12.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-010', timestamp: '2026-03-21T02:00:00Z', valueC: 11.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-011', timestamp: '2026-03-21T04:30:00Z', valueC: 9.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-012', timestamp: '2026-03-21T07:00:00Z', valueC: 11.2, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-013', timestamp: '2026-03-21T09:30:00Z', valueC: 11.8, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-014', timestamp: '2026-03-21T12:00:00Z', valueC: 12.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-015', timestamp: '2026-03-21T14:30:00Z', valueC: 12.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-016', timestamp: '2026-03-21T17:00:00Z', valueC: 11.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-017', timestamp: '2026-03-21T19:30:00Z', valueC: 12.3, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-018', timestamp: '2026-03-21T22:00:00Z', valueC: 11.8, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-019', timestamp: '2026-03-22T00:30:00Z', valueC: 12.0, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+  { id: 'tr-020', timestamp: '2026-03-22T06:00:00Z', valueC: 11.5, deviceId: 'dev-001', source: 'TELEMETRY', checkpointId: null },
+];
+
+// ── Excursions ──
+
+export const MOCK_EXCURSIONS: Excursion[] = [
+  {
+    id: 'exc-001',
+    type: 'HEAT_DAMAGE',
+    severity: 'MINOR',
+    startAt: '2026-03-20T18:15:00Z',
+    endAt: '2026-03-20T18:30:00Z',
+    durationMinutes: 15,
+    maxDeviationC: 2.5,
+    shelfLifeImpactPct: 5,
+  },
+  {
+    id: 'exc-002',
+    type: 'CHILLING_INJURY',
+    severity: 'MODERATE',
+    startAt: '2026-03-21T04:00:00Z',
+    endAt: '2026-03-21T04:45:00Z',
+    durationMinutes: 45,
+    maxDeviationC: 1.0,
+    shelfLifeImpactPct: 12,
+  },
+];
+
+// ── Temperature SLA Result ──
+
+export const MOCK_SLA_RESULT: TemperatureSlaResult = {
+  laneId: 'LN-2026-001',
+  status: 'CONDITIONAL',
+  totalExcursionMinutes: 60,
+  excursionCount: 2,
+  maxDeviationC: 2.5,
+  remainingShelfLifeDays: 16,
+  shelfLifeImpactPct: 17,
+};
+
+// ── Evidence Graph ──
+
+export const MOCK_EVIDENCE_GRAPH: EvidenceGraph = {
+  nodes: [
+    { id: 'n-001', artifactId: 'ev-001', artifactType: 'PHYTO_CERT', label: 'Phytosanitary Certificate', status: 'COMPLETE', hashPreview: 'a7f3b2c1' },
+    { id: 'n-002', artifactId: 'ev-002', artifactType: 'VHT_CERT', label: 'VHT Certificate', status: 'COMPLETE', hashPreview: '8c2d4f5e' },
+    { id: 'n-003', artifactId: 'ev-003', artifactType: 'MRL_TEST', label: 'MRL Lab Results', status: 'PENDING', hashPreview: '' },
+    { id: 'n-004', artifactId: 'ev-004', artifactType: 'GAP_CERT', label: 'GAP Certificate', status: 'COMPLETE', hashPreview: 'f2e1d3c4' },
+    { id: 'n-005', artifactId: 'ev-005', artifactType: 'INVOICE', label: 'Commercial Invoice', status: 'COMPLETE', hashPreview: '1a2b3c4d' },
+    { id: 'n-006', artifactId: 'ev-006', artifactType: 'TEMP_DATA', label: 'Temperature Log', status: 'COMPLETE', hashPreview: '9f8e7d6c' },
+  ],
+  edges: [
+    { id: 'e-001', sourceArtifactId: 'ev-004', targetArtifactId: 'ev-001', relationshipType: 'PREREQUISITE' },
+    { id: 'e-002', sourceArtifactId: 'ev-001', targetArtifactId: 'ev-002', relationshipType: 'COMPLEMENTS' },
+    { id: 'e-003', sourceArtifactId: 'ev-002', targetArtifactId: 'ev-003', relationshipType: 'VALIDATES' },
+    { id: 'e-004', sourceArtifactId: 'ev-005', targetArtifactId: 'ev-001', relationshipType: 'REFERENCES' },
+    { id: 'e-005', sourceArtifactId: 'ev-006', targetArtifactId: 'ev-002', relationshipType: 'COMPLEMENTS' },
+  ],
+};
