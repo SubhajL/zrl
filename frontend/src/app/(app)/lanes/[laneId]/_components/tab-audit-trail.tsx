@@ -71,22 +71,40 @@ const auditColumns: readonly Column<AuditEntry>[] = [
 export interface TabAuditTrailProps {
   readonly entries: AuditEntry[];
   readonly laneId: string;
+  readonly exportUrl?: string;
 }
 
-export function TabAuditTrail({ entries, laneId }: TabAuditTrailProps) {
+export function TabAuditTrail({
+  entries,
+  laneId,
+  exportUrl,
+}: TabAuditTrailProps) {
   return (
     <div className="space-y-6">
       {/* Action bar */}
       <div className="flex items-center gap-3">
-        <Button variant="default">
+        <Button variant="default" disabled>
           <ShieldCheck className="size-4" />
           Verify Chain Integrity
         </Button>
-        <Button variant="ghost">
-          <Download className="size-4" />
-          Export Audit Trail (JSON)
-        </Button>
+        {exportUrl === undefined ? (
+          <Button variant="ghost" disabled>
+            <Download className="size-4" />
+            Export Audit Trail (JSON)
+          </Button>
+        ) : (
+          <Button variant="ghost" asChild>
+            <a href={exportUrl} target="_blank" rel="noreferrer">
+              <Download className="size-4" />
+              Export Audit Trail (JSON)
+            </a>
+          </Button>
+        )}
       </div>
+      <p className="text-xs text-muted-foreground">
+        Export is live for {laneId}. In-app chain verification still needs a UI
+        action wired to `POST /lanes/:id/audit/verify`.
+      </p>
 
       {/* Audit entries table */}
       <Card>

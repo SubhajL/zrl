@@ -116,6 +116,8 @@ export function TabTemperature({
   sla,
   profile,
 }: TabTemperatureProps) {
+  const latestReading = readings.at(-1) ?? null;
+
   return (
     <div className="space-y-6">
       {/* Section 1 — Chart Placeholder */}
@@ -132,6 +134,24 @@ export function TabTemperature({
             Optimal range: {profile.optimalMinC}&ndash;{profile.optimalMaxC}°C
             for {profile.fruit}
           </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-2">
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Samples Loaded
+              </p>
+              <p className="mt-1 text-xl font-bold font-mono tabular-nums">
+                {readings.length}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Latest Reading
+              </p>
+              <p className="mt-1 text-xl font-bold font-mono tabular-nums">
+                {latestReading === null ? 'No data' : `${latestReading.valueC}°C`}
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
