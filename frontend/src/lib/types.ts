@@ -60,7 +60,8 @@ export type AuditAction =
   | 'GENERATE'
   | 'VERIFY'
   | 'CREATE'
-  | 'UPDATE';
+  | 'UPDATE'
+  | 'DELETE';
 
 export type AuditEntityType =
   | 'LANE'

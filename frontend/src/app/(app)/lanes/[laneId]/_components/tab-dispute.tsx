@@ -22,7 +22,8 @@ export function TabDispute({ laneId, hasDispute }: TabDisputeProps) {
             This lane has no active claims or disputes.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            If a claim is filed, the dispute resolution tools will appear here.
+            If a claim is filed for {laneId}, the dispute resolution tools will
+            appear here.
           </p>
         </CardContent>
       </Card>

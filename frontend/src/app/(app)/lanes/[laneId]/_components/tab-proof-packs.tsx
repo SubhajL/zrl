@@ -53,10 +53,15 @@ const PACK_DEFINITIONS: readonly PackDefinition[] = [
 export interface TabProofPacksProps {
   readonly laneId: string;
   readonly completeness: number;
+  readonly backendAvailable?: boolean;
 }
 
-export function TabProofPacks({ laneId, completeness }: TabProofPacksProps) {
-  const isGenerateDisabled = completeness < 95;
+export function TabProofPacks({
+  laneId,
+  completeness,
+  backendAvailable = true,
+}: TabProofPacksProps) {
+  const isGenerateDisabled = completeness < 95 || !backendAvailable;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -80,17 +85,26 @@ export function TabProofPacks({ laneId, completeness }: TabProofPacksProps) {
                   disabled={isGenerateDisabled}
                   aria-label={`Generate ${pack.name}`}
                 >
-                  Generate
+                  {backendAvailable ? 'Generate' : 'Unavailable on main'}
                 </Button>
                 {isGenerateDisabled && (
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-foreground text-background text-xs rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Requires at least 95% completeness to generate
+                    {backendAvailable
+                      ? 'Requires at least 95% completeness to generate'
+                      : 'Proof-pack API is not live on the current backend'}
                   </div>
                 )}
               </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Not yet generated
-              </p>
+              {backendAvailable ? (
+                <p className="text-xs text-center text-muted-foreground">
+                  Not yet generated
+                </p>
+              ) : (
+                <p className="text-xs text-center text-muted-foreground">
+                  Proof-pack generation for {laneId} is blocked until
+                  `GET /lanes/:id/packs` is implemented on `main`.
+                </p>
+              )}
             </CardFooter>
           </Card>
         );
