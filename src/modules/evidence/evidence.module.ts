@@ -20,6 +20,9 @@ import {
   createEvidenceObjectStoreFromEnv,
   LocalEvidenceObjectStore,
 } from './evidence.storage';
+import { PrismaProofPackStore } from './proof-pack.pg-store';
+import { ProofPackService } from './proof-pack.service';
+import { PROOF_PACK_STORE } from './proof-pack.types';
 
 @Module({
   imports: [
@@ -33,6 +36,7 @@ import {
   providers: [
     PrismaEvidenceStore,
     LocalEvidenceObjectStore,
+    PrismaProofPackStore,
     {
       provide: EVIDENCE_OBJECT_STORE,
       useFactory: (localObjectStore: LocalEvidenceObjectStore) =>
@@ -42,6 +46,10 @@ import {
     {
       provide: EVIDENCE_PHOTO_METADATA_EXTRACTOR,
       useFactory: () => new ExifPhotoMetadataExtractor(),
+    },
+    {
+      provide: PROOF_PACK_STORE,
+      useClass: PrismaProofPackStore,
     },
     {
       provide: EvidenceService,
@@ -73,7 +81,8 @@ import {
         LaneService,
       ],
     },
+    ProofPackService,
   ],
-  exports: [EvidenceService],
+  exports: [EvidenceService, ProofPackService],
 })
 export class EvidenceModule {}

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Defense Dossier — {{laneId}}</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 11px;
+      color: #0F172A;
+      line-height: 1.5;
+      padding: 0;
+    }
+    h1 {
+      font-size: 18px;
+      color: #6C5CE7;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #64748B;
+      margin-bottom: 2px;
+    }
+    h2 {
+      font-size: 14px;
+      color: #0F172A;
+      border-bottom: 2px solid #6C5CE7;
+      padding-bottom: 4px;
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0;
+    }
+    th {
+      background: #F1F5F9;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #475569;
+      font-weight: 600;
+    }
+    td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #E2E8F0;
+      font-size: 11px;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 10px;
+    }
+    .badge-pass {
+      background: #DCFCE7;
+      color: #15803D;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-fail {
+      background: #FEE2E2;
+      color: #B91C1C;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-missing {
+      background: #FEF3C7;
+      color: #B45309;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-present {
+      background: #DCFCE7;
+      color: #15803D;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-expired {
+      background: #FEE2E2;
+      color: #B91C1C;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .header {
+      border-bottom: 3px solid #6C5CE7;
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+    }
+    .header-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .header-meta-item {
+      font-size: 11px;
+      color: #475569;
+    }
+    .header-meta-item strong {
+      color: #0F172A;
+    }
+    .detail-table td:first-child {
+      font-weight: 600;
+      color: #475569;
+      width: 160px;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+    .no-data {
+      color: #94A3B8;
+      font-style: italic;
+      padding: 12px 0;
+    }
+    .footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 2px solid #6C5CE7;
+      text-align: center;
+    }
+    .footer-brand {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6C5CE7;
+      margin-bottom: 4px;
+    }
+    .footer-note {
+      font-size: 10px;
+      color: #64748B;
+      margin-top: 4px;
+    }
+    .qr {
+      display: inline-block;
+      margin: 8px 0;
+    }
+    .hash {
+      word-break: break-all;
+    }
+    .pack-type-label {
+      display: inline-block;
+      background: #6C5CE7;
+      color: #FFFFFF;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    /* Defense-specific styles */
+    .defense-banner {
+      background: linear-gradient(135deg, #FEF2F2 0%, #FEF3C7 100%);
+      border-left: 4px solid #EF4444;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 16px;
+    }
+    .defense-banner-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #B91C1C;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .defense-banner-subtitle {
+      font-size: 11px;
+      color: #92400E;
+      margin-top: 2px;
+    }
+    .audit-note {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-left: 3px solid #6C5CE7;
+      padding: 8px 12px;
+      font-size: 10px;
+      color: #475569;
+      border-radius: 0 4px 4px 0;
+      margin-top: 8px;
+    }
+    .forensics-card {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 8px 0;
+    }
+    .forensics-grid {
+      display: flex;
+      gap: 24px;
+      margin-top: 8px;
+    }
+    .forensics-item {
+      flex: 1;
+    }
+    .forensics-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748B;
+      font-weight: 600;
+    }
+    .forensics-value {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="pack-type-label">{{packType}}</div>
+    <h1>ZERO-REJECT EXPORT LANE</h1>
+    <div class="subtitle">Claim Defense Dossier</div>
+    <div class="header-meta">
+      <div class="header-meta-item">
+        Lane ID: <strong class="mono">{{laneId}}</strong>
+      </div>
+      <div class="header-meta-item">
+        Case Reference Date: <strong>{{generatedAt}}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Defense Banner -->
+  <div class="defense-banner">
+    <div class="defense-banner-title">Claim Defense Documentation</div>
+    <div class="defense-banner-subtitle">
+      This dossier contains all cryptographically linked evidence for Lane <span class="mono">{{laneId}}</span>.
+      All data is tamper-evident and hash-chained.
+    </div>
+  </div>
+
+  <!-- Section 1: Executive Summary -->
+  <h2>1. Executive Summary</h2>
+  <table class="detail-table">
+    <tr>
+      <td>Product</td>
+      <td>{{product}} {{#if variety}}({{variety}}){{/if}}</td>
+    </tr>
+    <tr>
+      <td>Destination Market</td>
+      <td>{{market}}</td>
+    </tr>
+    <tr>
+      <td>Status</td>
+      <td>
+        {{#if (eq status "PASS")}}
+          <span class="badge-pass">PASS</span>
+        {{else}}
+          <span class="badge-fail">FAIL</span>
+        {{/if}}
+      </td>
+    </tr>
+    <tr>
+      <td>Completeness</td>
+      <td>{{completeness}}%</td>
+    </tr>
+    <tr>
+      <td>Batch ID</td>
+      <td class="mono">{{batchId}}</td>
+    </tr>
+    <tr>
+      <td>Quantity (kg)</td>
+      <td>{{quantity}}</td>
+    </tr>
+    <tr>
+      <td>Grade</td>
+      <td>{{grade}}</td>
+    </tr>
+    <tr>
+      <td>Origin Province</td>
+      <td>{{origin}}</td>
+    </tr>
+    <tr>
+      <td>Harvest Date</td>
+      <td>{{harvestDate}}</td>
+    </tr>
+    <tr>
+      <td>Transport Mode</td>
+      <td>{{transportMode}}</td>
+    </tr>
+    <tr>
+      <td>Carrier</td>
+      <td>{{carrier}}</td>
+    </tr>
+  </table>
+
+  <!-- Section 2: Full MRL Analysis -->
+  <h2>2. Full MRL Analysis</h2>
+  {{#if labResults}}
+  <table>
+    <thead>
+      <tr>
+        <th>Substance</th>
+        <th>Thai MRL (mg/kg)</th>
+        <th>Destination MRL (mg/kg)</th>
+        <th>Measured Value (mg/kg)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each labResults}}
+      <tr>
+        <td>{{this.substance}}</td>
+        <td>{{this.thaiMrl}}</td>
+        <td>{{this.destinationMrl}}</td>
+        <td>{{this.measuredValue}}</td>
+        <td>
+          {{#if (eq this.status "PASS")}}
+            <span class="badge-pass">PASS</span>
+          {{else}}
+            <span class="badge-fail">FAIL</span>
+          {{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="no-data">No lab results available.</p>
+  {{/if}}
+
+  <!-- Section 3: Document Evidence -->
+  <h2>3. Document Evidence</h2>
+  {{#if checklistItems}}
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Document Name</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each checklistItems}}
+      <tr>
+        <td>{{this.category}}</td>
+        <td>{{this.label}}</td>
+        <td>
+          {{#if (eq this.status "PRESENT")}}
+            <span class="badge-present">PRESENT</span>
+          {{else if (eq this.status "MISSING")}}
+            <span class="badge-missing">MISSING</span>
+          {{else if (eq this.status "EXPIRED")}}
+            <span class="badge-expired">EXPIRED</span>
+          {{else}}
+            <span>{{this.status}}</span>
+          {{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="no-data">No checklist items available.</p>
+  {{/if}}
+
+  <!-- Section 4: Chain-of-Custody Timeline -->
+  <h2>4. Chain-of-Custody Timeline</h2>
+  {{#if checkpoints}}
+  <table>
+    <thead>
+      <tr>
+        <th>Seq</th>
+        <th>Location</th>
+        <th>Status</th>
+        <th>Timestamp</th>
+        <th>Temperature</th>
+        <th>Signer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each checkpoints}}
+      <tr>
+        <td>{{this.sequence}}</td>
+        <td>{{this.location}}</td>
+        <td>
+          {{#if (eq this.status "PASS")}}
+            <span class="badge-pass">PASS</span>
+          {{else if (eq this.status "FAIL")}}
+            <span class="badge-fail">FAIL</span>
+          {{else}}
+            <span class="badge-missing">{{this.status}}</span>
+          {{/if}}
+        </td>
+        <td>{{this.timestamp}}</td>
+        <td>{{this.temperature}}</td>
+        <td>{{this.signer}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="no-data">No checkpoint data available.</p>
+  {{/if}}
+
+  <!-- Section 5: Cold-Chain Forensics -->
+  <h2>5. Cold-Chain Forensics</h2>
+  <div class="forensics-card">
+    <div class="forensics-grid">
+      <div class="forensics-item">
+        <div class="forensics-label">SLA Status</div>
+        <div class="forensics-value">
+          {{#if (eq slaStatus "PASS")}}
+            <span class="badge-pass" style="font-size: 12px; padding: 3px 10px;">PASS</span>
+          {{else if (eq slaStatus "FAIL")}}
+            <span class="badge-fail" style="font-size: 12px; padding: 3px 10px;">FAIL</span>
+          {{else}}
+            <span class="badge-missing" style="font-size: 12px; padding: 3px 10px;">{{slaStatus}}</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="forensics-item">
+        <div class="forensics-label">Excursion Count</div>
+        <div class="forensics-value" style="color: {{#if excursionCount}}{{#if (eq excursionCount 0)}}#15803D{{else}}#B91C1C{{/if}}{{else}}#475569{{/if}};">
+          {{excursionCount}}
+        </div>
+      </div>
+    </div>
+    <div class="audit-note" style="margin-top: 12px; border-left-color: #F59E0B;">
+      Temperature data is recorded by IoT sensors at each checkpoint. Any deviation from the fruit-specific
+      optimal range is flagged as an excursion. Full sensor telemetry is available upon request.
+    </div>
+  </div>
+
+  <!-- Section 6: Audit Trail -->
+  <h2>6. Audit Trail</h2>
+  {{#if auditEntries}}
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Actor</th>
+        <th>Action</th>
+        <th>Entity Type</th>
+        <th>Entity ID</th>
+        <th>Entry Hash</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each auditEntries}}
+      <tr>
+        <td>{{this.timestamp}}</td>
+        <td>{{this.actor}}</td>
+        <td>{{this.action}}</td>
+        <td>{{this.entityType}}</td>
+        <td class="mono">{{this.entityId}}</td>
+        <td class="mono hash" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">{{this.entryHash}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <div class="audit-note">
+    This audit trail is hash-chained. Each entry references the previous entry's hash.
+    Tampering with any entry invalidates all subsequent hashes in the chain.
+  </div>
+  {{else}}
+  <p class="no-data">No audit entries available.</p>
+  {{/if}}
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="qr">
+      {{#if qrCodeDataUrl}}
+      <img src="{{qrCodeDataUrl}}" width="120" height="120" alt="Verification QR Code">
+      {{/if}}
+    </div>
+    <div class="footer-brand">Verified by ZRL &mdash; Zero-Reject Export Lane</div>
+    <div style="margin-top: 8px;">
+      <span style="font-size: 10px; color: #475569;">Content Hash:</span><br>
+      <span class="mono hash">{{contentHash}}</span>
+    </div>
+    <div class="footer-note">
+      This defense dossier was generated automatically by ZRL.
+      All evidence is cryptographically linked and tamper-evident.
+    </div>
+    <div class="footer-note" style="margin-top: 2px;">
+      This document is tamper-evident. Scan QR code to verify.
+    </div>
+  </div>
+
+</body>
+</html>

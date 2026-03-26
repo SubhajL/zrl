@@ -18,6 +18,7 @@ import { diskStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { extname } from 'node:path';
+import QRCode from 'qrcode';
 import {
   ApiKeyAuthGuard,
   AuditorReadOnlyGuard,
@@ -25,8 +26,13 @@ import {
   LaneOwnerGuard,
 } from '../../common/auth/auth.guards';
 import type { AuthPrincipalRequest } from '../../common/auth/auth.types';
+import { AuditService } from '../../common/audit/audit.service';
+import { LaneService } from '../lane/lane.service';
+import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { ArtifactSource, type EvidenceArtifactType } from './evidence.types';
 import { EvidenceService } from './evidence.service';
+import { ProofPackService } from './proof-pack.service';
+import type { ProofPackTemplateData, ProofPackType } from './proof-pack.types';
 
 const FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024;
 
@@ -198,9 +204,32 @@ function createUploadInterceptor() {
   });
 }
 
+const VALID_PACK_TYPES: readonly ProofPackType[] = [
+  'REGULATOR',
+  'BUYER',
+  'DEFENSE',
+];
+
+function parsePackType(value: unknown): ProofPackType {
+  const normalized = assertString(value, 'packType').toUpperCase();
+  if (!VALID_PACK_TYPES.includes(normalized as ProofPackType)) {
+    throw new BadRequestException(
+      'Invalid packType. Must be REGULATOR, BUYER, or DEFENSE.',
+    );
+  }
+
+  return normalized as ProofPackType;
+}
+
 @Controller()
 export class EvidenceController {
-  constructor(private readonly evidenceService: EvidenceService) {}
+  constructor(
+    private readonly evidenceService: EvidenceService,
+    private readonly proofPackService: ProofPackService,
+    private readonly laneService: LaneService,
+    private readonly rulesEngineService: RulesEngineService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get('lanes/:id/evidence')
   @UseGuards(JwtAuthGuard, LaneOwnerGuard)
@@ -325,6 +354,134 @@ export class EvidenceController {
       payload,
       request.auth!.user,
     );
+  }
+
+  @Post('lanes/:id/packs')
+  @UseGuards(JwtAuthGuard, AuditorReadOnlyGuard, LaneOwnerGuard)
+  async generatePack(
+    @Param('id') laneId: string,
+    @Body() body: unknown,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    const payload = assertObject(body, 'pack generation payload');
+    const packType = parsePackType(payload['packType']);
+
+    const { lane } = await this.laneService.findById(laneId);
+
+    const artifacts = await this.evidenceService.listLaneArtifacts(laneId, {});
+
+    let checklistItems: ProofPackTemplateData['checklistItems'] = [];
+    let labResults: ProofPackTemplateData['labResults'] = null;
+
+    if (lane.ruleSnapshot !== null) {
+      const artifactsForEval = artifacts.artifacts.map((a) => ({
+        id: a.id,
+        artifactType: a.artifactType,
+        fileName: a.fileName,
+        metadata: a.metadata,
+      }));
+      const evaluation = this.rulesEngineService.evaluateLane(
+        {
+          market: lane.ruleSnapshot.market,
+          product: lane.ruleSnapshot.product,
+          version: lane.ruleSnapshot.version,
+          effectiveDate: new Date(),
+          sourcePath: lane.ruleSnapshot.rules.sourcePath ?? '',
+          requiredDocuments: lane.ruleSnapshot.rules.requiredDocuments ?? [],
+          completenessWeights: lane.ruleSnapshot.rules.completenessWeights ?? {
+            regulatory: 0.4,
+            quality: 0.25,
+            coldChain: 0.2,
+            chainOfCustody: 0.15,
+          },
+          substances: lane.ruleSnapshot.rules.substances ?? [],
+        },
+        artifactsForEval,
+      );
+
+      checklistItems = evaluation.checklist.map((item) => ({
+        label: item.label,
+        category: item.category,
+        status: item.status,
+      }));
+
+      if (evaluation.labValidation !== null) {
+        labResults = evaluation.labValidation.results.map((result) => ({
+          substance: result.substance,
+          thaiMrl: 0,
+          destinationMrl: result.limitMgKg,
+          measuredValue: result.valueMgKg,
+          status: result.status,
+        }));
+      }
+    }
+
+    const checkpoints: ProofPackTemplateData['checkpoints'] =
+      lane.checkpoints.map((cp) => ({
+        sequence: cp.sequence,
+        location: cp.locationName,
+        status: cp.status,
+        timestamp: cp.timestamp !== null ? cp.timestamp.toISOString() : null,
+        temperature: cp.temperature,
+        signer: cp.signerName,
+      }));
+
+    let auditEntries: ProofPackTemplateData['auditEntries'] | undefined;
+    if (packType === 'REGULATOR' || packType === 'DEFENSE') {
+      const entries = await this.auditService.getEntriesForLane(laneId);
+      auditEntries = entries.map((entry) => ({
+        timestamp: entry.timestamp.toISOString(),
+        actor: entry.actor,
+        action: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        entryHash: entry.entryHash,
+      }));
+    }
+
+    const contentHashPlaceholder = 'pending-generation';
+    const qrCodeDataUrl = await QRCode.toDataURL(contentHashPlaceholder);
+
+    const templateData: ProofPackTemplateData = {
+      laneId: lane.laneId,
+      batchId: lane.batch?.batchId ?? '',
+      product: lane.productType,
+      market: lane.destinationMarket,
+      variety: lane.batch?.variety ?? null,
+      quantity: lane.batch?.quantityKg ?? 0,
+      grade: lane.batch?.grade ?? '',
+      origin: lane.batch?.originProvince ?? '',
+      harvestDate: lane.batch?.harvestDate?.toISOString().split('T')[0] ?? '',
+      transportMode: lane.route?.transportMode ?? '',
+      carrier: lane.route?.carrier ?? null,
+      completeness: lane.completenessScore,
+      status: lane.status,
+      checklistItems,
+      labResults,
+      checkpoints,
+      auditEntries,
+      qrCodeDataUrl,
+      contentHash: contentHashPlaceholder,
+      generatedAt: new Date().toISOString(),
+      packType,
+    };
+
+    const pack = await this.proofPackService.generatePack(
+      {
+        laneId: lane.id,
+        packType,
+        generatedBy: request.user!.id,
+      },
+      templateData,
+    );
+
+    return { pack };
+  }
+
+  @Get('lanes/:id/packs')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
+  async listPacks(@Param('id') laneId: string) {
+    return { packs: await this.proofPackService.listPacks(laneId) };
   }
 }
 
