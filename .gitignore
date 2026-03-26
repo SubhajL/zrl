@@ -16,5 +16,9 @@ test-results/
 .taskmaster/docs/
 .taskmaster/backups/
 .taskmaster/logs/
+.codex/coding-log.current
+__pycache__/
+*.pyc
+frontend/design-references/
 
 /generated/prisma
