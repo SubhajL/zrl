@@ -15,6 +15,7 @@ jest.mock('node:fs', () => ({
 jest.mock('node:fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
   writeFile: jest.fn().mockResolvedValue(undefined),
+  rm: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('puppeteer-core', () => {
@@ -83,6 +84,11 @@ describe('ProofPackService', () => {
     findPacksForLane: jest.Mock;
     getLatestVersion: jest.Mock;
   };
+  let objectStore: {
+    putObjectFromFile: jest.Mock;
+    createReadStream: jest.Mock;
+    deleteObject: jest.Mock;
+  };
   let hashingService: {
     hashBuffer: jest.Mock;
     hashString: jest.Mock;
@@ -102,6 +108,11 @@ describe('ProofPackService', () => {
       ),
       findPacksForLane: jest.fn().mockResolvedValue([]),
       getLatestVersion: jest.fn().mockResolvedValue(0),
+    };
+    objectStore = {
+      putObjectFromFile: jest.fn().mockResolvedValue(undefined),
+      createReadStream: jest.fn(),
+      deleteObject: jest.fn(),
     };
     hashingService = {
       hashBuffer: jest.fn().mockReturnValue('a'.repeat(64)),
@@ -123,6 +134,7 @@ describe('ProofPackService', () => {
 
     service = new ProofPackService(
       store as unknown as ProofPackStore,
+      objectStore as never,
       hashingService as unknown as HashingService,
       auditService as never,
     );
@@ -224,7 +236,7 @@ describe('ProofPackService', () => {
     expect(callArgs.packType).toBe('DEFENSE');
     expect(callArgs.version).toBe(1);
     expect(callArgs.contentHash).toBe('a'.repeat(64));
-    expect(callArgs.filePath).toBe('packs/lane-1/DEFENSE-v1.pdf');
+    expect(callArgs.filePath).toBe('packs/lane-1/defense-v1.pdf');
     expect(callArgs.generatedBy).toBe('user-1');
     expect(callArgs.recipient).toBeNull();
     expect(callArgs.generatedAt).toBeInstanceOf(Date);

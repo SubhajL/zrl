@@ -1,11 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { writeFile, rm } from 'node:fs/promises';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Handlebars from 'handlebars';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { EVIDENCE_OBJECT_STORE } from './evidence.constants';
+import type { EvidenceObjectStore } from './evidence.types';
 import {
   PROOF_PACK_STORE,
   type ProofPackGenerationInput,
@@ -19,10 +23,17 @@ import {
 export class ProofPackService {
   private readonly logger = new Logger(ProofPackService.name);
   private readonly templatesDir: string;
+  // M3 fix: Cache compiled templates to avoid readFileSync on every render
+  private readonly templateCache = new Map<
+    string,
+    Handlebars.TemplateDelegate
+  >();
 
   constructor(
     @Inject(PROOF_PACK_STORE)
     private readonly store: ProofPackStore,
+    @Inject(EVIDENCE_OBJECT_STORE)
+    private readonly objectStore: EvidenceObjectStore,
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
   ) {
@@ -50,11 +61,21 @@ export class ProofPackService {
     const finalHtml = this.renderTemplate(input.packType, finalTemplateData);
     const pdfBuffer = await this.htmlToPdf(finalHtml);
 
-    const filePath = `packs/${input.laneId}/${input.packType}-v${version}.pdf`;
+    // H1 fix: Use EvidenceObjectStore (S3 or local) instead of raw filesystem
+    const filePath = `packs/${input.laneId}/${input.packType.toLowerCase()}-v${version}.pdf`;
 
-    const absolutePath = resolve(process.cwd(), filePath);
-    await mkdir(dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, pdfBuffer);
+    // Write to temp file, upload via object store, clean up
+    const tempPath = join(tmpdir(), `zrl-pack-${randomUUID()}.pdf`);
+    await writeFile(tempPath, pdfBuffer);
+    try {
+      await this.objectStore.putObjectFromFile({
+        key: filePath,
+        filePath: tempPath,
+        contentType: 'application/pdf',
+      });
+    } finally {
+      await rm(tempPath, { force: true }).catch(() => {});
+    }
 
     const generatedAt = new Date();
 
@@ -100,9 +121,16 @@ export class ProofPackService {
 
   renderTemplate(packType: ProofPackType, data: ProofPackTemplateData): string {
     const templateFileName = `${packType.toLowerCase()}.hbs`;
-    const templatePath = join(this.templatesDir, templateFileName);
-    const templateSource = readFileSync(templatePath, 'utf-8');
-    const template = Handlebars.compile(templateSource);
+
+    // M3 fix: Cache compiled templates to avoid readFileSync on every call
+    let template = this.templateCache.get(templateFileName);
+    if (template === undefined) {
+      const templatePath = join(this.templatesDir, templateFileName);
+      const templateSource = readFileSync(templatePath, 'utf-8');
+      template = Handlebars.compile(templateSource);
+      this.templateCache.set(templateFileName, template);
+    }
+
     return template(data);
   }
 
