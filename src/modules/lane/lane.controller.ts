@@ -23,6 +23,7 @@ import type {
   LaneStatus,
   LaneTransportMode,
   TransitionLaneInput,
+  UpdateCheckpointInput,
   UpdateLaneInput,
 } from './lane.types';
 
@@ -350,6 +351,56 @@ function parseTransitionLaneInput(body: unknown): TransitionLaneInput {
   };
 }
 
+function parseCheckpointStatus(
+  value: unknown,
+): 'PENDING' | 'COMPLETED' | 'OVERDUE' {
+  const normalized = assertString(value, 'status').toUpperCase();
+  if (!['PENDING', 'COMPLETED', 'OVERDUE'].includes(normalized)) {
+    throw new BadRequestException('Unsupported checkpoint status.');
+  }
+
+  return normalized as 'PENDING' | 'COMPLETED' | 'OVERDUE';
+}
+
+function parseUpdateCheckpointInput(body: unknown): UpdateCheckpointInput {
+  const record = assertObject(body, 'checkpoint update payload');
+  const result: UpdateCheckpointInput = {};
+
+  if (record['status'] !== undefined) {
+    result.status = parseCheckpointStatus(record['status']);
+  }
+
+  if (record['timestamp'] !== undefined) {
+    result.timestamp = parseDate(record['timestamp'], 'timestamp');
+  }
+
+  if (record['temperature'] !== undefined) {
+    result.temperature = assertNumber(record['temperature'], 'temperature');
+  }
+
+  if (record['gpsLat'] !== undefined) {
+    result.gpsLat = assertNumber(record['gpsLat'], 'gpsLat');
+  }
+
+  if (record['gpsLng'] !== undefined) {
+    result.gpsLng = assertNumber(record['gpsLng'], 'gpsLng');
+  }
+
+  if (record['signatureHash'] !== undefined) {
+    result.signatureHash = assertOptionalString(record['signatureHash']);
+  }
+
+  if (record['signerName'] !== undefined) {
+    result.signerName = assertOptionalString(record['signerName']);
+  }
+
+  if (record['conditionNotes'] !== undefined) {
+    result.conditionNotes = assertOptionalString(record['conditionNotes']);
+  }
+
+  return result;
+}
+
 @Controller('lanes')
 @UseGuards(JwtAuthGuard)
 export class LaneController {
@@ -409,5 +460,29 @@ export class LaneController {
   @UseGuards(LaneOwnerGuard)
   async getCompleteness(@Param('id') id: string) {
     return await this.laneService.getCompleteness(id);
+  }
+
+  @Get(':id/checkpoints')
+  @UseGuards(LaneOwnerGuard)
+  async getCheckpoints(@Param('id') laneId: string) {
+    return { checkpoints: await this.laneService.getCheckpoints(laneId) };
+  }
+
+  @Patch(':id/checkpoints/:checkpointId')
+  @UseGuards(LaneOwnerGuard)
+  async updateCheckpoint(
+    @Param('id') laneId: string,
+    @Param('checkpointId') checkpointId: string,
+    @Body() body: unknown,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    return {
+      checkpoint: await this.laneService.updateCheckpoint(
+        laneId,
+        checkpointId,
+        parseUpdateCheckpointInput(body),
+        request.user!,
+      ),
+    };
   }
 }

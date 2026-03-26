@@ -412,4 +412,89 @@ describe('LaneController (e2e)', () => {
       })
       .expect(400);
   });
+
+  it('GET /lanes/:id/checkpoints returns checkpoints', async () => {
+    const checkpoints = [
+      {
+        id: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 1,
+        locationName: 'Packing House',
+        gpsLat: 13.69,
+        gpsLng: 101.08,
+        timestamp: null,
+        temperature: null,
+        signatureHash: null,
+        signerName: null,
+        conditionNotes: null,
+        status: 'PENDING',
+      },
+    ];
+    laneServiceMock.getCheckpoints = jest.fn().mockResolvedValue(checkpoints);
+
+    await request(app.getHttpServer())
+      .get('/lanes/lane-db-1/checkpoints')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          checkpoints: Array<{ id: string; status: string }>;
+        };
+        expect(body.checkpoints).toHaveLength(1);
+        expect(body.checkpoints[0].id).toBe('cp-1');
+        expect(body.checkpoints[0].status).toBe('PENDING');
+      });
+
+    expect(laneServiceMock.getCheckpoints).toHaveBeenCalledWith('lane-db-1');
+  });
+
+  it('PATCH /lanes/:id/checkpoints/:id updates checkpoint', async () => {
+    const updatedCheckpoint = {
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.69,
+      gpsLng: 101.08,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 12.5,
+      signatureHash: null,
+      signerName: null,
+      conditionNotes: 'Good condition',
+      status: 'COMPLETED',
+    };
+    laneServiceMock.updateCheckpoint = jest
+      .fn()
+      .mockResolvedValue(updatedCheckpoint);
+
+    await request(app.getHttpServer())
+      .patch('/lanes/lane-db-1/checkpoints/cp-1')
+      .set('Authorization', 'Bearer access-token')
+      .send({
+        status: 'COMPLETED',
+        temperature: 12.5,
+        conditionNotes: 'Good condition',
+        timestamp: '2026-03-22T06:00:00.000Z',
+      })
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          checkpoint: { id: string; status: string; temperature: number };
+        };
+        expect(body.checkpoint.id).toBe('cp-1');
+        expect(body.checkpoint.status).toBe('COMPLETED');
+        expect(body.checkpoint.temperature).toBe(12.5);
+      });
+
+    expect(laneServiceMock.updateCheckpoint).toHaveBeenCalledWith(
+      'lane-db-1',
+      'cp-1',
+      expect.objectContaining({
+        status: 'COMPLETED',
+        temperature: 12.5,
+        conditionNotes: 'Good condition',
+      }),
+      expect.any(Object),
+    );
+  });
 });

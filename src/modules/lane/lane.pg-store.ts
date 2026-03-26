@@ -14,6 +14,7 @@ import type {
   LaneStore,
   LaneSummary,
   LaneTransportMode,
+  UpdateCheckpointInput,
   UpdateLaneInput,
 } from './lane.types';
 import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
@@ -749,6 +750,155 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
     );
 
     return Number(result.rows[0]?.total ?? 0);
+  }
+
+  async findCheckpointsForLane(
+    laneId: string,
+  ): Promise<LaneDetail['checkpoints']> {
+    const result = await this.requireExecutor().query<CheckpointRow>(
+      `
+        SELECT
+          id,
+          lane_id,
+          sequence,
+          location_name,
+          gps_lat,
+          gps_lng,
+          timestamp,
+          temperature,
+          signature_hash,
+          signer_name,
+          condition_notes,
+          status
+        FROM checkpoints
+        WHERE lane_id = $1
+        ORDER BY sequence ASC
+      `,
+      [laneId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      laneId: row.lane_id,
+      sequence: row.sequence,
+      locationName: row.location_name,
+      gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
+      gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
+      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
+      temperature: row.temperature === null ? null : Number(row.temperature),
+      signatureHash: row.signature_hash,
+      signerName: row.signer_name,
+      conditionNotes: row.condition_notes,
+      status: row.status,
+    }));
+  }
+
+  async updateCheckpoint(
+    laneId: string,
+    checkpointId: string,
+    input: UpdateCheckpointInput,
+  ): Promise<LaneDetail['checkpoints'][number] | null> {
+    const fieldMap: Array<{ column: string; value: unknown }> = [];
+
+    if (input.status !== undefined) {
+      fieldMap.push({ column: 'status', value: input.status });
+    }
+    if (input.timestamp !== undefined) {
+      fieldMap.push({ column: 'timestamp', value: input.timestamp });
+    }
+    if (input.temperature !== undefined) {
+      fieldMap.push({ column: 'temperature', value: input.temperature });
+    }
+    if (input.gpsLat !== undefined) {
+      fieldMap.push({ column: 'gps_lat', value: input.gpsLat });
+    }
+    if (input.gpsLng !== undefined) {
+      fieldMap.push({ column: 'gps_lng', value: input.gpsLng });
+    }
+    if (input.signatureHash !== undefined) {
+      fieldMap.push({ column: 'signature_hash', value: input.signatureHash });
+    }
+    if (input.signerName !== undefined) {
+      fieldMap.push({ column: 'signer_name', value: input.signerName });
+    }
+    if (input.conditionNotes !== undefined) {
+      fieldMap.push({ column: 'condition_notes', value: input.conditionNotes });
+    }
+
+    if (fieldMap.length === 0) {
+      const existing = await this.requireExecutor().query<CheckpointRow>(
+        `
+          SELECT
+            id, lane_id, sequence, location_name, gps_lat, gps_lng,
+            timestamp, temperature, signature_hash, signer_name,
+            condition_notes, status
+          FROM checkpoints
+          WHERE id = $1 AND lane_id = $2
+          LIMIT 1
+        `,
+        [checkpointId, laneId],
+      );
+
+      if (existing.rowCount === 0) {
+        return null;
+      }
+
+      const row = existing.rows[0];
+      return {
+        id: row.id,
+        laneId: row.lane_id,
+        sequence: row.sequence,
+        locationName: row.location_name,
+        gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
+        gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
+        timestamp: row.timestamp === null ? null : new Date(row.timestamp),
+        temperature: row.temperature === null ? null : Number(row.temperature),
+        signatureHash: row.signature_hash,
+        signerName: row.signer_name,
+        conditionNotes: row.condition_notes,
+        status: row.status,
+      };
+    }
+
+    const setClauses = fieldMap.map((f, i) => `${f.column} = $${i + 3}`);
+    const values: unknown[] = [
+      checkpointId,
+      laneId,
+      ...fieldMap.map((f) => f.value),
+    ];
+
+    const result = await this.requireExecutor().query<CheckpointRow>(
+      `
+        UPDATE checkpoints
+        SET ${setClauses.join(', ')}
+        WHERE id = $1 AND lane_id = $2
+        RETURNING
+          id, lane_id, sequence, location_name, gps_lat, gps_lng,
+          timestamp, temperature, signature_hash, signer_name,
+          condition_notes, status
+      `,
+      values,
+    );
+
+    if (result.rowCount === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      laneId: row.lane_id,
+      sequence: row.sequence,
+      locationName: row.location_name,
+      gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
+      gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
+      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
+      temperature: row.temperature === null ? null : Number(row.temperature),
+      signatureHash: row.signature_hash,
+      signerName: row.signer_name,
+      conditionNotes: row.condition_notes,
+      status: row.status,
+    };
   }
 
   private requireExecutor(): QueryExecutor {

@@ -29,6 +29,7 @@ import type {
   LaneStore,
   LaneDetail,
   TransitionLaneInput,
+  UpdateCheckpointInput,
   UpdateLaneInput,
 } from './lane.types';
 
@@ -337,6 +338,54 @@ export class LaneService {
       input.targetStatus,
     );
     return { lane };
+  }
+
+  async getCheckpoints(laneId: string): Promise<LaneDetail['checkpoints']> {
+    const lane = await this.laneStore.findLaneById(laneId);
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    return this.laneStore.findCheckpointsForLane(laneId);
+  }
+
+  async updateCheckpoint(
+    laneId: string,
+    checkpointId: string,
+    input: UpdateCheckpointInput,
+    actor: LaneRequestUser,
+  ): Promise<LaneDetail['checkpoints'][number]> {
+    const lane = await this.laneStore.findLaneById(laneId);
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    const checkpoint = await this.laneStore.updateCheckpoint(
+      laneId,
+      checkpointId,
+      input,
+    );
+    if (checkpoint === null) {
+      throw new NotFoundException('Checkpoint not found.');
+    }
+
+    const payloadHash = await this.hashingService.hashString(
+      JSON.stringify({
+        laneId: lane.laneId,
+        checkpointId,
+        status: checkpoint.status,
+      }),
+    );
+
+    await this.auditService.createEntry({
+      actor: actor.id,
+      action: AuditAction.UPDATE,
+      entityType: AuditEntityType.CHECKPOINT,
+      entityId: checkpointId,
+      payloadHash,
+    });
+
+    return checkpoint;
   }
 
   async reconcileAutomaticTransitions(laneId: string, actorId: string) {

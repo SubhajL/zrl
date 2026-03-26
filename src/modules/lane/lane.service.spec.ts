@@ -98,6 +98,8 @@ describe('LaneService', () => {
   const updateLaneBundleMock = jest.fn();
   const transitionLaneStatusMock = jest.fn();
   const countProofPacksForLaneMock = jest.fn();
+  const findCheckpointsForLaneMock = jest.fn();
+  const updateCheckpointMock = jest.fn();
   const laneStore: LaneStore = {
     runInTransaction: runInTransactionMock as LaneStore['runInTransaction'],
     findLatestLaneIdByYear:
@@ -114,6 +116,9 @@ describe('LaneService', () => {
       transitionLaneStatusMock as LaneStore['transitionLaneStatus'],
     countProofPacksForLane:
       countProofPacksForLaneMock as LaneStore['countProofPacksForLane'],
+    findCheckpointsForLane:
+      findCheckpointsForLaneMock as LaneStore['findCheckpointsForLane'],
+    updateCheckpoint: updateCheckpointMock as LaneStore['updateCheckpoint'],
   };
   const createAuditEntryMock = jest.fn().mockResolvedValue({
     id: 'audit-db-1',
@@ -899,5 +904,188 @@ describe('LaneService', () => {
 
     expect(transitionLaneStatusMock).not.toHaveBeenCalled();
     expect(createAuditEntryMock).not.toHaveBeenCalled();
+  });
+
+  it('getCheckpoints returns checkpoints for a lane', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const checkpoints = [
+      {
+        id: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 1,
+        locationName: 'Packing House',
+        gpsLat: 13.69,
+        gpsLng: 101.08,
+        timestamp: null,
+        temperature: null,
+        signatureHash: null,
+        signerName: null,
+        conditionNotes: null,
+        status: 'PENDING' as const,
+      },
+    ];
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    findCheckpointsForLaneMock.mockResolvedValue(checkpoints);
+
+    await expect(service.getCheckpoints('lane-db-1')).resolves.toEqual(
+      checkpoints,
+    );
+
+    expect(findLaneByIdMock).toHaveBeenCalledWith('lane-db-1');
+    expect(findCheckpointsForLaneMock).toHaveBeenCalledWith('lane-db-1');
+  });
+
+  it('getCheckpoints throws NotFoundException for unknown lane', async () => {
+    const service = createService();
+    findLaneByIdMock.mockResolvedValue(null);
+
+    await expect(service.getCheckpoints('unknown-lane')).rejects.toThrow(
+      'Lane not found.',
+    );
+
+    expect(findCheckpointsForLaneMock).not.toHaveBeenCalled();
+  });
+
+  it('updateCheckpoint updates and returns checkpoint', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const updatedCheckpoint = {
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.69,
+      gpsLng: 101.08,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 12.5,
+      signatureHash: null,
+      signerName: null,
+      conditionNotes: 'Good condition',
+      status: 'COMPLETED' as const,
+    };
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    updateCheckpointMock.mockResolvedValue(updatedCheckpoint);
+
+    await expect(
+      service.updateCheckpoint(
+        'lane-db-1',
+        'cp-1',
+        {
+          status: 'COMPLETED',
+          temperature: 12.5,
+          conditionNotes: 'Good condition',
+        },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual(updatedCheckpoint);
+
+    expect(updateCheckpointMock).toHaveBeenCalledWith('lane-db-1', 'cp-1', {
+      status: 'COMPLETED',
+      temperature: 12.5,
+      conditionNotes: 'Good condition',
+    });
+  });
+
+  it('updateCheckpoint throws NotFoundException for unknown lane', async () => {
+    const service = createService();
+    findLaneByIdMock.mockResolvedValue(null);
+
+    await expect(
+      service.updateCheckpoint(
+        'unknown-lane',
+        'cp-1',
+        { status: 'COMPLETED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow('Lane not found.');
+
+    expect(updateCheckpointMock).not.toHaveBeenCalled();
+  });
+
+  it('updateCheckpoint throws NotFoundException for unknown checkpoint', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    updateCheckpointMock.mockResolvedValue(null);
+
+    await expect(
+      service.updateCheckpoint(
+        'lane-db-1',
+        'unknown-cp',
+        { status: 'COMPLETED' },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toThrow('Checkpoint not found.');
+  });
+
+  it('updateCheckpoint creates audit entry', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const updatedCheckpoint = {
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: null,
+      gpsLng: null,
+      timestamp: null,
+      temperature: 11.0,
+      signatureHash: null,
+      signerName: null,
+      conditionNotes: null,
+      status: 'COMPLETED' as const,
+    };
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    updateCheckpointMock.mockResolvedValue(updatedCheckpoint);
+
+    await service.updateCheckpoint(
+      'lane-db-1',
+      'cp-1',
+      { status: 'COMPLETED', temperature: 11.0 },
+      {
+        id: 'user-1',
+        role: 'EXPORTER',
+        email: 'exporter@example.com',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(createAuditEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'user-1',
+        action: AuditAction.UPDATE,
+        entityType: AuditEntityType.CHECKPOINT,
+        entityId: 'cp-1',
+        payloadHash: 'payload-hash',
+      }),
+    );
   });
 });

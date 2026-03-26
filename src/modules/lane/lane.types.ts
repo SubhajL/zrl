@@ -112,6 +112,17 @@ export interface UpdateLaneInput {
   route?: Partial<CreateLaneInput['route']>;
 }
 
+export interface UpdateCheckpointInput {
+  status?: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  timestamp?: Date;
+  temperature?: number;
+  gpsLat?: number;
+  gpsLng?: number;
+  signatureHash?: string;
+  signerName?: string;
+  conditionNotes?: string;
+}
+
 export interface LaneListQuery {
   page?: number;
   limit?: number;
@@ -276,6 +287,12 @@ export interface LaneStore {
     transitionedAt: Date,
   ): Promise<LaneDetail | null>;
   countProofPacksForLane(id: string): Promise<number>;
+  findCheckpointsForLane(laneId: string): Promise<LaneDetail['checkpoints']>;
+  updateCheckpoint(
+    laneId: string,
+    checkpointId: string,
+    input: UpdateCheckpointInput,
+  ): Promise<LaneDetail['checkpoints'][number] | null>;
 }
 
 export type LaneCompletenessResponse = RuleLaneEvaluation;
