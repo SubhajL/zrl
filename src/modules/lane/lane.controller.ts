@@ -485,4 +485,10 @@ export class LaneController {
       ),
     };
   }
+
+  @Get(':id/timeline')
+  @UseGuards(LaneOwnerGuard)
+  async getTimeline(@Param('id') laneId: string) {
+    return { events: await this.laneService.getTimeline(laneId) };
+  }
 }

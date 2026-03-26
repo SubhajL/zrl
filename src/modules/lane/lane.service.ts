@@ -28,6 +28,7 @@ import type {
   LaneRuleSnapshotResolver,
   LaneStore,
   LaneDetail,
+  LaneTimelineEvent,
   TransitionLaneInput,
   UpdateCheckpointInput,
   UpdateLaneInput,
@@ -35,6 +36,27 @@ import type {
 
 function padSequence(sequence: number): string {
   return String(sequence).padStart(3, '0');
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  CREATE: 'Created',
+  UPDATE: 'Updated',
+  UPLOAD: 'Uploaded',
+  SIGN: 'Signed',
+  GENERATE: 'Generated',
+  VERIFY: 'Verified',
+};
+const ENTITY_LABELS: Record<string, string> = {
+  LANE: 'lane',
+  ARTIFACT: 'evidence artifact',
+  CHECKPOINT: 'checkpoint',
+  PROOF_PACK: 'proof pack',
+  RULE_SET: 'rule set',
+  SUBSTANCE: 'substance',
+};
+
+function describeAuditEntry(action: string, entityType: string): string {
+  return `${ACTION_LABELS[action] ?? action} ${ENTITY_LABELS[entityType] ?? entityType}`;
 }
 
 function productCode(product: CreateLaneInput['product']): string {
@@ -386,6 +408,23 @@ export class LaneService {
     });
 
     return checkpoint;
+  }
+
+  async getTimeline(laneId: string): Promise<LaneTimelineEvent[]> {
+    const lane = await this.laneStore.findLaneById(laneId);
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+    const entries = await this.auditService.getEntriesForLane(laneId);
+    return entries.map((entry) => ({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      actor: entry.actor,
+      action: entry.action,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      description: describeAuditEntry(entry.action, entry.entityType),
+    }));
   }
 
   async reconcileAutomaticTransitions(laneId: string, actorId: string) {
