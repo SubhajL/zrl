@@ -297,6 +297,16 @@ export interface LaneStore {
 
 export type LaneCompletenessResponse = RuleLaneEvaluation;
 
+export interface LaneTimelineEvent {
+  readonly id: string;
+  readonly timestamp: Date;
+  readonly actor: string;
+  readonly action: AuditAction;
+  readonly entityType: AuditEntityType;
+  readonly entityId: string;
+  readonly description: string;
+}
+
 export interface LaneAuditInput {
   actor: string;
   action: AuditAction;
