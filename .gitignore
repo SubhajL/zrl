@@ -20,5 +20,6 @@ test-results/
 __pycache__/
 *.pyc
 frontend/design-references/
+packs/
 
 /generated/prisma

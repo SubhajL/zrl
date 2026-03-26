@@ -36,9 +36,19 @@ export class ProofPackService {
     const version =
       (await this.store.getLatestVersion(input.laneId, input.packType)) + 1;
 
-    const html = this.renderTemplate(input.packType, templateData);
-    const pdfBuffer = await this.htmlToPdf(html);
-    const contentHash = this.hashingService.hashBuffer(pdfBuffer);
+    // C2 fix: Two-pass rendering — first pass generates PDF to get hash,
+    // second pass re-renders with actual hash in QR code
+    const firstPassHtml = this.renderTemplate(input.packType, templateData);
+    const firstPassPdf = await this.htmlToPdf(firstPassHtml);
+    const contentHash = this.hashingService.hashBuffer(firstPassPdf);
+
+    // Re-render with actual hash embedded in template data
+    const finalTemplateData: ProofPackTemplateData = {
+      ...templateData,
+      contentHash,
+    };
+    const finalHtml = this.renderTemplate(input.packType, finalTemplateData);
+    const pdfBuffer = await this.htmlToPdf(finalHtml);
 
     const filePath = `packs/${input.laneId}/${input.packType}-v${version}.pdf`;
 

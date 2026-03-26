@@ -368,6 +368,13 @@ export class EvidenceController {
 
     const { lane } = await this.laneService.findById(laneId);
 
+    // C1 fix: Enforce completeness ≥ 95% before pack generation
+    if (lane.completenessScore < 95) {
+      throw new BadRequestException(
+        `Lane completeness must be at least 95% to generate proof packs. Current: ${lane.completenessScore}%`,
+      );
+    }
+
     const artifacts = await this.evidenceService.listLaneArtifacts(laneId, {});
 
     let checklistItems: ProofPackTemplateData['checklistItems'] = [];
@@ -406,9 +413,16 @@ export class EvidenceController {
       }));
 
       if (evaluation.labValidation !== null) {
+        // H2 fix: Look up thaiMrl from rule snapshot substances
+        const substanceMap = new Map(
+          (lane.ruleSnapshot?.rules?.substances ?? []).map((s) => [
+            s.name.toLowerCase(),
+            s.thaiMrl,
+          ]),
+        );
         labResults = evaluation.labValidation.results.map((result) => ({
           substance: result.substance,
-          thaiMrl: 0,
+          thaiMrl: substanceMap.get(result.substance.toLowerCase()) ?? 0,
           destinationMrl: result.limitMgKg,
           measuredValue: result.valueMgKg,
           status: result.status,
@@ -439,8 +453,10 @@ export class EvidenceController {
       }));
     }
 
-    const contentHashPlaceholder = 'pending-generation';
-    const qrCodeDataUrl = await QRCode.toDataURL(contentHashPlaceholder);
+    // C2 fix: Generate initial QR with placeholder — service does two-pass
+    // rendering to embed actual hash. The QR in the first pass is a placeholder;
+    // the second pass gets the real hash from the first pass's PDF content.
+    const qrCodeDataUrl = await QRCode.toDataURL('hash-will-be-computed');
 
     const templateData: ProofPackTemplateData = {
       laneId: lane.laneId,
@@ -461,7 +477,7 @@ export class EvidenceController {
       checkpoints,
       auditEntries,
       qrCodeDataUrl,
-      contentHash: contentHashPlaceholder,
+      contentHash: 'hash-will-be-computed',
       generatedAt: new Date().toISOString(),
       packType,
     };

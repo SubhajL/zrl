@@ -54,3 +54,28 @@
   - Pack download endpoint (GET /packs/:id/download)
   - Defense pack 5-minute SLA enforcement (Task 16)
   - Real Chrome/Puppeteer in CI for actual PDF rendering
+
+## g-check Review (2026-03-26 18:15 ICT)
+
+### CRITICAL (must fix)
+
+- C1: Missing completeness ≥95% gate — packs can be generated for incomplete lanes
+- C2: QR code contains "pending-generation" placeholder, not actual SHA-256 hash
+
+### HIGH (should fix)
+
+- H1: PDFs stored on local filesystem, not S3
+- H2: thaiMrl hardcoded to 0 for all lab results in template data
+- H3: PrismaProofPackStore creates its own pg Pool (connection pool proliferation)
+
+### MEDIUM
+
+- M1: No test for completeness rejection (because gate doesn't exist)
+- M3: readFileSync in hot path (no template caching)
+- M4: Silent HTML-as-PDF fallback produces non-deterministic hashes
+- M6: E2E test only covers invalid type, not happy path
+
+### LOW
+
+- L1: PrismaProofPackStore name misleading (uses pg Pool)
+- L5: packs/ directory not in .gitignore
