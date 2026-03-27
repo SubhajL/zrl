@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationService } from '../notifications/notification.service';
 import type {
   ColdChainStore,
   FruitProfile,
@@ -100,7 +101,10 @@ interface ExcursionAccumulator {
 
 @Injectable()
 export class ColdChainService {
-  constructor(private readonly coldChainStore?: ColdChainStore) {}
+  constructor(
+    private readonly coldChainStore?: ColdChainStore,
+    private readonly notificationService?: NotificationService,
+  ) {}
 
   listFruitProfiles(): FruitProfile[] {
     return [...CANONICAL_PROFILES];
@@ -226,6 +230,8 @@ export class ColdChainService {
       throw new Error('Cold-chain store is not configured.');
     }
 
+    const previousExcursions =
+      await this.coldChainStore.listLaneExcursions(laneId);
     await this.coldChainStore.createTemperatureReadings(laneId, normalized);
     const readings = await this.coldChainStore.listTemperatureReadings(laneId);
     const excursions = await this.detectExcursions(
@@ -236,6 +242,11 @@ export class ColdChainService {
     const storedExcursions = await this.coldChainStore.replaceExcursions(
       laneId,
       excursions,
+    );
+    await this.notifyAboutNewExcursions(
+      laneId,
+      previousExcursions,
+      storedExcursions,
     );
     const sla = await this.calculateShelfLifeImpact(
       context.profile,
@@ -478,6 +489,74 @@ export class ColdChainService {
       totalExcursionMinutes,
       maxDeviationC,
     };
+  }
+
+  private async notifyAboutNewExcursions(
+    laneId: string,
+    previousExcursions: TemperatureExcursion[],
+    currentExcursions: TemperatureExcursion[],
+  ): Promise<void> {
+    if (this.notificationService === undefined) {
+      return;
+    }
+
+    const existingKeys = new Set(
+      previousExcursions.map((excursion) => this.excursionKey(excursion)),
+    );
+    const newExcursions = currentExcursions.filter(
+      (excursion) => !existingKeys.has(this.excursionKey(excursion)),
+    );
+    if (newExcursions.length === 0) {
+      return;
+    }
+
+    const highestSeverity = newExcursions.reduce<
+      TemperatureExcursion['severity']
+    >(
+      (highest, excursion) =>
+        this.compareSeverity(excursion.severity, highest) > 0
+          ? excursion.severity
+          : highest,
+      newExcursions[0].severity,
+    );
+
+    await this.notificationService.notifyLaneOwner(laneId, {
+      type: 'EXCURSION_ALERT',
+      title: 'Temperature excursion detected',
+      message: `${newExcursions.length} new temperature excursion was detected for this lane.`,
+      data: {
+        excursionCount: newExcursions.length,
+        highestSeverity,
+      },
+    });
+  }
+
+  private compareSeverity(
+    left: TemperatureExcursion['severity'],
+    right: TemperatureExcursion['severity'],
+  ): number {
+    const order: Record<TemperatureExcursion['severity'], number> = {
+      MINOR: 0,
+      MODERATE: 1,
+      SEVERE: 2,
+      CRITICAL: 3,
+    };
+    return order[left] - order[right];
+  }
+
+  private excursionKey(
+    excursion: Pick<
+      TemperatureExcursion,
+      'startedAt' | 'endedAt' | 'severity' | 'direction' | 'type'
+    >,
+  ): string {
+    return [
+      excursion.startedAt.toISOString(),
+      excursion.endedAt?.toISOString() ?? 'ongoing',
+      excursion.severity,
+      excursion.direction,
+      excursion.type,
+    ].join('|');
   }
 
   validateLaneConfiguration(

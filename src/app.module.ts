@@ -10,6 +10,7 @@ import { MrvLiteModule } from './modules/mrv-lite/mrv-lite.module';
 import { AuthModule } from './common/auth/auth.module';
 import { HashingModule } from './common/hashing/hashing.module';
 import { AuditModule } from './common/audit/audit.module';
+import { NotificationModule } from './modules/notifications/notification.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuditModule } from './common/audit/audit.module';
     ColdChainModule,
     DisputeModule,
     MrvLiteModule,
+    NotificationModule,
     // Common services
     AuthModule,
     HashingModule,
