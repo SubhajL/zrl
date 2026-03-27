@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { DATABASE_POOL } from '../database/database.constants';
 import {
   DEFAULT_AUDIT_PAGE_SIZE,
   MAX_AUDIT_PAGE_SIZE,
@@ -31,26 +32,13 @@ type QueryExecutor = Pool | PoolClient;
 const GLOBAL_RULES_STREAM_ID = 'GLOBAL_RULES_STREAM';
 
 @Injectable()
-export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
+export class PrismaAuditStore implements AuditStore {
   private pool?: Pool;
   private executor?: QueryExecutor;
 
-  constructor() {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-    this.executor = this.pool;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool === undefined) {
-      return;
-    }
-
-    await this.pool.end();
+  constructor(@Inject(DATABASE_POOL) pool: Pool | undefined) {
+    this.pool = pool;
+    this.executor = pool;
   }
 
   async runInTransaction<T>(
@@ -63,7 +51,10 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
 
       try {
         await client.query('BEGIN');
-        const transactionalStore = PrismaAuditStore.withExecutor(client);
+        const transactionalStore = PrismaAuditStore.withExecutor(
+          this.pool,
+          client,
+        );
         const result = await operation(transactionalStore);
         await client.query('COMMIT');
         return result;
@@ -78,9 +69,11 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
     return await operation(this);
   }
 
-  static withExecutor(executor: QueryExecutor): PrismaAuditStore {
-    const store = new PrismaAuditStore();
-    store.pool = undefined;
+  static withExecutor(
+    pool: Pool | undefined,
+    executor: QueryExecutor,
+  ): PrismaAuditStore {
+    const store = new PrismaAuditStore(pool);
     store.executor = executor;
     return store;
   }

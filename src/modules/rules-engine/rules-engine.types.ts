@@ -240,9 +240,10 @@ export interface RuleDefinitionSource {
   version: number;
   effectiveDate: string | Date;
   sourcePath?: string;
+  substancesFile?: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
-  substances: Array<{
+  substances?: Array<{
     name: string;
     cas: string;
     thaiMrl: number;

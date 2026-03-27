@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../../common/audit/audit.module';
 import { AuthModule } from '../../common/auth/auth.module';
+import { DatabaseModule } from '../../common/database/database.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
 import {
@@ -13,7 +14,7 @@ import { PrismaRulesEngineStore } from './rules-engine.pg-store';
 import { RulesEngineService } from './rules-engine.service';
 
 @Module({
-  imports: [AuthModule, HashingModule, AuditModule],
+  imports: [AuthModule, DatabaseModule, HashingModule, AuditModule],
   controllers: [RulesEngineController],
   providers: [
     {

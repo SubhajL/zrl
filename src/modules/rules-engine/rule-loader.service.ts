@@ -1,32 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { readFile, readdir, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import * as YAML from 'yaml';
+import { resolve } from 'node:path';
 import {
   DEFAULT_RULES_DIRECTORY,
   RULES_DIRECTORY,
 } from './rules-engine.constants';
-import { buildRuleDefinition } from './rules-engine.utils';
+import {
+  computeRuleDataSignature,
+  findRuleYamlFiles,
+  loadRuleDefinitionFromFile,
+} from './rule-definition.files';
 import type { RuleSetDefinition } from './rules-engine.types';
-
-async function findYamlFiles(directory: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const entryPath = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await findYamlFiles(entryPath)));
-      continue;
-    }
-
-    if (entry.isFile() && /\.(ya?ml)$/i.test(entry.name)) {
-      files.push(entryPath);
-    }
-  }
-
-  return files;
-}
 
 @Injectable()
 export class RuleLoaderService {
@@ -68,13 +51,11 @@ export class RuleLoaderService {
 
   private async loadFromDisk(): Promise<RuleSetDefinition[]> {
     const absoluteDirectory = resolve(this.rulesDirectory);
-    const files = await findYamlFiles(absoluteDirectory);
+    const files = await findRuleYamlFiles(absoluteDirectory);
     const definitions = await Promise.all(
-      files.map(async (filePath) => {
-        const source = await readFile(filePath, 'utf8');
-        const raw: unknown = YAML.parse(source);
-        return buildRuleDefinition(raw, filePath);
-      }),
+      files.map(async (filePath) =>
+        loadRuleDefinitionFromFile(filePath, absoluteDirectory),
+      ),
     );
 
     const seen = new Set<string>();
@@ -102,18 +83,7 @@ export class RuleLoaderService {
   }
 
   private async computeSignature(): Promise<string> {
-    const absoluteDirectory = resolve(this.rulesDirectory);
-    const files = await findYamlFiles(absoluteDirectory);
-    const signatures = await Promise.all(
-      files
-        .sort((left, right) => left.localeCompare(right))
-        .map(async (filePath) => {
-          const metadata = await stat(filePath);
-          return `${filePath}:${metadata.mtimeMs}:${metadata.size}`;
-        }),
-    );
-
-    return signatures.join('|');
+    return await computeRuleDataSignature(this.rulesDirectory);
   }
 
   private definitionKey(definition: RuleSetDefinition) {

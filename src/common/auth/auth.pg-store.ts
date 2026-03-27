@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { DATABASE_POOL } from '../database/database.constants';
 import type {
   AuthApiKeyCreationInput,
   AuthApiKeyRecord,
@@ -50,24 +51,13 @@ interface PasswordResetRequestRow extends QueryResultRow {
 type QueryExecutor = Pool | PoolClient;
 
 @Injectable()
-export class PrismaAuthStore implements AuthStore, OnModuleDestroy {
+export class PrismaAuthStore implements AuthStore {
   private pool?: Pool;
   private executor?: QueryExecutor;
 
-  constructor() {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-    this.executor = this.pool;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool !== undefined) {
-      await this.pool.end();
-    }
+  constructor(@Inject(DATABASE_POOL) pool: Pool | undefined) {
+    this.pool = pool;
+    this.executor = pool;
   }
 
   async findUserByEmail(email: string): Promise<AuthUserRecord | null> {

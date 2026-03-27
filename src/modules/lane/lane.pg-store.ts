@@ -1,6 +1,7 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { DATABASE_POOL } from '../../common/database/database.constants';
 import type {
   CreateCheckpointInput,
   CreateLaneInput,
@@ -94,24 +95,13 @@ interface ArtifactRow extends QueryResultRow {
 }
 
 @Injectable()
-export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
+export class PrismaLaneStore implements LaneStore {
   private pool?: Pool;
   private executor?: QueryExecutor;
 
-  constructor() {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-    this.executor = this.pool;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool !== undefined) {
-      await this.pool.end();
-    }
+  constructor(@Inject(DATABASE_POOL) pool: Pool | undefined) {
+    this.pool = pool;
+    this.executor = pool;
   }
 
   async runInTransaction<T>(
@@ -124,7 +114,10 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
 
       try {
         await client.query('BEGIN');
-        const transactionalStore = PrismaLaneStore.withExecutor(client);
+        const transactionalStore = PrismaLaneStore.withExecutor(
+          this.pool,
+          client,
+        );
         const result = await operation(transactionalStore);
         await client.query('COMMIT');
         return result;
@@ -139,9 +132,11 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
     return await operation(this);
   }
 
-  private static withExecutor(executor: QueryExecutor): PrismaLaneStore {
-    const store = new PrismaLaneStore();
-    store.pool = undefined;
+  private static withExecutor(
+    pool: Pool | undefined,
+    executor: QueryExecutor,
+  ): PrismaLaneStore {
+    const store = new PrismaLaneStore(pool);
     store.executor = executor;
     return store;
   }

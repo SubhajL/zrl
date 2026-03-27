@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { AuditModule } from '../../common/audit/audit.module';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuthModule } from '../../common/auth/auth.module';
+import { DatabaseModule } from '../../common/database/database.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainModule } from '../cold-chain/cold-chain.module';
@@ -19,6 +20,7 @@ import { LaneService } from './lane.service';
   imports: [
     AuthModule,
     AuditModule,
+    DatabaseModule,
     HashingModule,
     RulesEngineModule,
     ColdChainModule,
