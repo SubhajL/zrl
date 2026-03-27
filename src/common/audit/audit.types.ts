@@ -28,6 +28,7 @@ export interface CreateAuditEntryInput {
   entityType: AuditEntityType;
   entityId: string;
   payloadHash: string;
+  payloadSnapshot?: Record<string, unknown> | null;
   timestamp?: Date;
 }
 
@@ -39,6 +40,7 @@ export interface AuditEntryRecord {
   entityType: AuditEntityType;
   entityId: string;
   payloadHash: string;
+  payloadSnapshot?: Record<string, unknown> | null;
   prevHash: string;
   entryHash: string;
 }
@@ -69,6 +71,7 @@ export interface ExportedAuditEntry {
   entityType: AuditEntityType;
   entityId: string;
   payloadHash: string;
+  payloadSnapshot?: Record<string, unknown> | null;
   prevHash: string;
   entryHash: string;
 }

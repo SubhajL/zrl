@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuditModule } from '../../common/audit/audit.module';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuthModule } from '../../common/auth/auth.module';
@@ -30,7 +30,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
     HashingModule,
     AuditModule,
     RulesEngineModule,
-    LaneModule,
+    forwardRef(() => LaneModule),
   ],
   controllers: [EvidenceController],
   providers: [

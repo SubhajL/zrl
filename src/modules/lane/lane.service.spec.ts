@@ -2,6 +2,7 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
+import { ProofPackService } from '../evidence/proof-pack.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
 import type {
@@ -99,6 +100,8 @@ describe('LaneService', () => {
   const transitionLaneStatusMock = jest.fn();
   const countProofPacksForLaneMock = jest.fn();
   const findCheckpointsForLaneMock = jest.fn();
+  const findCheckpointByIdMock = jest.fn();
+  const createCheckpointMock = jest.fn();
   const updateCheckpointMock = jest.fn();
   const laneStore: LaneStore = {
     runInTransaction: runInTransactionMock as LaneStore['runInTransaction'],
@@ -118,6 +121,9 @@ describe('LaneService', () => {
       countProofPacksForLaneMock as LaneStore['countProofPacksForLane'],
     findCheckpointsForLane:
       findCheckpointsForLaneMock as LaneStore['findCheckpointsForLane'],
+    findCheckpointById:
+      findCheckpointByIdMock as LaneStore['findCheckpointById'],
+    createCheckpoint: createCheckpointMock as LaneStore['createCheckpoint'],
     updateCheckpoint: updateCheckpointMock as LaneStore['updateCheckpoint'],
   };
   const createAuditEntryMock = jest.fn().mockResolvedValue({
@@ -150,6 +156,10 @@ describe('LaneService', () => {
   const rulesEngineService = {
     evaluateLane: evaluateLaneMock,
   } as unknown as RulesEngineService;
+  const getPackByIdMock = jest.fn();
+  const proofPackService = {
+    getPackById: getPackByIdMock,
+  } as unknown as ProofPackService;
 
   function createService() {
     return new LaneService(
@@ -159,6 +169,7 @@ describe('LaneService', () => {
       ruleSnapshotResolver,
       coldChainService,
       rulesEngineService,
+      proofPackService,
     );
   }
 
@@ -365,6 +376,30 @@ describe('LaneService', () => {
     findLaneByIdMock.mockResolvedValue(lane);
 
     await expect(service.findById('lane-db-1')).resolves.toEqual({ lane });
+  });
+
+  it('returns checkpoint detail by id', async () => {
+    const service = createService();
+    const checkpoint = {
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.69,
+      gpsLng: 101.07,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 12.5,
+      signatureHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      signerName: 'Somchai',
+      conditionNotes: 'All good',
+      status: 'COMPLETED' as const,
+    };
+    findCheckpointByIdMock.mockResolvedValue(checkpoint);
+
+    await expect(service.getCheckpointById('cp-1')).resolves.toEqual(
+      checkpoint,
+    );
   });
 
   it('updates a lane bundle and appends an audit entry', async () => {
@@ -948,6 +983,60 @@ describe('LaneService', () => {
     expect(findCheckpointsForLaneMock).not.toHaveBeenCalled();
   });
 
+  it('createCheckpoint creates a checkpoint and appends an audit entry', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const createdCheckpoint = {
+      id: 'cp-2',
+      laneId: 'lane-db-1',
+      sequence: 2,
+      locationName: 'Airport Handoff',
+      gpsLat: null,
+      gpsLng: null,
+      timestamp: null,
+      temperature: null,
+      signatureHash: null,
+      signerName: null,
+      conditionNotes: null,
+      status: 'PENDING' as const,
+    };
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    createCheckpointMock.mockResolvedValue(createdCheckpoint);
+
+    await expect(
+      service.createCheckpoint(
+        'lane-db-1',
+        {
+          sequence: 2,
+          locationName: 'Airport Handoff',
+        },
+        {
+          id: 'user-1',
+          role: 'EXPORTER',
+          email: 'exporter@example.com',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).resolves.toEqual(createdCheckpoint);
+
+    expect(createCheckpointMock).toHaveBeenCalledWith('lane-db-1', {
+      sequence: 2,
+      locationName: 'Airport Handoff',
+    });
+    expect(createAuditEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'user-1',
+        action: AuditAction.CREATE,
+        entityType: AuditEntityType.CHECKPOINT,
+        entityId: 'cp-2',
+        payloadHash: 'payload-hash',
+      }),
+    );
+  });
+
   it('updateCheckpoint updates and returns checkpoint', async () => {
     const service = createService();
     const lane = buildLaneDetail();
@@ -1085,6 +1174,59 @@ describe('LaneService', () => {
         entityType: AuditEntityType.CHECKPOINT,
         entityId: 'cp-1',
         payloadHash: 'payload-hash',
+      }),
+    );
+  });
+
+  it('updateCheckpoint hashes the full checkpoint snapshot', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+    const updatedCheckpoint = {
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.6904,
+      gpsLng: 101.0779,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 3.2,
+      signatureHash:
+        'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      signerName: 'Somchai',
+      conditionNotes: 'Seal intact',
+      status: 'COMPLETED' as const,
+    };
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    updateCheckpointMock.mockResolvedValue(updatedCheckpoint);
+
+    await service.updateCheckpoint(
+      'lane-db-1',
+      'cp-1',
+      {
+        status: 'COMPLETED',
+        temperature: 3.2,
+        gpsLat: 13.6904,
+        gpsLng: 101.0779,
+        signatureHash:
+          'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        signerName: 'Somchai',
+        conditionNotes: 'Seal intact',
+      },
+      {
+        id: 'user-1',
+        role: 'EXPORTER',
+        email: 'exporter@example.com',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(hashStringMock).toHaveBeenCalledWith(
+      JSON.stringify({
+        laneId: 'LN-2026-002',
+        checkpoint: updatedCheckpoint,
       }),
     );
   });

@@ -103,6 +103,14 @@ enum PackType {
   @@map("pack_type")
 }
 
+enum PackStatus {
+  GENERATING
+  READY
+  FAILED
+
+  @@map("pack_status")
+}
+
 enum AuditAction {
   UPLOAD
   SIGN
@@ -402,8 +410,10 @@ model ProofPack {
   laneId      String   @map("lane_id")
   packType    PackType @map("pack_type")
   version     Int      @default(1)
-  contentHash String   @map("content_hash") @db.Char(64)
-  filePath    String   @map("file_path")
+  status      PackStatus @default(GENERATING)
+  contentHash String?  @map("content_hash") @db.Char(64)
+  filePath    String?  @map("file_path")
+  errorMessage String? @map("error_message")
   generatedAt DateTime @default(now()) @map("generated_at")
   generatedBy String   @map("generated_by")
   recipient   String?
@@ -426,9 +436,20 @@ model AuditEntry {
   prevHash    String          @map("prev_hash") @db.Char(64)
   entryHash   String          @map("entry_hash") @db.Char(64)
 
+  snapshot AuditEntrySnapshot?
+
   @@index([entityId])
   @@index([timestamp])
   @@map("audit_entries")
+}
+
+model AuditEntrySnapshot {
+  auditEntryId String @id @map("audit_entry_id")
+  payload      Json
+
+  auditEntry AuditEntry @relation(fields: [auditEntryId], references: [id], onDelete: Restrict)
+
+  @@map("audit_entry_snapshots")
 }
 
 model RuleSnapshot {

@@ -9,21 +9,24 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { extname } from 'node:path';
-import QRCode from 'qrcode';
 import {
   ApiKeyAuthGuard,
   AuditorReadOnlyGuard,
   JwtAuthGuard,
   LaneOwnerGuard,
+  PackOwnerGuard,
 } from '../../common/auth/auth.guards';
 import type { AuthPrincipalRequest } from '../../common/auth/auth.types';
 import { AuditService } from '../../common/audit/audit.service';
@@ -356,12 +359,30 @@ export class EvidenceController {
     );
   }
 
-  @Post('lanes/:id/packs')
+  @Post('lanes/:id/packs/generate')
   @UseGuards(JwtAuthGuard, AuditorReadOnlyGuard, LaneOwnerGuard)
   async generatePack(
     @Param('id') laneId: string,
     @Body() body: unknown,
     @Req() request: AuthPrincipalRequest,
+  ) {
+    return await this.enqueuePackGeneration(laneId, body, request);
+  }
+
+  @Post('lanes/:id/packs')
+  @UseGuards(JwtAuthGuard, AuditorReadOnlyGuard, LaneOwnerGuard)
+  async generatePackLegacy(
+    @Param('id') laneId: string,
+    @Body() body: unknown,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    return await this.enqueuePackGeneration(laneId, body, request);
+  }
+
+  private async enqueuePackGeneration(
+    laneId: string,
+    body: unknown,
+    request: AuthPrincipalRequest,
   ) {
     const payload = assertObject(body, 'pack generation payload');
     const packType = parsePackType(payload['packType']);
@@ -453,11 +474,6 @@ export class EvidenceController {
       }));
     }
 
-    // C2 fix: Generate initial QR with placeholder — service does two-pass
-    // rendering to embed actual hash. The QR in the first pass is a placeholder;
-    // the second pass gets the real hash from the first pass's PDF content.
-    const qrCodeDataUrl = await QRCode.toDataURL('hash-will-be-computed');
-
     const templateData: ProofPackTemplateData = {
       laneId: lane.laneId,
       batchId: lane.batch?.batchId ?? '',
@@ -476,8 +492,6 @@ export class EvidenceController {
       labResults,
       checkpoints,
       auditEntries,
-      qrCodeDataUrl,
-      contentHash: 'hash-will-be-computed',
       generatedAt: new Date().toISOString(),
       packType,
     };
@@ -498,6 +512,34 @@ export class EvidenceController {
   @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async listPacks(@Param('id') laneId: string) {
     return { packs: await this.proofPackService.listPacks(laneId) };
+  }
+
+  @Get('packs/:id')
+  @UseGuards(JwtAuthGuard, PackOwnerGuard)
+  async getPack(@Param('id') packId: string) {
+    return { pack: await this.proofPackService.getPackById(packId) };
+  }
+
+  @Get('packs/:id/verify')
+  async verifyPack(@Param('id') packId: string) {
+    return await this.proofPackService.verifyPack(packId);
+  }
+
+  @Get('packs/:id/download')
+  @UseGuards(JwtAuthGuard, PackOwnerGuard)
+  async downloadPack(
+    @Param('id') packId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { pack, stream } =
+      await this.proofPackService.getPackDownload(packId);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="proof-pack-${pack.id}.pdf"`,
+    );
+
+    return new StreamableFile(stream);
   }
 }
 

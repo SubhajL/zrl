@@ -190,6 +190,8 @@ export interface AuthStore {
   createApiKey(input: AuthApiKeyCreationInput): Promise<AuthApiKeyRecord>;
   revokeApiKey(apiKeyId: string): Promise<AuthApiKeyRecord | null>;
   resolveLaneOwnerId(laneId: string): Promise<string | null>;
+  resolveProofPackOwnerId(packId: string): Promise<string | null>;
+  resolveCheckpointOwnerId(checkpointId: string): Promise<string | null>;
 }
 
 export interface AuthApiKeyValidationInput {

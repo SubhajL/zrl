@@ -151,30 +151,21 @@ export class RolesGuard implements CanActivate {
 
 @Injectable()
 export class LaneOwnerGuard implements CanActivate {
-  constructor(private readonly authService: AuthService) {}
+  constructor(protected readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthPrincipalRequest>();
     const user = this.requireUser(request);
-    if (user.role === 'ADMIN' || user.role === 'AUDITOR') {
-      return true;
-    }
-
-    const laneId = request.params?.['laneId'] ?? request.params?.['id'];
-    if (laneId === undefined) {
-      throw new ForbiddenException('Lane context required.');
-    }
-
-    const ownerId = await this.authService.resolveLaneOwnerId(laneId);
-
-    if (ownerId !== user.id) {
-      throw new ForbiddenException('Lane ownership required.');
-    }
-
-    return true;
+    return await this.requireOwnership(
+      user,
+      request.params?.['laneId'] ?? request.params?.['id'],
+      'Lane context required.',
+      async (laneId) => await this.authService.resolveLaneOwnerId(laneId),
+      'Lane ownership required.',
+    );
   }
 
-  private requireUser(request: AuthPrincipalRequest): AuthSessionUser {
+  protected requireUser(request: AuthPrincipalRequest): AuthSessionUser {
     if (request.user !== undefined) {
       return request.user;
     }
@@ -184,6 +175,63 @@ export class LaneOwnerGuard implements CanActivate {
     }
 
     throw new UnauthorizedException('Authentication required.');
+  }
+
+  protected async requireOwnership(
+    user: AuthSessionUser,
+    resourceId: string | undefined,
+    missingContextMessage: string,
+    resolveOwnerId: (resourceId: string) => Promise<string | null>,
+    missingOwnershipMessage: string,
+  ): Promise<boolean> {
+    if (user.role === 'ADMIN' || user.role === 'AUDITOR') {
+      return true;
+    }
+
+    if (resourceId === undefined) {
+      throw new ForbiddenException(missingContextMessage);
+    }
+
+    const ownerId = await resolveOwnerId(resourceId);
+
+    if (ownerId !== user.id) {
+      throw new ForbiddenException(missingOwnershipMessage);
+    }
+
+    return true;
+  }
+}
+
+@Injectable()
+export class PackOwnerGuard extends LaneOwnerGuard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthPrincipalRequest>();
+    const user = this.requireUser(request);
+
+    return await this.requireOwnership(
+      user,
+      request.params?.['packId'] ?? request.params?.['id'],
+      'Proof pack context required.',
+      async (packId) => await this.authService.resolveProofPackOwnerId(packId),
+      'Proof pack ownership required.',
+    );
+  }
+}
+
+@Injectable()
+export class CheckpointOwnerGuard extends LaneOwnerGuard {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthPrincipalRequest>();
+    const user = this.requireUser(request);
+
+    return await this.requireOwnership(
+      user,
+      request.params?.['cpId'] ?? request.params?.['id'],
+      'Checkpoint context required.',
+      async (checkpointId) =>
+        await this.authService.resolveCheckpointOwnerId(checkpointId),
+      'Checkpoint ownership required.',
+    );
   }
 }
 
