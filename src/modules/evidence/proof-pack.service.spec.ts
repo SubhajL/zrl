@@ -161,6 +161,9 @@ describe('ProofPackService', () => {
   let auditService: {
     createEntry: jest.Mock;
   };
+  let notificationService: {
+    notifyLaneOwner: jest.Mock;
+  };
   let service: ProofPackService;
 
   beforeEach(() => {
@@ -219,12 +222,16 @@ describe('ProofPackService', () => {
         entryHash: 'd'.repeat(64),
       }),
     };
+    notificationService = {
+      notifyLaneOwner: jest.fn().mockResolvedValue([]),
+    };
 
     service = new ProofPackService(
       store as unknown as ProofPackStore,
       objectStore as never,
       hashingService as unknown as HashingService,
       auditService as never,
+      notificationService as never,
     );
   });
 
@@ -316,6 +323,16 @@ describe('ProofPackService', () => {
         entityId: 'pack-1',
       }),
     );
+    expect(notificationService.notifyLaneOwner).toHaveBeenCalledWith('lane-1', {
+      type: 'PACK_GENERATED',
+      title: 'Proof pack ready',
+      message: 'REGULATOR proof pack v1 is ready for download.',
+      data: {
+        packId: 'pack-1',
+        packType: 'REGULATOR',
+        version: 1,
+      },
+    });
   });
 
   it('rejects leased completion when the worker no longer owns the lease', async () => {

@@ -24,6 +24,7 @@ describe('ColdChainService', () => {
   let listTemperatureReadingsMock: jest.Mock;
   let replaceExcursionsMock: jest.Mock;
   let listLaneExcursionsMock: jest.Mock;
+  let notificationService: { notifyLaneOwner: jest.Mock };
   let service: ColdChainService;
 
   beforeEach(() => {
@@ -73,6 +74,9 @@ describe('ColdChainService', () => {
     listTemperatureReadingsMock = jest.fn().mockResolvedValue([]);
     replaceExcursionsMock = jest.fn().mockResolvedValue([]);
     listLaneExcursionsMock = jest.fn().mockResolvedValue([]);
+    notificationService = {
+      notifyLaneOwner: jest.fn().mockResolvedValue([]),
+    };
 
     const store = {
       listProfiles: listProfilesMock,
@@ -133,7 +137,7 @@ describe('ColdChainService', () => {
       return Promise.resolve(buildProfile());
     });
 
-    service = new ColdChainService(store);
+    service = new ColdChainService(store, notificationService as never);
   });
 
   it('lists fruit profiles from the store', async () => {
@@ -288,6 +292,18 @@ describe('ColdChainService', () => {
       }),
     ]);
     expect(replaceExcursionsMock).toHaveBeenCalled();
+    expect(notificationService.notifyLaneOwner).toHaveBeenCalledWith(
+      'lane-db-1',
+      {
+        type: 'EXCURSION_ALERT',
+        title: 'Temperature excursion detected',
+        message: '1 new temperature excursion was detected for this lane.',
+        data: {
+          excursionCount: 1,
+          highestSeverity: 'MINOR',
+        },
+      },
+    );
   });
 
   it('detectExcursions classifies minor, moderate, severe, and critical boundaries', async () => {

@@ -4,6 +4,8 @@ import { AuthModule } from '../../common/auth/auth.module';
 import { DatabaseModule } from '../../common/database/database.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { NotificationModule } from '../notifications/notification.module';
+import { NotificationService } from '../notifications/notification.service';
 import {
   DEFAULT_RULES_DIRECTORY,
   RULES_DIRECTORY,
@@ -14,7 +16,13 @@ import { PrismaRulesEngineStore } from './rules-engine.pg-store';
 import { RulesEngineService } from './rules-engine.service';
 
 @Module({
-  imports: [AuthModule, DatabaseModule, HashingModule, AuditModule],
+  imports: [
+    AuthModule,
+    DatabaseModule,
+    HashingModule,
+    AuditModule,
+    NotificationModule,
+  ],
   controllers: [RulesEngineController],
   providers: [
     {
@@ -29,8 +37,20 @@ import { RulesEngineService } from './rules-engine.service';
         loader: RuleLoaderService,
         store: PrismaRulesEngineStore,
         hashingService: HashingService,
-      ) => new RulesEngineService(loader, store, hashingService),
-      inject: [RuleLoaderService, PrismaRulesEngineStore, HashingService],
+        notificationService: NotificationService,
+      ) =>
+        new RulesEngineService(
+          loader,
+          store,
+          hashingService,
+          notificationService,
+        ),
+      inject: [
+        RuleLoaderService,
+        PrismaRulesEngineStore,
+        HashingService,
+        NotificationService,
+      ],
     },
   ],
   exports: [RulesEngineService, RuleLoaderService],

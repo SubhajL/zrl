@@ -16,6 +16,7 @@ import type { Readable } from 'node:stream';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { NotificationService } from '../notifications/notification.service';
 import { EVIDENCE_OBJECT_STORE } from './evidence.constants';
 import type { EvidenceObjectStore } from './evidence.types';
 import {
@@ -46,6 +47,7 @@ export class ProofPackService {
     private readonly objectStore: EvidenceObjectStore,
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
+    private readonly notificationService?: NotificationService,
   ) {
     this.templatesDir = resolve(process.cwd(), 'templates');
     this.registerTemplateHelpers();
@@ -128,6 +130,16 @@ export class ProofPackService {
       AuditAction.GENERATE,
       readyPack,
     );
+    await this.notificationService?.notifyLaneOwner(claimedJob.pack.laneId, {
+      type: 'PACK_GENERATED',
+      title: 'Proof pack ready',
+      message: `${claimedJob.pack.packType} proof pack v${claimedJob.pack.version} is ready for download.`,
+      data: {
+        packId: readyPack.id,
+        packType: readyPack.packType,
+        version: readyPack.version,
+      },
+    });
     this.logger.log(
       `Generated ${claimedJob.pack.packType} pack v${claimedJob.pack.version} for lane ${claimedJob.pack.laneId}`,
     );

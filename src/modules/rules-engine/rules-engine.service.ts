@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { NotificationService } from '../notifications/notification.service';
 import {
   buildRuleSnapshotPayload,
   classifyRiskLevel,
@@ -124,6 +125,7 @@ export class RulesEngineService {
     private readonly loader: RuleLoaderPort,
     private readonly store: RuleStore,
     private readonly hashingService: HashingService,
+    private readonly notificationService?: NotificationService,
   ) {}
 
   async reloadRules(): Promise<RuleReloadResult> {
@@ -197,27 +199,30 @@ export class RulesEngineService {
     actorId: string,
   ): Promise<RuleSubstanceRecord> {
     const normalizedMarket = normalizeRuleMarket(market);
+    const substance = await this.store.runInTransaction(
+      async (transactional) => {
+        const substance = await transactional.createSubstance(
+          normalizedMarket,
+          input,
+        );
 
-    return await this.store.runInTransaction(async (transactional) => {
-      const substance = await transactional.createSubstance(
-        normalizedMarket,
-        input,
-      );
+        await transactional.bumpRuleVersionsForMarket(
+          normalizedMarket,
+          `Substance created: ${substance.name}`,
+        );
 
-      await transactional.bumpRuleVersionsForMarket(
-        normalizedMarket,
-        `Substance created: ${substance.name}`,
-      );
+        await transactional.appendSubstanceAuditEntry({
+          actor: actorId,
+          action: AuditAction.CREATE,
+          substanceId: substance.id,
+          payloadHash: await this.buildSubstancePayloadHash(substance),
+        });
 
-      await transactional.appendSubstanceAuditEntry({
-        actor: actorId,
-        action: AuditAction.CREATE,
-        substanceId: substance.id,
-        payloadHash: await this.buildSubstancePayloadHash(substance),
-      });
-
-      return substance;
-    });
+        return substance;
+      },
+    );
+    await this.notifyRuleChange(normalizedMarket, substance, 'CREATED');
+    return substance;
   }
 
   async updateSubstance(
@@ -225,23 +230,30 @@ export class RulesEngineService {
     input: Partial<RuleSubstanceInput>,
     actorId: string,
   ): Promise<RuleSubstanceRecord> {
-    return await this.store.runInTransaction(async (transactional) => {
-      const substance = await transactional.updateSubstance(substanceId, input);
+    const substance = await this.store.runInTransaction(
+      async (transactional) => {
+        const substance = await transactional.updateSubstance(
+          substanceId,
+          input,
+        );
 
-      await transactional.bumpRuleVersionsForMarket(
-        substance.market,
-        `Substance updated: ${substance.name}`,
-      );
+        await transactional.bumpRuleVersionsForMarket(
+          substance.market,
+          `Substance updated: ${substance.name}`,
+        );
 
-      await transactional.appendSubstanceAuditEntry({
-        actor: actorId,
-        action: AuditAction.UPDATE,
-        substanceId: substance.id,
-        payloadHash: await this.buildSubstancePayloadHash(substance),
-      });
+        await transactional.appendSubstanceAuditEntry({
+          actor: actorId,
+          action: AuditAction.UPDATE,
+          substanceId: substance.id,
+          payloadHash: await this.buildSubstancePayloadHash(substance),
+        });
 
-      return substance;
-    });
+        return substance;
+      },
+    );
+    await this.notifyRuleChange(substance.market, substance, 'UPDATED');
+    return substance;
   }
 
   async listRuleVersions(
@@ -349,6 +361,29 @@ export class RulesEngineService {
         riskLevel: substance.riskLevel,
       }),
     );
+  }
+
+  private async notifyRuleChange(
+    market: RuleMarket,
+    substance: RuleSubstanceRecord,
+    changeType: 'CREATED' | 'UPDATED',
+  ): Promise<void> {
+    await this.notificationService?.notifyMarketAudience(market, {
+      laneId: null,
+      type: 'RULE_CHANGE',
+      title: 'Rule update published',
+      message: `${this.formatMarketLabel(market)} market rules were updated for ${substance.name}.`,
+      data: {
+        market,
+        substanceId: substance.id,
+        substanceName: substance.name,
+        changeType,
+      },
+    });
+  }
+
+  private formatMarketLabel(market: RuleMarket): string {
+    return market.charAt(0) + market.slice(1).toLowerCase();
   }
 
   private buildChecklist(

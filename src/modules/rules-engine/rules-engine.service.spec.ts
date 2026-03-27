@@ -193,6 +193,9 @@ describe('RulesEngineService', () => {
         'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       );
     const appendSubstanceAuditEntry = jest.fn().mockResolvedValue(undefined);
+    const notificationService = {
+      notifyMarketAudience: jest.fn().mockResolvedValue([]),
+    };
     const store = {} as RuleStore;
     const runInTransaction = jest.fn(
       async <T>(operation: (transactionalStore: RuleStore) => Promise<T>) =>
@@ -210,9 +213,14 @@ describe('RulesEngineService', () => {
       listRuleVersions: jest.fn(),
       appendSubstanceAuditEntry,
     });
-    const service = new RulesEngineService(loader, store, {
-      hashString,
-    } as unknown as HashingService);
+    const service = new RulesEngineService(
+      loader,
+      store,
+      {
+        hashString,
+      } as unknown as HashingService,
+      notificationService as never,
+    );
 
     const result = await service.createSubstance(
       'JAPAN',
@@ -242,6 +250,21 @@ describe('RulesEngineService', () => {
         action: 'CREATE',
         substanceId: 'substance-2',
       }),
+    );
+    expect(notificationService.notifyMarketAudience).toHaveBeenCalledWith(
+      'JAPAN',
+      {
+        laneId: null,
+        type: 'RULE_CHANGE',
+        title: 'Rule update published',
+        message: 'Japan market rules were updated for Prochloraz.',
+        data: {
+          market: 'JAPAN',
+          substanceId: 'substance-2',
+          substanceName: 'Prochloraz',
+          changeType: 'CREATED',
+        },
+      },
     );
   });
 
