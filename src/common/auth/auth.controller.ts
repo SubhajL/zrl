@@ -2,11 +2,13 @@ import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiKeyAuthGuard, JwtAuthGuard } from './auth.guards';
 import { AuthService } from './auth.service';
 import type {
+  AuthForgotPasswordInput,
   AuthLoginInput,
   AuthMfaEnrollmentConfirmationInput,
   AuthMfaVerificationInput,
   AuthPrincipalRequest,
   AuthRefreshInput,
+  AuthResetPasswordInput,
 } from './auth.types';
 
 @Controller()
@@ -56,6 +58,16 @@ export class AuthController {
   @Post('auth/refresh')
   async refresh(@Body() body: AuthRefreshInput) {
     return await this.authService.refresh(body);
+  }
+
+  @Post('auth/forgot-password')
+  async forgotPassword(@Body() body: AuthForgotPasswordInput) {
+    return await this.authService.forgotPassword(body);
+  }
+
+  @Post('auth/reset-password')
+  async resetPassword(@Body() body: AuthResetPasswordInput) {
+    return await this.authService.resetPassword(body);
   }
 
   @Post('auth/logout')

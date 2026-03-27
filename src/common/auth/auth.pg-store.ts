@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import type {
   AuthApiKeyCreationInput,
   AuthApiKeyRecord,
+  AuthPasswordResetConsumeResult,
+  AuthPasswordResetRequestInput,
+  AuthPasswordResetRequestRecord,
   AuthRole,
   AuthStore,
   AuthUserRecord,
@@ -30,6 +34,17 @@ interface ApiKeyRow extends QueryResultRow {
   ip_whitelist: string[];
   expires_at: Date | string | null;
   revoked_at: Date | string | null;
+}
+
+interface PasswordResetRequestRow extends QueryResultRow {
+  id: string;
+  email: string;
+  user_id: string | null;
+  token_hash: string | null;
+  expires_at: Date | string | null;
+  used_at: Date | string | null;
+  revoked_at: Date | string | null;
+  created_at: Date | string;
 }
 
 type QueryExecutor = Pool | PoolClient;
@@ -204,6 +219,193 @@ export class PrismaAuthStore implements AuthStore, OnModuleDestroy {
     return result.rowCount === 0 ? null : this.mapApiKey(result.rows[0]);
   }
 
+  async countPasswordResetRequestsSince(
+    email: string,
+    since: Date,
+  ): Promise<number> {
+    const executor = this.requireExecutor();
+    const result = await executor.query<{ count: string }>(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM password_reset_requests
+        WHERE email = $1
+          AND created_at >= $2
+      `,
+      [email, since],
+    );
+
+    return Number(result.rows[0]?.count ?? '0');
+  }
+
+  async createPasswordResetRequest(
+    input: AuthPasswordResetRequestInput,
+  ): Promise<AuthPasswordResetRequestRecord> {
+    const client = await this.requirePool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      if (input.tokenHash !== null) {
+        await client.query(
+          `
+            UPDATE password_reset_requests
+            SET revoked_at = NOW()
+            WHERE email = $1
+              AND token_hash IS NOT NULL
+              AND used_at IS NULL
+              AND revoked_at IS NULL
+          `,
+          [input.email],
+        );
+      }
+
+      const result = await client.query<PasswordResetRequestRow>(
+        `
+          INSERT INTO password_reset_requests (
+            id,
+            email,
+            user_id,
+            token_hash,
+            expires_at
+          )
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING
+            id,
+            email,
+            user_id,
+            token_hash,
+            expires_at,
+            used_at,
+            revoked_at,
+            created_at
+        `,
+        [
+          randomUUID(),
+          input.email,
+          input.userId,
+          input.tokenHash,
+          input.expiresAt,
+        ],
+      );
+
+      await client.query('COMMIT');
+      return this.mapPasswordResetRequest(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async consumePasswordResetToken(
+    tokenHash: string,
+    passwordHash: string,
+    now: Date,
+  ): Promise<AuthPasswordResetConsumeResult> {
+    const client = await this.requirePool().connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const requestResult = await client.query<PasswordResetRequestRow>(
+        `
+          SELECT
+            id,
+            email,
+            user_id,
+            token_hash,
+            expires_at,
+            used_at,
+            revoked_at,
+            created_at
+          FROM password_reset_requests
+          WHERE token_hash = $1
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [tokenHash],
+      );
+
+      if (requestResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { state: 'NOT_FOUND' };
+      }
+
+      const request = this.mapPasswordResetRequest(requestResult.rows[0]);
+
+      if (request.revokedAt !== null) {
+        await client.query('ROLLBACK');
+        return { state: 'REVOKED' };
+      }
+
+      if (request.usedAt !== null) {
+        await client.query('ROLLBACK');
+        return { state: 'USED' };
+      }
+
+      if (
+        request.expiresAt === null ||
+        request.expiresAt.getTime() <= now.getTime()
+      ) {
+        await client.query('ROLLBACK');
+        return { state: 'EXPIRED' };
+      }
+
+      if (request.userId === null) {
+        await client.query('ROLLBACK');
+        return { state: 'NOT_FOUND' };
+      }
+
+      const userResult = await client.query<UserRow>(
+        `
+          UPDATE users
+          SET password_hash = $2,
+              session_version = session_version + 1,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING
+            id,
+            email,
+            password_hash,
+            role,
+            company_name,
+            mfa_enabled,
+            totp_secret,
+            session_version,
+            created_at,
+            updated_at
+        `,
+        [request.userId, passwordHash],
+      );
+
+      if (userResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return { state: 'NOT_FOUND' };
+      }
+
+      await client.query(
+        `
+          UPDATE password_reset_requests
+          SET used_at = $2
+          WHERE id = $1
+        `,
+        [request.id, now],
+      );
+
+      await client.query('COMMIT');
+      return {
+        state: 'SUCCESS',
+        user: this.mapUser(userResult.rows[0]),
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async resolveLaneOwnerId(laneId: string): Promise<string | null> {
     const executor = this.requireExecutor();
     const result = await executor.query<{ exporter_id: string }>(
@@ -286,6 +488,14 @@ export class PrismaAuthStore implements AuthStore, OnModuleDestroy {
     return this.executor;
   }
 
+  private requirePool(): Pool {
+    if (this.pool === undefined) {
+      throw new Error('Auth store is not configured.');
+    }
+
+    return this.pool;
+  }
+
   private mapUser(row: UserRow): AuthUserRecord {
     return {
       id: row.id,
@@ -311,6 +521,21 @@ export class PrismaAuthStore implements AuthStore, OnModuleDestroy {
       ipWhitelist: row.ip_whitelist ?? [],
       expiresAt: row.expires_at === null ? null : new Date(row.expires_at),
       revokedAt: row.revoked_at === null ? null : new Date(row.revoked_at),
+    };
+  }
+
+  private mapPasswordResetRequest(
+    row: PasswordResetRequestRow,
+  ): AuthPasswordResetRequestRecord {
+    return {
+      id: row.id,
+      email: row.email,
+      userId: row.user_id,
+      tokenHash: row.token_hash,
+      expiresAt: row.expires_at === null ? null : new Date(row.expires_at),
+      usedAt: row.used_at === null ? null : new Date(row.used_at),
+      revokedAt: row.revoked_at === null ? null : new Date(row.revoked_at),
+      createdAt: new Date(row.created_at),
     };
   }
 }

@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { AuthService } from './../src/common/auth/auth.service';
+import { ProofPackWorkerService } from './../src/modules/evidence/proof-pack.worker';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -31,6 +32,12 @@ describe('AuthController (e2e)', () => {
         mfaEnabled: true,
       },
     }),
+    forgotPassword: jest.fn().mockResolvedValue({
+      message:
+        'If an account exists for that email, password reset instructions have been sent.',
+      resetTokenPreview: 'preview-token',
+    }),
+    resetPassword: jest.fn().mockResolvedValue({ success: true }),
     verifyAccessToken: jest.fn().mockResolvedValue({
       user: {
         id: 'user-2',
@@ -57,6 +64,11 @@ describe('AuthController (e2e)', () => {
     }),
     logout: jest.fn().mockResolvedValue({ success: true }),
   };
+  const proofPackWorkerServiceMock = {
+    onModuleInit: jest.fn(),
+    onModuleDestroy: jest.fn(),
+    getJobMetrics: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -66,6 +78,8 @@ describe('AuthController (e2e)', () => {
     })
       .overrideProvider(AuthService)
       .useValue(authServiceMock)
+      .overrideProvider(ProofPackWorkerService)
+      .useValue(proofPackWorkerServiceMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -112,5 +126,39 @@ describe('AuthController (e2e)', () => {
       'access-token',
     );
     expect(authServiceMock.logout).toHaveBeenCalledWith('user-2');
+  });
+
+  it('POST /auth/forgot-password returns a generic response', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({
+        email: 'exporter@example.com',
+      })
+      .expect(201)
+      .expect({
+        message:
+          'If an account exists for that email, password reset instructions have been sent.',
+        resetTokenPreview: 'preview-token',
+      });
+
+    expect(authServiceMock.forgotPassword).toHaveBeenCalledWith({
+      email: 'exporter@example.com',
+    });
+  });
+
+  it('POST /auth/reset-password completes the reset flow', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({
+        token: 'reset-token',
+        newPassword: 'new-password',
+      })
+      .expect(201)
+      .expect({ success: true });
+
+    expect(authServiceMock.resetPassword).toHaveBeenCalledWith({
+      token: 'reset-token',
+      newPassword: 'new-password',
+    });
   });
 });

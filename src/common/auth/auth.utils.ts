@@ -1,5 +1,8 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { AUTH_API_KEY_BYTES } from './auth.constants';
+import {
+  AUTH_API_KEY_BYTES,
+  AUTH_PASSWORD_RESET_TOKEN_BYTES,
+} from './auth.constants';
 import type {
   AuthAccessTokenClaims,
   AuthEnrollmentTokenClaims,
@@ -53,8 +56,18 @@ export function createRawApiKey(): string {
   return randomBytes(AUTH_API_KEY_BYTES).toString('hex');
 }
 
+export function createPasswordResetToken(): string {
+  return randomBytes(AUTH_PASSWORD_RESET_TOKEN_BYTES).toString('base64url');
+}
+
 export function hashApiKey(key: string): string {
   return createHmac('sha256', 'zrl-api-key-hash').update(key).digest('hex');
+}
+
+export function hashPasswordResetToken(token: string): string {
+  return createHmac('sha256', `${resolveAuthSecret()}:password-reset`)
+    .update(token)
+    .digest('hex');
 }
 
 function normalizeJwtClaims<T extends JwtBaseClaims>(claims: T): T {

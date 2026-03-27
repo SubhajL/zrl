@@ -65,6 +65,24 @@ export interface AuthApiKeyCreationResult {
   key: string;
 }
 
+export interface AuthPasswordResetRequestRecord {
+  id: string;
+  email: string;
+  userId: string | null;
+  tokenHash: string | null;
+  expiresAt: Date | null;
+  usedAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface AuthPasswordResetRequestInput {
+  email: string;
+  userId: string | null;
+  tokenHash: string | null;
+  expiresAt: Date | null;
+}
+
 export interface AuthLoginInput {
   email: string;
   password: string;
@@ -116,6 +134,36 @@ export interface AuthRefreshInput {
 
 export interface AuthLogoutResult {
   success: true;
+}
+
+export interface AuthForgotPasswordInput {
+  email: string;
+}
+
+export interface AuthForgotPasswordResult {
+  message: string;
+  resetTokenPreview?: string | null;
+}
+
+export interface AuthResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export const AuthPasswordResetConsumeState = {
+  SUCCESS: 'SUCCESS',
+  NOT_FOUND: 'NOT_FOUND',
+  EXPIRED: 'EXPIRED',
+  USED: 'USED',
+  REVOKED: 'REVOKED',
+} as const;
+
+export type AuthPasswordResetConsumeState =
+  (typeof AuthPasswordResetConsumeState)[keyof typeof AuthPasswordResetConsumeState];
+
+export interface AuthPasswordResetConsumeResult {
+  state: AuthPasswordResetConsumeState;
+  user?: AuthUserRecord;
 }
 
 export interface AuthSessionUser {
@@ -189,6 +237,15 @@ export interface AuthStore {
   findApiKeyByHash(hash: string): Promise<AuthApiKeyRecord | null>;
   createApiKey(input: AuthApiKeyCreationInput): Promise<AuthApiKeyRecord>;
   revokeApiKey(apiKeyId: string): Promise<AuthApiKeyRecord | null>;
+  countPasswordResetRequestsSince(email: string, since: Date): Promise<number>;
+  createPasswordResetRequest(
+    input: AuthPasswordResetRequestInput,
+  ): Promise<AuthPasswordResetRequestRecord>;
+  consumePasswordResetToken(
+    tokenHash: string,
+    passwordHash: string,
+    now: Date,
+  ): Promise<AuthPasswordResetConsumeResult>;
   resolveLaneOwnerId(laneId: string): Promise<string | null>;
   resolveProofPackOwnerId(packId: string): Promise<string | null>;
   resolveCheckpointOwnerId(checkpointId: string): Promise<string | null>;
