@@ -1,5 +1,6 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Pool, type QueryResultRow } from 'pg';
+import { DATABASE_POOL } from '../../common/database/database.constants';
 import type { LaneColdChainMode, LaneProduct } from '../lane/lane.types';
 import type {
   ColdChainStore,
@@ -55,22 +56,11 @@ interface TemperatureExcursionRow extends QueryResultRow {
 }
 
 @Injectable()
-export class PrismaColdChainStore implements ColdChainStore, OnModuleDestroy {
+export class PrismaColdChainStore implements ColdChainStore {
   private pool?: Pool;
 
-  constructor() {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool !== undefined) {
-      await this.pool.end();
-    }
+  constructor(@Inject(DATABASE_POOL) pool: Pool | undefined) {
+    this.pool = pool;
   }
 
   async listProfiles(): Promise<FruitProfile[]> {

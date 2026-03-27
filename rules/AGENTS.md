@@ -8,7 +8,7 @@
 <!-- BEGIN AUTO-GENERATED:RULES_CURRENT_STATE -->
 - This directory now exists and should hold market-specific compliance data, not generic business logic.
 - Current market subdirectories: `japan/`.
-- Current rule files include: `rules/AGENTS.md`, `rules/japan/mango.yaml`.
+- Current rule files include: `rules/AGENTS.md`, `rules/japan/mango.yaml`, `rules/japan/mango-substances.csv`.
 <!-- END AUTO-GENERATED:RULES_CURRENT_STATE -->
 
 ## Working Rules

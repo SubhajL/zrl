@@ -944,3 +944,79 @@ LOW
 ### Rollout Notes
 - Apply `prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql` before enabling the new routes outside local development.
 - Production still needs a real reset-email delivery channel before end users can complete the flow without operator assistance.
+
+## 2026-03-27 21:16 ICT
+
+- Goal: Close the real remaining gap in Task `8.2` by replacing the hardcoded Japan MRL seed list with a file-backed import path that scales cleanly beyond the initial 12 critical substances.
+- What changed:
+  - `src/modules/rules-engine/rule-definition.files.ts`
+    - Added shared rule-file helpers to load YAML rule definitions, resolve `substancesFile` CSV references, parse substance rows, compute repo-relative `sourcePath`, and include CSV files in loader cache signatures.
+  - `src/modules/rules-engine/rule-loader.service.ts`
+    - Switched rule loading from inline YAML parsing to the shared file-backed loader and widened cache invalidation from YAML-only to all rule data files.
+  - `src/modules/rules-engine/rule-loader.service.spec.ts`
+    - Added coverage for the real repo Japan rule file using CSV-backed substances and for automatic cache refresh when only the CSV backing file changes.
+  - `src/modules/rules-engine/rules-engine.types.ts`
+    - Extended `RuleDefinitionSource` so a rule definition can reference `substancesFile` instead of embedding all substances inline.
+  - `rules/japan/mango.yaml`
+    - Replaced the inline 12-row substance list with `substancesFile: ./mango-substances.csv`.
+  - `rules/japan/mango-substances.csv`
+    - Added the canonical Japan mango critical-substances dataset in a format that can expand to the remaining MAFF rows without changing service code.
+  - `prisma/seed.ts`
+    - Removed the hardcoded Japan substance definition and now seeds rule sets, rule versions, substances, and the sample lane snapshot from the same file-backed rule definition the runtime loader uses.
+  - `rules/AGENTS.md`
+    - Updated the local rules guide so its listed rule files match the new CSV-backed structure.
+  - `docs/PROGRESS.md`
+    - Added the Task `8.2` completion entry.
+  - `.taskmaster/tasks/tasks.json`
+    - Marked Task `8.2` done in Task Master.
+- TDD evidence:
+  - RED: the new CSV-backed repository rule-file coverage would have failed before this change because the loader only understood inline YAML `substances` and only watched YAML mtimes.
+  - GREEN: `npm run test -- --runInBand src/modules/rules-engine/rule-loader.service.spec.ts src/modules/rules-engine/rules-engine.service.spec.ts`
+- Tests run and results:
+  - `npm run test -- --runInBand src/modules/rules-engine/rule-loader.service.spec.ts` -> passed.
+  - `npm run test -- --runInBand src/modules/rules-engine/rule-loader.service.spec.ts src/modules/rules-engine/rules-engine.service.spec.ts` -> passed.
+  - `npm run lint` -> passed.
+  - `npm run typecheck` -> passed.
+  - `npm run build` -> passed.
+- Wiring verification evidence:
+  - `RuleLoaderService` now reloads when either `rules/japan/mango.yaml` or `rules/japan/mango-substances.csv` changes.
+  - `prisma/seed.ts` and runtime rules loading now share the same external rule definition source, eliminating the previous hardcoded duplication risk.
+  - The repo Japan rule definition still resolves to the same 12 critical substances with the same derived `stringencyRatio` and `riskLevel` values.
+- Behavior changes and risk notes:
+  - The repo now has a real bulk-import shape for Japan MRL data, but it still contains only the initial 12 critical MAFF substances until a larger dataset is added to the CSV.
+  - CSV parsing is deliberately strict on required headers and numeric values so bad compliance data fails early rather than seeding partial garbage.
+- Follow-ups / known gaps:
+  - Loading the remaining 388+ Japan substances is now a data-population task, not an application-code task.
+
+## Review (2026-03-27 21:16 +07) - working-tree (task-8-2 csv-backed japan mrl seed slice)
+
+### Reviewed
+- Repo: `/Users/subhajlimanond/dev/zrl`
+- Branch: `main`
+- Scope: `working-tree`
+- Commands Run: `git status --short`; `git diff -- src/modules/rules-engine/rule-definition.files.ts src/modules/rules-engine/rule-loader.service.ts src/modules/rules-engine/rule-loader.service.spec.ts src/modules/rules-engine/rules-engine.types.ts prisma/seed.ts rules/japan/mango.yaml rules/japan/mango-substances.csv rules/AGENTS.md docs/PROGRESS.md .taskmaster/tasks/tasks.json`; `npm run test -- --runInBand src/modules/rules-engine/rule-loader.service.spec.ts`; `npm run test -- --runInBand src/modules/rules-engine/rule-loader.service.spec.ts src/modules/rules-engine/rules-engine.service.spec.ts`; `npm run lint`; `npm run typecheck`; `npm run build`
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- Assumed Task `8.2` should be considered complete once the system has a real file-backed import structure, even though the repo still only ships the initial 12 critical Japan substances and not the full 400+ dataset.
+- Assumed a strict CSV contract is preferable to a permissive parser for compliance-sensitive rule data.
+
+### Recommended Tests / Validation
+- Run `npm run db:seed` against a local Postgres instance to exercise the new file-backed seed path end to end when the next backend data-validation pass is convenient.
+- When the larger MAFF dataset is added, include one regression test that loads the full CSV and asserts expected substance count plus spot-check values for a few known rows.
+
+### Rollout Notes
+- No schema or API rollout steps are required for this slice.
+- Future Japan MRL expansion should happen by editing `rules/japan/mango-substances.csv`, not by reintroducing hardcoded rows into `prisma/seed.ts` or service code.

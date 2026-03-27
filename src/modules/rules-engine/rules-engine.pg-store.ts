@@ -1,9 +1,10 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { AuditEntityType } from '../../common/audit/audit.types';
 import { PrismaAuditStore } from '../../common/audit/audit.prisma-store';
 import { AuditService } from '../../common/audit/audit.service';
+import { DATABASE_POOL } from '../../common/database/database.constants';
 import {
   classifyRiskLevel,
   computeStringencyRatio,
@@ -62,24 +63,16 @@ interface SubstanceRow extends QueryResultRow {
 }
 
 @Injectable()
-export class PrismaRulesEngineStore implements RuleStore, OnModuleDestroy {
+export class PrismaRulesEngineStore implements RuleStore {
   private pool?: Pool;
   private executor?: QueryExecutor;
 
-  constructor(private readonly auditService: AuditService) {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-    this.executor = this.pool;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool !== undefined) {
-      await this.pool.end();
-    }
+  constructor(
+    @Inject(DATABASE_POOL) pool: Pool | undefined,
+    private readonly auditService: AuditService,
+  ) {
+    this.pool = pool;
+    this.executor = pool;
   }
 
   async runInTransaction<T>(
@@ -108,8 +101,7 @@ export class PrismaRulesEngineStore implements RuleStore, OnModuleDestroy {
   }
 
   private withExecutor(executor: QueryExecutor): PrismaRulesEngineStore {
-    const store = new PrismaRulesEngineStore(this.auditService);
-    store.pool = undefined;
+    const store = new PrismaRulesEngineStore(this.pool, this.auditService);
     store.executor = executor;
     return store;
   }
@@ -513,7 +505,10 @@ export class PrismaRulesEngineStore implements RuleStore, OnModuleDestroy {
     substanceId: string;
     payloadHash: string;
   }): Promise<void> {
-    const auditStore = PrismaAuditStore.withExecutor(this.requireExecutor());
+    const auditStore = PrismaAuditStore.withExecutor(
+      this.pool,
+      this.requireExecutor(),
+    );
     await this.auditService.createEntryWithStore(auditStore, {
       actor: input.actor,
       action: input.action,

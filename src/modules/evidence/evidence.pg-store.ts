@@ -1,7 +1,8 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { PrismaAuditStore } from '../../common/audit/audit.prisma-store';
+import { DATABASE_POOL } from '../../common/database/database.constants';
 import {
   DEFAULT_EVIDENCE_LIMIT,
   DEFAULT_EVIDENCE_PAGE,
@@ -69,26 +70,13 @@ interface ArtifactLinkRow extends QueryResultRow {
 }
 
 @Injectable()
-export class PrismaEvidenceStore
-  implements EvidenceArtifactStore, OnModuleDestroy
-{
+export class PrismaEvidenceStore implements EvidenceArtifactStore {
   private pool?: Pool;
   private executor?: QueryExecutor;
 
-  constructor() {
-    const databaseUrl = process.env['DATABASE_URL'] ?? '';
-    if (databaseUrl.length === 0) {
-      return;
-    }
-
-    this.pool = new Pool({ connectionString: databaseUrl });
-    this.executor = this.pool;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.pool !== undefined) {
-      await this.pool.end();
-    }
+  constructor(@Inject(DATABASE_POOL) pool: Pool | undefined) {
+    this.pool = pool;
+    this.executor = pool;
   }
 
   async runInTransaction<T>(
@@ -101,7 +89,10 @@ export class PrismaEvidenceStore
 
       try {
         await client.query('BEGIN');
-        const transactionalStore = PrismaEvidenceStore.withExecutor(client);
+        const transactionalStore = PrismaEvidenceStore.withExecutor(
+          this.pool,
+          client,
+        );
         const result = await operation(transactionalStore);
         await client.query('COMMIT');
         return result;
@@ -116,15 +107,17 @@ export class PrismaEvidenceStore
     return await operation(this);
   }
 
-  static withExecutor(executor: QueryExecutor): PrismaEvidenceStore {
-    const store = new PrismaEvidenceStore();
-    store.pool = undefined;
+  static withExecutor(
+    pool: Pool | undefined,
+    executor: QueryExecutor,
+  ): PrismaEvidenceStore {
+    const store = new PrismaEvidenceStore(pool);
     store.executor = executor;
     return store;
   }
 
   asAuditStore() {
-    return PrismaAuditStore.withExecutor(this.requireExecutor());
+    return PrismaAuditStore.withExecutor(this.pool, this.requireExecutor());
   }
 
   async findLaneById(id: string): Promise<EvidenceLaneRecord | null> {

@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { loadRuleDefinitionFromFile } from './rule-definition.files';
 import { RuleLoaderService } from './rule-loader.service';
 
 describe('RuleLoaderService', () => {
@@ -114,10 +115,31 @@ describe('RuleLoaderService', () => {
     expect(definition?.substances).toHaveLength(2);
   });
 
+  it('loads csv-backed substances from the repository rule files', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/japan/mango.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('JAPAN');
+    expect(definition.product).toBe('MANGO');
+    expect(definition.sourcePath).toBe('rules/japan/mango.yaml');
+    expect(definition.substances).toHaveLength(12);
+    expect(definition.substances[0]).toMatchObject({
+      name: 'Chlorpyrifos',
+      cas: '2921-88-2',
+      thaiMrl: 0.5,
+      destinationMrl: 0.01,
+      stringencyRatio: 50,
+      riskLevel: 'CRITICAL',
+    });
+  });
+
   it('refreshes cached rules automatically when the backing yaml changes', async () => {
     const rulesDir = mkdtempSync(join(tmpdir(), 'zrl-rules-'));
     const mangoDir = join(rulesDir, 'japan');
     const mangoFile = join(mangoDir, 'mango.yaml');
+    const substancesFile = join(mangoDir, 'mango-substances.csv');
     mkdirSync(mangoDir, { recursive: true });
     writeFileSync(
       mangoFile,
@@ -132,11 +154,15 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
-        'substances:',
-        '  - name: Chlorpyrifos',
-        '    cas: 2921-88-2',
-        '    thaiMrl: 0.5',
-        '    destinationMrl: 0.01',
+        'substancesFile: ./mango-substances.csv',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      substancesFile,
+      [
+        'name,cas,thaiMrl,destinationMrl',
+        'Chlorpyrifos,2921-88-2,0.5,0.01',
         '',
       ].join('\n'),
     );
@@ -144,31 +170,21 @@ describe('RuleLoaderService', () => {
     const service = new RuleLoaderService(rulesDir);
     const initial = await service.getRuleDefinition('JAPAN', 'MANGO');
     expect(initial?.version).toBe(1);
+    expect(initial?.substances).toHaveLength(1);
 
     await new Promise((resolve) => setTimeout(resolve, 5));
     writeFileSync(
-      mangoFile,
+      substancesFile,
       [
-        'market: JAPAN',
-        'product: MANGO',
-        'version: 2',
-        'effectiveDate: 2026-03-02',
-        'requiredDocuments: []',
-        'completenessWeights:',
-        '  regulatory: 0.4',
-        '  quality: 0.25',
-        '  coldChain: 0.2',
-        '  chainOfCustody: 0.15',
-        'substances:',
-        '  - name: Chlorpyrifos',
-        '    cas: 2921-88-2',
-        '    thaiMrl: 0.5',
-        '    destinationMrl: 0.01',
+        'name,cas,thaiMrl,destinationMrl',
+        'Chlorpyrifos,2921-88-2,0.5,0.01',
+        'Dithiocarbamates,111-54-6,2,0.1',
         '',
       ].join('\n'),
     );
 
     const updated = await service.getRuleDefinition('JAPAN', 'MANGO');
-    expect(updated?.version).toBe(2);
+    expect(updated?.version).toBe(1);
+    expect(updated?.substances).toHaveLength(2);
   });
 });

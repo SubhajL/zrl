@@ -2,11 +2,13 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { hash } from 'bcrypt';
+import { resolve } from 'node:path';
 import {
   computeHashChainEntry,
   getGenesisHash,
   hashUtf8String,
 } from '../src/common/hashing/hashing.utils.js';
+import { loadRuleDefinitionFromFile } from '../src/modules/rules-engine/rule-definition.files.js';
 
 const databaseUrl = process.env['DATABASE_URL'] ?? '';
 if (!databaseUrl.includes('localhost')) {
@@ -18,6 +20,8 @@ if (!databaseUrl.includes('localhost')) {
 const pool = new Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+const RULES_DIRECTORY = resolve('rules');
+const JAPAN_MANGO_RULE_FILE = resolve(RULES_DIRECTORY, 'japan/mango.yaml');
 
 async function seedUsers() {
   const passwordHash = await hash('ZrlDev2026!', 10);
@@ -75,141 +79,15 @@ async function seedUsers() {
   return { exporter, partner, admin, auditor };
 }
 
-function buildJapanMangoRuleDefinition() {
-  const effectiveDate = new Date('2026-03-01');
-
-  return {
-    market: 'JAPAN',
-    product: 'MANGO',
-    version: 1,
-    effectiveDate,
-    sourcePath: 'rules/japan/mango.yaml',
-    substances: [
-      {
-        name: 'Chlorpyrifos',
-        cas: '2921-88-2',
-        thaiMrl: 0.5,
-        destinationMrl: 0.01,
-        stringencyRatio: 50,
-        riskLevel: 'CRITICAL',
-      },
-      {
-        name: 'Dithiocarbamates',
-        cas: '111-54-6',
-        thaiMrl: 2.0,
-        destinationMrl: 0.1,
-        stringencyRatio: 20,
-        riskLevel: 'CRITICAL',
-      },
-      {
-        name: 'Carbendazim',
-        cas: '10605-21-7',
-        thaiMrl: 5.0,
-        destinationMrl: 0.5,
-        stringencyRatio: 10,
-        riskLevel: 'HIGH',
-      },
-      {
-        name: 'Cypermethrin',
-        cas: '52315-07-8',
-        thaiMrl: 2.0,
-        destinationMrl: 0.2,
-        stringencyRatio: 10,
-        riskLevel: 'HIGH',
-      },
-      {
-        name: 'Profenofos',
-        cas: '41198-08-7',
-        thaiMrl: 0.5,
-        destinationMrl: 0.05,
-        stringencyRatio: 10,
-        riskLevel: 'HIGH',
-      },
-      {
-        name: 'Imidacloprid',
-        cas: '138261-41-3',
-        thaiMrl: 1.0,
-        destinationMrl: 0.2,
-        stringencyRatio: 5,
-        riskLevel: 'HIGH',
-      },
-      {
-        name: 'Metalaxyl',
-        cas: '57837-19-1',
-        thaiMrl: 1.0,
-        destinationMrl: 0.2,
-        stringencyRatio: 5,
-        riskLevel: 'MEDIUM',
-      },
-      {
-        name: 'Difenoconazole',
-        cas: '119446-68-3',
-        thaiMrl: 0.5,
-        destinationMrl: 0.1,
-        stringencyRatio: 5,
-        riskLevel: 'MEDIUM',
-      },
-      {
-        name: 'Thiabendazole',
-        cas: '148-79-8',
-        thaiMrl: 10.0,
-        destinationMrl: 3.0,
-        stringencyRatio: 3.3,
-        riskLevel: 'MEDIUM',
-      },
-      {
-        name: 'Prochloraz',
-        cas: '67747-09-5',
-        thaiMrl: 5.0,
-        destinationMrl: 2.0,
-        stringencyRatio: 2.5,
-        riskLevel: 'MEDIUM',
-      },
-      {
-        name: 'Lambda-cyhalothrin',
-        cas: '91465-08-6',
-        thaiMrl: 0.5,
-        destinationMrl: 0.2,
-        stringencyRatio: 2.5,
-        riskLevel: 'MEDIUM',
-      },
-      {
-        name: 'Acetamiprid',
-        cas: '135410-20-7',
-        thaiMrl: 0.5,
-        destinationMrl: 0.3,
-        stringencyRatio: 1.7,
-        riskLevel: 'LOW',
-      },
-    ],
-    requiredDocuments: [
-      'Phytosanitary Certificate',
-      'VHT Certificate',
-      'MRL Test Results',
-      'Export License',
-      'Commercial Invoice',
-      'Grading Report',
-      'Product Photos',
-      'GAP Certificate',
-      'Packing List',
-      'Temperature Log',
-      'SLA Summary',
-      'Excursion Report',
-      'Handoff Signatures',
-      'Transport Document',
-      'Delivery Note',
-    ],
-    completenessWeights: {
-      regulatory: 0.4,
-      quality: 0.25,
-      coldChain: 0.2,
-      chainOfCustody: 0.15,
-    },
-  };
+async function loadJapanMangoRuleDefinition() {
+  return await loadRuleDefinitionFromFile(
+    JAPAN_MANGO_RULE_FILE,
+    RULES_DIRECTORY,
+  );
 }
 
 function buildRulePayload(
-  definition: ReturnType<typeof buildJapanMangoRuleDefinition>,
+  definition: Awaited<ReturnType<typeof loadJapanMangoRuleDefinition>>,
 ) {
   return {
     market: definition.market,
@@ -224,7 +102,7 @@ function buildRulePayload(
 }
 
 async function seedRuleStore() {
-  const definition = buildJapanMangoRuleDefinition();
+  const definition = await loadJapanMangoRuleDefinition();
   const payload = buildRulePayload(definition);
 
   const ruleSet = await prisma.ruleSet.upsert({
@@ -393,7 +271,7 @@ async function seedSampleLane(exporterId: string) {
     },
   });
 
-  const ruleDefinition = buildJapanMangoRuleDefinition();
+  const ruleDefinition = await loadJapanMangoRuleDefinition();
   const ruleSnapshot = buildRulePayload(ruleDefinition);
   await prisma.ruleSnapshot.create({
     data: {

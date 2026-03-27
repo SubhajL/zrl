@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.module';
 import { AUTH_STORE } from './auth.constants';
 import { AuthController } from './auth.controller';
 import {
@@ -15,6 +16,7 @@ import { PrismaAuthStore } from './auth.pg-store';
 import { AuthService } from './auth.service';
 
 @Module({
+  imports: [DatabaseModule],
   controllers: [AuthController],
   providers: [
     {
