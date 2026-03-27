@@ -111,6 +111,15 @@ enum PackStatus {
   @@map("pack_status")
 }
 
+enum ProofPackJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("proof_pack_job_status")
+}
+
 enum AuditAction {
   UPLOAD
   SIGN
@@ -419,10 +428,32 @@ model ProofPack {
   recipient   String?
 
   // Relations
-  lane      Lane @relation(fields: [laneId], references: [id], onDelete: Restrict)
-  generator User @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
+  lane      Lane         @relation(fields: [laneId], references: [id], onDelete: Restrict)
+  generator User         @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
+  job       ProofPackJob?
 
   @@map("proof_packs")
+}
+
+model ProofPackJob {
+  id             String             @id @default(uuid())
+  proofPackId    String             @unique @map("proof_pack_id")
+  status         ProofPackJobStatus @default(QUEUED)
+  payload        Json
+  attemptCount   Int                @default(0) @map("attempt_count")
+  lastError      String?            @map("last_error")
+  availableAt    DateTime           @default(now()) @map("available_at")
+  leasedAt       DateTime?          @map("leased_at")
+  leaseExpiresAt DateTime?          @map("lease_expires_at")
+  completedAt    DateTime?          @map("completed_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @default(now()) @map("updated_at")
+
+  proofPack ProofPack @relation(fields: [proofPackId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt])
+  @@index([status, leaseExpiresAt])
+  @@map("proof_pack_jobs")
 }
 
 model AuditEntry {

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import {
@@ -213,9 +214,11 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
 
   async createEntry(entry: CreateAuditEntryRecord): Promise<AuditEntryRecord> {
     const executor = this.requireExecutor();
+    const entryId = randomUUID();
     const result = await executor.query<AuditEntryRow>(
       `
         INSERT INTO audit_entries (
+          id,
           timestamp,
           actor,
           action,
@@ -225,7 +228,7 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           prev_hash,
           entry_hash
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING
           id,
           timestamp,
@@ -238,6 +241,7 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           entry_hash
       `,
       [
+        entryId,
         entry.timestamp,
         entry.actor,
         entry.action,

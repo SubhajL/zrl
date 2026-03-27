@@ -8,6 +8,7 @@ import { AuditService } from '../src/common/audit/audit.service';
 import { AuthService } from '../src/common/auth/auth.service';
 import { EvidenceService } from '../src/modules/evidence/evidence.service';
 import { ProofPackService } from '../src/modules/evidence/proof-pack.service';
+import { ProofPackWorkerService } from '../src/modules/evidence/proof-pack.worker';
 import { LaneService } from '../src/modules/lane/lane.service';
 
 describe('ProofPack endpoints (e2e)', () => {
@@ -93,6 +94,21 @@ describe('ProofPack endpoints (e2e)', () => {
       stream: Readable.from(Buffer.from('fake-pdf-bytes')),
     }),
   };
+  const proofPackWorkerServiceMock = {
+    getJobMetrics: jest.fn().mockResolvedValue({
+      queued: 1,
+      processing: 1,
+      stuckProcessing: 0,
+      retryExhausted: 0,
+      completedInWindow: 4,
+      failedInWindow: 1,
+      failureRate: 0.2,
+      windowStart: '2026-03-16T09:00:00.000Z',
+      generatedAt: '2026-03-16T10:00:00.000Z',
+      maxAttempts: 3,
+      alerts: [],
+    }),
+  };
   const laneServiceMock = {
     findById: jest.fn().mockResolvedValue({
       lane: {
@@ -157,6 +173,8 @@ describe('ProofPack endpoints (e2e)', () => {
       .useValue(auditServiceMock)
       .overrideProvider(ProofPackService)
       .useValue(proofPackServiceMock)
+      .overrideProvider(ProofPackWorkerService)
+      .useValue(proofPackWorkerServiceMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -252,5 +270,45 @@ describe('ProofPack endpoints (e2e)', () => {
         'Content-Disposition',
         /attachment; filename="proof-pack-pack-1\.pdf"/,
       );
+  });
+
+  it('GET /packs/jobs/metrics returns worker metrics for admin and auditor roles', async () => {
+    authServiceMock.verifyAccessToken.mockResolvedValueOnce({
+      user: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        role: 'ADMIN',
+        companyName: 'ZRL Platform',
+        mfaEnabled: true,
+        sessionVersion: 0,
+      },
+      claims: {
+        iss: 'zrl-auth',
+        aud: 'zrl',
+        sub: 'admin-1',
+        type: 'access',
+        role: 'ADMIN',
+        sv: 0,
+        mfa: true,
+        email: 'admin@example.com',
+        companyName: 'ZRL Platform',
+        iat: 1,
+        exp: 2,
+        jti: 'jti',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get('/packs/jobs/metrics')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          metrics: { queued: number; failureRate: number; maxAttempts: number };
+        };
+        expect(body.metrics.queued).toBe(1);
+        expect(body.metrics.failureRate).toBe(0.2);
+        expect(body.metrics.maxAttempts).toBe(3);
+      });
   });
 });
