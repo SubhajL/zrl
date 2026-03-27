@@ -27,7 +27,9 @@ import {
   JwtAuthGuard,
   LaneOwnerGuard,
   PackOwnerGuard,
+  RolesGuard,
 } from '../../common/auth/auth.guards';
+import { Roles } from '../../common/auth/auth.decorators';
 import type { AuthPrincipalRequest } from '../../common/auth/auth.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { LaneService } from '../lane/lane.service';
@@ -35,6 +37,7 @@ import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { ArtifactSource, type EvidenceArtifactType } from './evidence.types';
 import { EvidenceService } from './evidence.service';
 import { ProofPackService } from './proof-pack.service';
+import { ProofPackWorkerService } from './proof-pack.worker';
 import type { ProofPackTemplateData, ProofPackType } from './proof-pack.types';
 
 const FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -229,6 +232,7 @@ export class EvidenceController {
   constructor(
     private readonly evidenceService: EvidenceService,
     private readonly proofPackService: ProofPackService,
+    private readonly proofPackWorkerService: ProofPackWorkerService,
     private readonly laneService: LaneService,
     private readonly rulesEngineService: RulesEngineService,
     private readonly auditService: AuditService,
@@ -512,6 +516,13 @@ export class EvidenceController {
   @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async listPacks(@Param('id') laneId: string) {
     return { packs: await this.proofPackService.listPacks(laneId) };
+  }
+
+  @Get('packs/jobs/metrics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'AUDITOR')
+  async getPackJobMetrics() {
+    return { metrics: await this.proofPackWorkerService.getJobMetrics() };
   }
 
   @Get('packs/:id')

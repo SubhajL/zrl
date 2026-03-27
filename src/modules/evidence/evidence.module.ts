@@ -22,6 +22,7 @@ import {
 } from './evidence.storage';
 import { PrismaProofPackStore } from './proof-pack.pg-store';
 import { ProofPackService } from './proof-pack.service';
+import { ProofPackWorkerService } from './proof-pack.worker';
 import { PROOF_PACK_STORE } from './proof-pack.types';
 
 @Module({
@@ -82,6 +83,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
       ],
     },
     ProofPackService,
+    ProofPackWorkerService,
   ],
   exports: [EvidenceService, ProofPackService],
 })

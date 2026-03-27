@@ -1,6 +1,11 @@
 export type ProofPackType = 'REGULATOR' | 'BUYER' | 'DEFENSE';
 
 export type ProofPackStatus = 'GENERATING' | 'READY' | 'FAILED';
+export type ProofPackJobStatus =
+  | 'QUEUED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
 
 export interface ProofPackRecord {
   readonly id: string;
@@ -16,12 +21,46 @@ export interface ProofPackRecord {
   readonly recipient: string | null;
 }
 
+export interface ProofPackJobRecord {
+  readonly id: string;
+  readonly proofPackId: string;
+  readonly status: ProofPackJobStatus;
+  readonly payload: ProofPackTemplateData;
+  readonly attemptCount: number;
+  readonly lastError: string | null;
+  readonly availableAt: Date;
+  readonly leasedAt: Date | null;
+  readonly leaseExpiresAt: Date | null;
+  readonly completedAt: Date | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+export interface ClaimedProofPackJob {
+  readonly pack: ProofPackRecord;
+  readonly job: ProofPackJobRecord;
+}
+
 export interface ProofPackVerificationResult {
   readonly valid: boolean;
   readonly hash: string;
   readonly laneId: string;
   readonly generatedAt: string;
   readonly packType: ProofPackType;
+}
+
+export interface ProofPackJobMetrics {
+  readonly queued: number;
+  readonly processing: number;
+  readonly stuckProcessing: number;
+  readonly retryExhausted: number;
+  readonly completedInWindow: number;
+  readonly failedInWindow: number;
+  readonly failureRate: number;
+  readonly windowStart: string;
+  readonly generatedAt: string;
+  readonly maxAttempts: number;
+  readonly alerts: readonly string[];
 }
 
 export interface ProofPackGenerationInput {
@@ -82,7 +121,11 @@ export interface ProofPackTemplateData {
 }
 
 export interface ProofPackStore {
-  createPack(record: Omit<ProofPackRecord, 'id'>): Promise<ProofPackRecord>;
+  enqueuePack(
+    record: Omit<ProofPackRecord, 'id'>,
+    payload: ProofPackTemplateData,
+    queuedAt: Date,
+  ): Promise<ProofPackRecord>;
   updatePack(
     id: string,
     input: Pick<
@@ -92,6 +135,48 @@ export interface ProofPackStore {
   ): Promise<ProofPackRecord | null>;
   findPacksForLane(laneId: string): Promise<ProofPackRecord[]>;
   findPackById(id: string): Promise<ProofPackRecord | null>;
+  findJobByPackId(proofPackId: string): Promise<ProofPackJobRecord | null>;
+  leaseNextJob(
+    now: Date,
+    leaseExpiresAt: Date,
+  ): Promise<ClaimedProofPackJob | null>;
+  renewJobLease(
+    jobId: string,
+    expectedLeaseExpiresAt: Date,
+    leasedAt: Date,
+    leaseExpiresAt: Date,
+  ): Promise<boolean>;
+  completePackJob(
+    jobId: string,
+    expectedLeaseExpiresAt: Date,
+    completedAt: Date,
+    input: Pick<ProofPackRecord, 'contentHash' | 'filePath'>,
+  ): Promise<ProofPackRecord | null>;
+  requeueJob(
+    jobId: string,
+    expectedLeaseExpiresAt: Date,
+    availableAt: Date,
+    lastError: string,
+  ): Promise<ProofPackJobRecord | null>;
+  failPackJob(
+    jobId: string,
+    expectedLeaseExpiresAt: Date,
+    failedAt: Date,
+    packError: string,
+    lastError: string,
+  ): Promise<ProofPackRecord | null>;
+  getJobMetrics(
+    windowStart: Date,
+    stuckBefore: Date,
+    maxAttempts: number,
+  ): Promise<{
+    queued: number;
+    processing: number;
+    stuckProcessing: number;
+    retryExhausted: number;
+    completedInWindow: number;
+    failedInWindow: number;
+  }>;
   getLatestVersion(laneId: string, packType: ProofPackType): Promise<number>;
 }
 

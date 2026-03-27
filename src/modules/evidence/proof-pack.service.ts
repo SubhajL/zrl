@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
 import { writeFile, rm } from 'node:fs/promises';
 import {
   ConflictException,
@@ -11,6 +9,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import Handlebars from 'handlebars';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import QRCode from 'qrcode';
 import type { Readable } from 'node:stream';
 import { AuditService } from '../../common/audit/audit.service';
@@ -20,9 +20,9 @@ import { EVIDENCE_OBJECT_STORE } from './evidence.constants';
 import type { EvidenceObjectStore } from './evidence.types';
 import {
   PROOF_PACK_STORE,
+  type ClaimedProofPackJob,
   type ProofPackGenerationInput,
   type ProofPackRecord,
-  type ProofPackStatus,
   type ProofPackStore,
   type ProofPackTemplateData,
   type ProofPackType,
@@ -58,26 +58,103 @@ export class ProofPackService {
     const version =
       (await this.store.getLatestVersion(input.laneId, input.packType)) + 1;
     const generatedAt = new Date();
-    const record = await this.store.createPack({
-      laneId: input.laneId,
-      packType: input.packType,
-      version,
-      status: 'GENERATING',
-      contentHash: null,
-      filePath: null,
-      errorMessage: null,
+
+    return await this.store.enqueuePack(
+      {
+        laneId: input.laneId,
+        packType: input.packType,
+        version,
+        status: 'GENERATING',
+        contentHash: null,
+        filePath: null,
+        errorMessage: null,
+        generatedAt,
+        generatedBy: input.generatedBy,
+        recipient: null,
+      },
+      templateData,
       generatedAt,
-      generatedBy: input.generatedBy,
-      recipient: null,
-    });
-    this.runInBackground(async () => {
-      await this.completePackGeneration(
-        record,
-        templateData,
-        input.generatedBy,
-      );
-    });
-    return record;
+    );
+  }
+
+  async completeLeasedJob(
+    claimedJob: ClaimedProofPackJob,
+    getLeaseExpiresAt: () => Date = () =>
+      this.requireLeaseExpiresAt(claimedJob),
+  ): Promise<void> {
+    const verificationReference = this.buildVerificationReference(
+      claimedJob.job.payload.laneId,
+      claimedJob.pack.packType,
+      claimedJob.pack.version,
+    );
+    const qrCodeDataUrl = await QRCode.toDataURL(verificationReference);
+    const finalTemplateData: ProofPackTemplateData = {
+      ...claimedJob.job.payload,
+      qrCodeDataUrl,
+      verificationReference,
+    };
+    const html = this.renderTemplate(
+      claimedJob.pack.packType,
+      finalTemplateData,
+    );
+    const pdfBuffer = await this.htmlToPdf(html);
+    const contentHash = this.hashingService.hashBuffer(pdfBuffer);
+    const filePath = `packs/${claimedJob.pack.laneId}/${claimedJob.pack.packType.toLowerCase()}-v${claimedJob.pack.version}.pdf`;
+    const tempPath = join(tmpdir(), `zrl-pack-${randomUUID()}.pdf`);
+
+    await writeFile(tempPath, pdfBuffer);
+    try {
+      await this.objectStore.putObjectFromFile({
+        key: filePath,
+        filePath: tempPath,
+        contentType: 'application/pdf',
+      });
+    } finally {
+      await rm(tempPath, { force: true }).catch(() => {});
+    }
+
+    const readyPack = await this.store.completePackJob(
+      claimedJob.job.id,
+      getLeaseExpiresAt(),
+      new Date(),
+      { contentHash, filePath },
+    );
+    if (readyPack === null) {
+      throw new ConflictException('Proof pack job lease is no longer active.');
+    }
+
+    await this.appendPackAuditSafely(
+      claimedJob.pack.generatedBy,
+      AuditAction.GENERATE,
+      readyPack,
+    );
+    this.logger.log(
+      `Generated ${claimedJob.pack.packType} pack v${claimedJob.pack.version} for lane ${claimedJob.pack.laneId}`,
+    );
+  }
+
+  async failLeasedJob(
+    claimedJob: ClaimedProofPackJob,
+    error: unknown,
+    expectedLeaseExpiresAt: Date = this.requireLeaseExpiresAt(claimedJob),
+  ): Promise<void> {
+    const lastError = this.normalizeErrorMessage(error);
+    const failedPack = await this.store.failPackJob(
+      claimedJob.job.id,
+      expectedLeaseExpiresAt,
+      new Date(),
+      this.buildFinalFailureMessage(claimedJob.job.attemptCount, lastError),
+      lastError,
+    );
+    if (failedPack === null) {
+      throw new ConflictException('Proof pack job lease is no longer active.');
+    }
+
+    await this.appendPackAuditSafely(
+      claimedJob.pack.generatedBy,
+      AuditAction.UPDATE,
+      failedPack,
+    );
   }
 
   async listPacks(laneId: string): Promise<ProofPackRecord[]> {
@@ -141,15 +218,13 @@ export class ProofPackService {
     return `zrl:proof-pack:${publicLaneId}:${packType}:v${version}`;
   }
 
-  protected runInBackground(task: () => Promise<void>): void {
-    setImmediate(() => {
-      void task().catch((error: unknown) => {
-        this.logger.error(
-          'Proof pack background generation failed.',
-          error instanceof Error ? error.stack : String(error),
-        );
-      });
-    });
+  private requireLeaseExpiresAt(claimedJob: ClaimedProofPackJob): Date {
+    const leaseExpiresAt = claimedJob.job.leaseExpiresAt;
+    if (leaseExpiresAt === null) {
+      throw new ConflictException('Proof pack job lease is missing.');
+    }
+
+    return leaseExpiresAt;
   }
 
   private async requirePack(id: string): Promise<ProofPackRecord> {
@@ -181,88 +256,6 @@ export class ProofPackService {
     ) {
       throw new ConflictException('Proof pack is still generating.');
     }
-  }
-
-  private async completePackGeneration(
-    record: ProofPackRecord,
-    templateData: ProofPackTemplateData,
-    actorId: string,
-  ): Promise<void> {
-    try {
-      const verificationReference = this.buildVerificationReference(
-        templateData.laneId,
-        record.packType,
-        record.version,
-      );
-      const qrCodeDataUrl = await QRCode.toDataURL(verificationReference);
-      const finalTemplateData: ProofPackTemplateData = {
-        ...templateData,
-        qrCodeDataUrl,
-        verificationReference,
-      };
-      const html = this.renderTemplate(record.packType, finalTemplateData);
-      const pdfBuffer = await this.htmlToPdf(html);
-      const contentHash = this.hashingService.hashBuffer(pdfBuffer);
-      const filePath = `packs/${record.laneId}/${record.packType.toLowerCase()}-v${record.version}.pdf`;
-      const tempPath = join(tmpdir(), `zrl-pack-${randomUUID()}.pdf`);
-
-      await writeFile(tempPath, pdfBuffer);
-      try {
-        await this.objectStore.putObjectFromFile({
-          key: filePath,
-          filePath: tempPath,
-          contentType: 'application/pdf',
-        });
-      } finally {
-        await rm(tempPath, { force: true }).catch(() => {});
-      }
-
-      const readyPack = await this.requireUpdatedPack(
-        record.id,
-        'READY',
-        contentHash,
-        filePath,
-        null,
-      );
-      await this.appendPackAudit(actorId, AuditAction.GENERATE, readyPack);
-      this.logger.log(
-        `Generated ${record.packType} pack v${record.version} for lane ${record.laneId}`,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Proof pack generation failed.';
-      const failedPack = await this.requireUpdatedPack(
-        record.id,
-        'FAILED',
-        null,
-        null,
-        message,
-      );
-      await this.appendPackAudit(actorId, AuditAction.UPDATE, failedPack);
-      throw error;
-    }
-  }
-
-  private async requireUpdatedPack(
-    id: string,
-    status: ProofPackStatus,
-    contentHash: string | null,
-    filePath: string | null,
-    errorMessage: string | null,
-  ): Promise<ProofPackRecord> {
-    const updated = await this.store.updatePack(id, {
-      status,
-      contentHash,
-      filePath,
-      errorMessage,
-    });
-    if (updated === null) {
-      throw new NotFoundException('Proof pack not found.');
-    }
-
-    return updated;
   }
 
   private async appendPackAudit(
@@ -298,6 +291,40 @@ export class ProofPackService {
       payloadHash,
       payloadSnapshot,
     });
+  }
+
+  private async appendPackAuditSafely(
+    actorId: string,
+    action: AuditAction,
+    pack: ProofPackRecord,
+  ): Promise<void> {
+    try {
+      await this.appendPackAudit(actorId, action, pack);
+    } catch (error: unknown) {
+      this.logger.error(
+        `Proof pack audit append failed for pack ${pack.id}.`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  private buildFinalFailureMessage(
+    attemptCount: number,
+    lastError: string,
+  ): string {
+    return `Proof pack generation failed after ${attemptCount} attempts. Last error: ${lastError}`;
+  }
+
+  private normalizeErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error.trim();
+    }
+
+    return 'Proof pack generation failed.';
   }
 
   private async htmlToPdf(html: string): Promise<Buffer> {
