@@ -4,8 +4,10 @@ import { AuthController } from './auth.controller';
 import {
   ApiKeyAuthGuard,
   AuditorReadOnlyGuard,
+  CheckpointOwnerGuard,
   JwtAuthGuard,
   LaneOwnerGuard,
+  PackOwnerGuard,
   PartnerScopeGuard,
   RolesGuard,
 } from './auth.guards';
@@ -24,6 +26,8 @@ import { AuthService } from './auth.service';
     ApiKeyAuthGuard,
     RolesGuard,
     LaneOwnerGuard,
+    PackOwnerGuard,
+    CheckpointOwnerGuard,
     PartnerScopeGuard,
     AuditorReadOnlyGuard,
   ],
@@ -34,6 +38,8 @@ import { AuthService } from './auth.service';
     ApiKeyAuthGuard,
     RolesGuard,
     LaneOwnerGuard,
+    PackOwnerGuard,
+    CheckpointOwnerGuard,
     PartnerScopeGuard,
     AuditorReadOnlyGuard,
   ],

@@ -133,6 +133,55 @@ describe('AuditService', () => {
     expect(created.prevHash).toBe(latest.entryHash);
   });
 
+  it('createEntry persists payload snapshots without affecting hash-chain inputs', async () => {
+    const timestamp = new Date('2026-03-16T08:30:00.000Z');
+    store.resolveStreamId.mockResolvedValue('lane-1');
+    store.findLatestForStream.mockResolvedValue(null);
+    store.createEntry.mockImplementation((entry) =>
+      Promise.resolve({
+        ...entry,
+        id: 'audit-3',
+      }),
+    );
+
+    const created = await service.createEntry({
+      actor: 'actor-2',
+      action: AuditAction.UPDATE,
+      entityType: AuditEntityType.CHECKPOINT,
+      entityId: 'checkpoint-1',
+      payloadHash:
+        '9999999999999999999999999999999999999999999999999999999999999999',
+      payloadSnapshot: {
+        kind: 'checkpoint',
+        sequence: 2,
+        locationName: 'Bangkok Hub',
+      },
+      timestamp,
+    });
+
+    expect(store.createEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payloadSnapshot: {
+          kind: 'checkpoint',
+          sequence: 2,
+          locationName: 'Bangkok Hub',
+        },
+      }),
+    );
+    expect(created.entryHash).toBe(
+      hashingService.computeEntryHash({
+        timestamp,
+        actor: 'actor-2',
+        action: AuditAction.UPDATE,
+        entityType: AuditEntityType.CHECKPOINT,
+        entityId: 'checkpoint-1',
+        payloadHash:
+          '9999999999999999999999999999999999999999999999999999999999999999',
+        prevHash: getGenesisHash(),
+      }),
+    );
+  });
+
   it('createEntry throws when the entity cannot resolve to an audit stream', async () => {
     store.resolveStreamId.mockResolvedValue(null);
 

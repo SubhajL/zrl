@@ -3,8 +3,16 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeFile, rm } from 'node:fs/promises';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import Handlebars from 'handlebars';
+import QRCode from 'qrcode';
+import type { Readable } from 'node:stream';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
@@ -14,19 +22,21 @@ import {
   PROOF_PACK_STORE,
   type ProofPackGenerationInput,
   type ProofPackRecord,
+  type ProofPackStatus,
   type ProofPackStore,
   type ProofPackTemplateData,
   type ProofPackType,
+  type ProofPackVerificationResult,
 } from './proof-pack.types';
 
 @Injectable()
 export class ProofPackService {
   private readonly logger = new Logger(ProofPackService.name);
   private readonly templatesDir: string;
-  // M3 fix: Cache compiled templates to avoid readFileSync on every render
+  private readonly handlebars = Handlebars.create();
   private readonly templateCache = new Map<
     string,
-    Handlebars.TemplateDelegate
+    Handlebars.TemplateDelegate<ProofPackTemplateData>
   >();
 
   constructor(
@@ -38,6 +48,7 @@ export class ProofPackService {
     private readonly auditService: AuditService,
   ) {
     this.templatesDir = resolve(process.cwd(), 'templates');
+    this.registerTemplateHelpers();
   }
 
   async generatePack(
@@ -46,72 +57,26 @@ export class ProofPackService {
   ): Promise<ProofPackRecord> {
     const version =
       (await this.store.getLatestVersion(input.laneId, input.packType)) + 1;
-
-    // C2 fix: Two-pass rendering — first pass generates PDF to get hash,
-    // second pass re-renders with actual hash in QR code
-    const firstPassHtml = this.renderTemplate(input.packType, templateData);
-    const firstPassPdf = await this.htmlToPdf(firstPassHtml);
-    const contentHash = this.hashingService.hashBuffer(firstPassPdf);
-
-    // Re-render with actual hash embedded in template data
-    const finalTemplateData: ProofPackTemplateData = {
-      ...templateData,
-      contentHash,
-    };
-    const finalHtml = this.renderTemplate(input.packType, finalTemplateData);
-    const pdfBuffer = await this.htmlToPdf(finalHtml);
-
-    // H1 fix: Use EvidenceObjectStore (S3 or local) instead of raw filesystem
-    const filePath = `packs/${input.laneId}/${input.packType.toLowerCase()}-v${version}.pdf`;
-
-    // Write to temp file, upload via object store, clean up
-    const tempPath = join(tmpdir(), `zrl-pack-${randomUUID()}.pdf`);
-    await writeFile(tempPath, pdfBuffer);
-    try {
-      await this.objectStore.putObjectFromFile({
-        key: filePath,
-        filePath: tempPath,
-        contentType: 'application/pdf',
-      });
-    } finally {
-      await rm(tempPath, { force: true }).catch(() => {});
-    }
-
     const generatedAt = new Date();
-
     const record = await this.store.createPack({
       laneId: input.laneId,
       packType: input.packType,
       version,
-      contentHash,
-      filePath,
+      status: 'GENERATING',
+      contentHash: null,
+      filePath: null,
+      errorMessage: null,
       generatedAt,
       generatedBy: input.generatedBy,
       recipient: null,
     });
-
-    const payloadHash = await this.hashingService.hashString(
-      JSON.stringify({
-        packId: record.id,
-        laneId: record.laneId,
-        packType: record.packType,
-        version: record.version,
-        contentHash: record.contentHash,
-      }),
-    );
-
-    await this.auditService.createEntry({
-      actor: input.generatedBy,
-      action: AuditAction.GENERATE,
-      entityType: AuditEntityType.PROOF_PACK,
-      entityId: record.id,
-      payloadHash,
+    this.runInBackground(async () => {
+      await this.completePackGeneration(
+        record,
+        templateData,
+        input.generatedBy,
+      );
     });
-
-    this.logger.log(
-      `Generated ${input.packType} pack v${version} for lane ${input.laneId}`,
-    );
-
     return record;
   }
 
@@ -119,19 +84,220 @@ export class ProofPackService {
     return await this.store.findPacksForLane(laneId);
   }
 
+  async getPackById(id: string): Promise<ProofPackRecord> {
+    return await this.requirePack(id);
+  }
+
+  async verifyPack(id: string): Promise<ProofPackVerificationResult> {
+    const pack = await this.requirePack(id);
+    this.assertPackReady(pack);
+    const stream = await this.objectStore.createReadStream(pack.filePath);
+    const computedHash = await this.hashingService.hashFile(stream);
+
+    return {
+      valid: computedHash === pack.contentHash,
+      hash: pack.contentHash,
+      laneId: pack.laneId,
+      generatedAt: pack.generatedAt.toISOString(),
+      packType: pack.packType,
+    };
+  }
+
+  async getPackDownload(
+    id: string,
+  ): Promise<{ pack: ProofPackRecord; stream: Readable }> {
+    const pack = await this.requirePack(id);
+    this.assertPackReady(pack);
+    const stream = await this.objectStore.createReadStream(pack.filePath);
+
+    return { pack, stream };
+  }
+
   renderTemplate(packType: ProofPackType, data: ProofPackTemplateData): string {
     const templateFileName = `${packType.toLowerCase()}.hbs`;
 
-    // M3 fix: Cache compiled templates to avoid readFileSync on every call
     let template = this.templateCache.get(templateFileName);
     if (template === undefined) {
       const templatePath = join(this.templatesDir, templateFileName);
       const templateSource = readFileSync(templatePath, 'utf-8');
-      template = Handlebars.compile(templateSource);
+      template = this.handlebars.compile<ProofPackTemplateData>(templateSource);
       this.templateCache.set(templateFileName, template);
     }
 
     return template(data);
+  }
+
+  private registerTemplateHelpers(): void {
+    this.handlebars.registerHelper('eq', (left: unknown, right: unknown) => {
+      return left === right;
+    });
+  }
+
+  private buildVerificationReference(
+    publicLaneId: string,
+    packType: ProofPackType,
+    version: number,
+  ): string {
+    return `zrl:proof-pack:${publicLaneId}:${packType}:v${version}`;
+  }
+
+  protected runInBackground(task: () => Promise<void>): void {
+    setImmediate(() => {
+      void task().catch((error: unknown) => {
+        this.logger.error(
+          'Proof pack background generation failed.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
+    });
+  }
+
+  private async requirePack(id: string): Promise<ProofPackRecord> {
+    const pack = await this.store.findPackById(id);
+    if (pack === null) {
+      throw new NotFoundException('Proof pack not found.');
+    }
+
+    return pack;
+  }
+
+  private assertPackReady(
+    pack: ProofPackRecord,
+  ): asserts pack is ProofPackRecord & {
+    status: 'READY';
+    contentHash: string;
+    filePath: string;
+  } {
+    if (pack.status === 'FAILED') {
+      throw new ConflictException(
+        pack.errorMessage ?? 'Proof pack generation failed.',
+      );
+    }
+
+    if (
+      pack.status !== 'READY' ||
+      pack.contentHash === null ||
+      pack.filePath === null
+    ) {
+      throw new ConflictException('Proof pack is still generating.');
+    }
+  }
+
+  private async completePackGeneration(
+    record: ProofPackRecord,
+    templateData: ProofPackTemplateData,
+    actorId: string,
+  ): Promise<void> {
+    try {
+      const verificationReference = this.buildVerificationReference(
+        templateData.laneId,
+        record.packType,
+        record.version,
+      );
+      const qrCodeDataUrl = await QRCode.toDataURL(verificationReference);
+      const finalTemplateData: ProofPackTemplateData = {
+        ...templateData,
+        qrCodeDataUrl,
+        verificationReference,
+      };
+      const html = this.renderTemplate(record.packType, finalTemplateData);
+      const pdfBuffer = await this.htmlToPdf(html);
+      const contentHash = this.hashingService.hashBuffer(pdfBuffer);
+      const filePath = `packs/${record.laneId}/${record.packType.toLowerCase()}-v${record.version}.pdf`;
+      const tempPath = join(tmpdir(), `zrl-pack-${randomUUID()}.pdf`);
+
+      await writeFile(tempPath, pdfBuffer);
+      try {
+        await this.objectStore.putObjectFromFile({
+          key: filePath,
+          filePath: tempPath,
+          contentType: 'application/pdf',
+        });
+      } finally {
+        await rm(tempPath, { force: true }).catch(() => {});
+      }
+
+      const readyPack = await this.requireUpdatedPack(
+        record.id,
+        'READY',
+        contentHash,
+        filePath,
+        null,
+      );
+      await this.appendPackAudit(actorId, AuditAction.GENERATE, readyPack);
+      this.logger.log(
+        `Generated ${record.packType} pack v${record.version} for lane ${record.laneId}`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Proof pack generation failed.';
+      const failedPack = await this.requireUpdatedPack(
+        record.id,
+        'FAILED',
+        null,
+        null,
+        message,
+      );
+      await this.appendPackAudit(actorId, AuditAction.UPDATE, failedPack);
+      throw error;
+    }
+  }
+
+  private async requireUpdatedPack(
+    id: string,
+    status: ProofPackStatus,
+    contentHash: string | null,
+    filePath: string | null,
+    errorMessage: string | null,
+  ): Promise<ProofPackRecord> {
+    const updated = await this.store.updatePack(id, {
+      status,
+      contentHash,
+      filePath,
+      errorMessage,
+    });
+    if (updated === null) {
+      throw new NotFoundException('Proof pack not found.');
+    }
+
+    return updated;
+  }
+
+  private async appendPackAudit(
+    actorId: string,
+    action: AuditAction,
+    pack: ProofPackRecord,
+  ): Promise<void> {
+    const payloadSnapshot = {
+      kind: 'proofPack',
+      packType: pack.packType,
+      version: pack.version,
+      status: pack.status,
+      contentHash: pack.contentHash,
+      generatedAt: pack.generatedAt.toISOString(),
+      errorMessage: pack.errorMessage,
+    };
+    const payloadHash = await this.hashingService.hashString(
+      JSON.stringify({
+        packId: pack.id,
+        laneId: pack.laneId,
+        packType: pack.packType,
+        version: pack.version,
+        status: pack.status,
+        contentHash: pack.contentHash,
+      }),
+    );
+
+    await this.auditService.createEntry({
+      actor: actorId,
+      action,
+      entityType: AuditEntityType.PROOF_PACK,
+      entityId: pack.id,
+      payloadHash,
+      payloadSnapshot,
+    });
   }
 
   private async htmlToPdf(html: string): Promise<Buffer> {

@@ -2,6 +2,7 @@ import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import type {
+  CreateCheckpointInput,
   CreateLaneInput,
   LaneColdChainMode,
   LaneDetail,
@@ -745,6 +746,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
         SELECT COUNT(*)::text AS total
         FROM proof_packs
         WHERE lane_id = $1
+          AND status = 'READY'
       `,
       [id],
     );
@@ -777,20 +779,80 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       [laneId],
     );
 
-    return result.rows.map((row) => ({
-      id: row.id,
-      laneId: row.lane_id,
-      sequence: row.sequence,
-      locationName: row.location_name,
-      gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
-      gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
-      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
-      temperature: row.temperature === null ? null : Number(row.temperature),
-      signatureHash: row.signature_hash,
-      signerName: row.signer_name,
-      conditionNotes: row.condition_notes,
-      status: row.status,
-    }));
+    return result.rows.map((row) => this.mapCheckpointRow(row));
+  }
+
+  async findCheckpointById(
+    checkpointId: string,
+  ): Promise<LaneDetail['checkpoints'][number] | null> {
+    const result = await this.requireExecutor().query<CheckpointRow>(
+      `
+        SELECT
+          id,
+          lane_id,
+          sequence,
+          location_name,
+          gps_lat,
+          gps_lng,
+          timestamp,
+          temperature,
+          signature_hash,
+          signer_name,
+          condition_notes,
+          status
+        FROM checkpoints
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [checkpointId],
+    );
+
+    return result.rowCount === 0 ? null : this.mapCheckpointRow(result.rows[0]);
+  }
+
+  async createCheckpoint(
+    laneId: string,
+    input: CreateCheckpointInput,
+  ): Promise<LaneDetail['checkpoints'][number]> {
+    const result = await this.requireExecutor().query<CheckpointRow>(
+      `
+        INSERT INTO checkpoints (
+          id,
+          lane_id,
+          sequence,
+          location_name,
+          gps_lat,
+          gps_lng,
+          timestamp,
+          temperature,
+          signature_hash,
+          signer_name,
+          condition_notes,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING
+          id, lane_id, sequence, location_name, gps_lat, gps_lng,
+          timestamp, temperature, signature_hash, signer_name,
+          condition_notes, status
+      `,
+      [
+        randomUUID(),
+        laneId,
+        input.sequence,
+        input.locationName,
+        input.gpsLat ?? null,
+        input.gpsLng ?? null,
+        input.timestamp ?? null,
+        input.temperature ?? null,
+        input.signatureHash ?? null,
+        input.signerName ?? null,
+        input.conditionNotes ?? null,
+        input.status ?? 'PENDING',
+      ],
+    );
+
+    return this.mapCheckpointRow(result.rows[0]);
   }
 
   async updateCheckpoint(
@@ -843,21 +905,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
         return null;
       }
 
-      const row = existing.rows[0];
-      return {
-        id: row.id,
-        laneId: row.lane_id,
-        sequence: row.sequence,
-        locationName: row.location_name,
-        gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
-        gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
-        timestamp: row.timestamp === null ? null : new Date(row.timestamp),
-        temperature: row.temperature === null ? null : Number(row.temperature),
-        signatureHash: row.signature_hash,
-        signerName: row.signer_name,
-        conditionNotes: row.condition_notes,
-        status: row.status,
-      };
+      return this.mapCheckpointRow(existing.rows[0]);
     }
 
     const setClauses = fieldMap.map((f, i) => `${f.column} = $${i + 3}`);
@@ -884,21 +932,7 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       return null;
     }
 
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      laneId: row.lane_id,
-      sequence: row.sequence,
-      locationName: row.location_name,
-      gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
-      gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
-      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
-      temperature: row.temperature === null ? null : Number(row.temperature),
-      signatureHash: row.signature_hash,
-      signerName: row.signer_name,
-      conditionNotes: row.condition_notes,
-      status: row.status,
-    };
+    return this.mapCheckpointRow(result.rows[0]);
   }
 
   private requireExecutor(): QueryExecutor {
@@ -937,6 +971,25 @@ export class PrismaLaneStore implements LaneStore, OnModuleDestroy {
       rules: row.rules,
       effectiveDate: new Date(row.effective_date),
       createdAt: new Date(row.created_at),
+    };
+  }
+
+  private mapCheckpointRow(
+    row: CheckpointRow,
+  ): LaneDetail['checkpoints'][number] {
+    return {
+      id: row.id,
+      laneId: row.lane_id,
+      sequence: row.sequence,
+      locationName: row.location_name,
+      gpsLat: row.gps_lat === null ? null : Number(row.gps_lat),
+      gpsLng: row.gps_lng === null ? null : Number(row.gps_lng),
+      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
+      temperature: row.temperature === null ? null : Number(row.temperature),
+      signatureHash: row.signature_hash,
+      signerName: row.signer_name,
+      conditionNotes: row.condition_notes,
+      status: row.status,
     };
   }
 }

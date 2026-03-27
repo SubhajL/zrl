@@ -8,6 +8,7 @@ import request, { type Response } from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { AuthService } from '../src/common/auth/auth.service';
+import { EvidenceService } from '../src/modules/evidence/evidence.service';
 import { LaneService } from '../src/modules/lane/lane.service';
 
 describe('LaneController (e2e)', () => {
@@ -38,6 +39,8 @@ describe('LaneController (e2e)', () => {
       },
     }),
     resolveLaneOwnerId: jest.fn().mockResolvedValue('user-1'),
+    resolveProofPackOwnerId: jest.fn().mockResolvedValue('user-1'),
+    resolveCheckpointOwnerId: jest.fn().mockResolvedValue('user-1'),
   };
   const laneServiceMock = {
     create: jest.fn().mockResolvedValue({
@@ -188,10 +191,79 @@ describe('LaneController (e2e)', () => {
       labValidation: null,
       certificationAlerts: [],
     }),
+    getCheckpoints: jest.fn().mockResolvedValue([]),
+    getCheckpointById: jest.fn().mockResolvedValue({
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.6904,
+      gpsLng: 101.0779,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 12.5,
+      signatureHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      signerName: 'Somchai',
+      conditionNotes: 'Good condition',
+      status: 'COMPLETED',
+    }),
+    createCheckpoint: jest.fn().mockResolvedValue({
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: null,
+      gpsLng: null,
+      timestamp: null,
+      temperature: null,
+      signatureHash: null,
+      signerName: null,
+      conditionNotes: null,
+      status: 'PENDING',
+    }),
+    updateCheckpoint: jest.fn().mockResolvedValue({
+      id: 'cp-1',
+      laneId: 'lane-db-1',
+      sequence: 1,
+      locationName: 'Packing House',
+      gpsLat: 13.6904,
+      gpsLng: 101.0779,
+      timestamp: new Date('2026-03-22T06:00:00.000Z'),
+      temperature: 12.5,
+      signatureHash:
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      signerName: 'Somchai',
+      conditionNotes: 'Good condition',
+      status: 'COMPLETED',
+    }),
+  };
+  const evidenceServiceMock = {
+    uploadArtifact: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    evidenceServiceMock.uploadArtifact
+      .mockResolvedValueOnce({
+        artifact: {
+          id: 'artifact-photo-1',
+          contentHash:
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          metadata: {
+            capturedAt: '2026-03-22T06:00:00.000Z',
+            gpsLat: 13.6904,
+            gpsLng: 101.0779,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        artifact: {
+          id: 'artifact-signature-1',
+          contentHash:
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          metadata: null,
+        },
+      });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -200,6 +272,8 @@ describe('LaneController (e2e)', () => {
       .useValue(authServiceMock)
       .overrideProvider(LaneService)
       .useValue(laneServiceMock)
+      .overrideProvider(EvidenceService)
+      .useValue(evidenceServiceMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -210,6 +284,61 @@ describe('LaneController (e2e)', () => {
     if (app !== undefined) {
       await app.close();
     }
+  });
+
+  it('POST /lanes/:id/checkpoints accepts multipart checkpoint capture', async () => {
+    laneServiceMock.getCheckpoints = jest.fn().mockResolvedValue([
+      {
+        id: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 1,
+        locationName: 'Packing House',
+        gpsLat: null,
+        gpsLng: null,
+        timestamp: null,
+        temperature: null,
+        signatureHash: null,
+        signerName: null,
+        conditionNotes: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    await request(app.getHttpServer())
+      .post('/lanes/lane-db-1/checkpoints')
+      .set('Authorization', 'Bearer access-token')
+      .field('sequence', '1')
+      .field('temperature', '12.5')
+      .field('signerName', 'Somchai')
+      .field('conditionNotes', 'Good condition')
+      .attach('photo', Buffer.from('checkpoint-photo'), 'checkpoint.jpg')
+      .attach('signature', Buffer.from('signature-image'), 'signature.png')
+      .expect(201)
+      .expect((response: Response) => {
+        const body = response.body as {
+          checkpoint: { id: string; status: string; signatureHash: string };
+        };
+        expect(body.checkpoint.id).toBe('cp-1');
+        expect(body.checkpoint.status).toBe('COMPLETED');
+        expect(body.checkpoint.signatureHash).toBe(
+          'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        );
+      });
+  });
+
+  it('GET /checkpoints/:cpId returns checkpoint detail', async () => {
+    await request(app.getHttpServer())
+      .get('/checkpoints/cp-1')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          checkpoint: { id: string; status: string; signerName: string };
+        };
+        expect(body.checkpoint.id).toBe('cp-1');
+        expect(body.checkpoint.status).toBe('COMPLETED');
+        expect(body.checkpoint.signerName).toBe('Somchai');
+      });
   });
 
   it('POST /lanes creates a lane', async () => {

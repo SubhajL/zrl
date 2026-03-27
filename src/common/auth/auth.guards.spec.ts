@@ -2,8 +2,10 @@ import { Reflector } from '@nestjs/core';
 import {
   ApiKeyAuthGuard,
   AuditorReadOnlyGuard,
+  CheckpointOwnerGuard,
   JwtAuthGuard,
   LaneOwnerGuard,
+  PackOwnerGuard,
   PartnerScopeGuard,
   RolesGuard,
 } from './auth.guards';
@@ -94,6 +96,54 @@ describe('Auth guards', () => {
     };
 
     expect(guard.canActivate(createExecutionContext(request))).toBe(true);
+  });
+
+  it('pack owner guard enforces proof-pack ownership', async () => {
+    const resolveProofPackOwnerId = jest.fn().mockResolvedValue('user-1');
+    const authService = {
+      resolveProofPackOwnerId,
+    } as unknown as AuthService;
+    const guard = new PackOwnerGuard(authService);
+    const request: Partial<AuthPrincipalRequest> = {
+      params: { id: 'pack-1' },
+      user: {
+        id: 'user-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER' as AuthRole,
+        companyName: null,
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    };
+
+    await expect(
+      guard.canActivate(createExecutionContext(request)),
+    ).resolves.toBe(true);
+    expect(resolveProofPackOwnerId).toHaveBeenCalledWith('pack-1');
+  });
+
+  it('checkpoint owner guard enforces checkpoint ownership', async () => {
+    const resolveCheckpointOwnerId = jest.fn().mockResolvedValue('user-1');
+    const authService = {
+      resolveCheckpointOwnerId,
+    } as unknown as AuthService;
+    const guard = new CheckpointOwnerGuard(authService);
+    const request: Partial<AuthPrincipalRequest> = {
+      params: { cpId: 'cp-1' },
+      user: {
+        id: 'user-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER' as AuthRole,
+        companyName: null,
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    };
+
+    await expect(
+      guard.canActivate(createExecutionContext(request)),
+    ).resolves.toBe(true);
+    expect(resolveCheckpointOwnerId).toHaveBeenCalledWith('cp-1');
   });
 
   it('auditor read only guard blocks write methods', () => {

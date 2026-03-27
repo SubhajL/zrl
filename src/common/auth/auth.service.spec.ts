@@ -31,6 +31,8 @@ class MockAuthStore implements AuthStore {
   createApiKey = jest.fn();
   revokeApiKey = jest.fn();
   resolveLaneOwnerId = jest.fn<Promise<string | null>, [string]>();
+  resolveProofPackOwnerId = jest.fn<Promise<string | null>, [string]>();
+  resolveCheckpointOwnerId = jest.fn<Promise<string | null>, [string]>();
 }
 
 function buildUser(overrides: Partial<AuthUserRecord>): AuthUserRecord {

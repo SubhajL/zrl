@@ -112,6 +112,19 @@ export interface UpdateLaneInput {
   route?: Partial<CreateLaneInput['route']>;
 }
 
+export interface CreateCheckpointInput {
+  sequence: number;
+  locationName: string;
+  gpsLat?: number;
+  gpsLng?: number;
+  timestamp?: Date;
+  temperature?: number;
+  signatureHash?: string;
+  signerName?: string;
+  conditionNotes?: string;
+  status?: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+}
+
 export interface UpdateCheckpointInput {
   status?: 'PENDING' | 'COMPLETED' | 'OVERDUE';
   timestamp?: Date;
@@ -288,6 +301,13 @@ export interface LaneStore {
   ): Promise<LaneDetail | null>;
   countProofPacksForLane(id: string): Promise<number>;
   findCheckpointsForLane(laneId: string): Promise<LaneDetail['checkpoints']>;
+  findCheckpointById(
+    checkpointId: string,
+  ): Promise<LaneDetail['checkpoints'][number] | null>;
+  createCheckpoint(
+    laneId: string,
+    input: CreateCheckpointInput,
+  ): Promise<LaneDetail['checkpoints'][number]>;
   updateCheckpoint(
     laneId: string,
     checkpointId: string,
@@ -297,6 +317,41 @@ export interface LaneStore {
 
 export type LaneCompletenessResponse = RuleLaneEvaluation;
 
+export type LaneTimelineEventMetadata =
+  | {
+      readonly kind: 'lane';
+      readonly status: LaneStatus;
+      readonly completenessScore: number;
+      readonly productType: LaneProduct;
+      readonly destinationMarket: LaneMarket;
+      readonly statusChangedAt: Date;
+    }
+  | {
+      readonly kind: 'checkpoint';
+      readonly sequence: number;
+      readonly locationName: string;
+      readonly status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+      readonly timestamp: Date | null;
+      readonly temperature: number | null;
+      readonly signerName: string | null;
+      readonly conditionNotes: string | null;
+    }
+  | {
+      readonly kind: 'artifact';
+      readonly artifactType: string;
+      readonly fileName: string;
+      readonly metadata: Record<string, unknown> | null;
+    }
+  | {
+      readonly kind: 'proofPack';
+      readonly packType: string;
+      readonly version: number;
+      readonly status: 'GENERATING' | 'READY' | 'FAILED';
+      readonly contentHash: string | null;
+      readonly generatedAt: Date;
+      readonly errorMessage: string | null;
+    };
+
 export interface LaneTimelineEvent {
   readonly id: string;
   readonly timestamp: Date;
@@ -305,6 +360,7 @@ export interface LaneTimelineEvent {
   readonly entityType: AuditEntityType;
   readonly entityId: string;
   readonly description: string;
+  readonly metadata?: LaneTimelineEventMetadata;
 }
 
 export interface LaneAuditInput {

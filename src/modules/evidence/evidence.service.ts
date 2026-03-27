@@ -61,6 +61,23 @@ function buildAuditPayload(artifact: {
   });
 }
 
+function buildArtifactAuditSnapshot(artifact: {
+  artifactType: string;
+  fileName: string;
+  metadata: Record<string, unknown> | null;
+  verificationStatus: string;
+  contentHash: string;
+}): Record<string, unknown> {
+  return {
+    kind: 'artifact',
+    artifactType: artifact.artifactType,
+    fileName: artifact.fileName,
+    metadata: artifact.metadata,
+    verificationStatus: artifact.verificationStatus,
+    contentHash: artifact.contentHash,
+  };
+}
+
 function hasCheckpointCaptureMetadata(
   metadata: Record<string, unknown>,
 ): boolean {
@@ -232,6 +249,7 @@ export class EvidenceService {
           entityType: AuditEntityType.ARTIFACT,
           entityId: updated.id,
           payloadHash,
+          payloadSnapshot: buildArtifactAuditSnapshot(updated),
         },
       );
     });
@@ -265,6 +283,7 @@ export class EvidenceService {
           entityType: AuditEntityType.ARTIFACT,
           entityId: deletedArtifact.id,
           payloadHash,
+          payloadSnapshot: buildArtifactAuditSnapshot(deletedArtifact),
         },
       );
     });
@@ -496,6 +515,7 @@ export class EvidenceService {
               entityType: AuditEntityType.ARTIFACT,
               entityId: created.id,
               payloadHash,
+              payloadSnapshot: buildArtifactAuditSnapshot(created),
             },
           );
 

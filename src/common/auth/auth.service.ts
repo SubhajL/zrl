@@ -319,6 +319,18 @@ export class AuthService {
     };
   }
 
+  async resolveLaneOwnerId(laneId: string): Promise<string | null> {
+    return await this.authStore.resolveLaneOwnerId(laneId);
+  }
+
+  async resolveProofPackOwnerId(packId: string): Promise<string | null> {
+    return await this.authStore.resolveProofPackOwnerId(packId);
+  }
+
+  async resolveCheckpointOwnerId(checkpointId: string): Promise<string | null> {
+    return await this.authStore.resolveCheckpointOwnerId(checkpointId);
+  }
+
   private buildSessionTokens(user: AuthUserRecord): AuthLoginSuccessResult {
     return {
       requireMfa: false,
@@ -437,10 +449,6 @@ export class AuthService {
 
   private hashApiKey(key: string): string {
     return hashApiKey(key);
-  }
-
-  async resolveLaneOwnerId(laneId: string): Promise<string | null> {
-    return await this.authStore.resolveLaneOwnerId(laneId);
   }
 
   private ipMatches(whitelist: string[], ipAddress: string): boolean {

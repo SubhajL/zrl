@@ -21,6 +21,7 @@ interface AuditEntryRow extends QueryResultRow {
   entity_type: string;
   entity_id: string;
   payload_hash: string;
+  payload_snapshot: Record<string, unknown> | null;
   prev_hash: string;
   entry_hash: string;
 }
@@ -168,9 +169,12 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
             entity_type,
             entity_id,
             payload_hash,
+            audit_entry_snapshots.payload AS payload_snapshot,
             prev_hash,
             entry_hash
           FROM audit_entries
+          LEFT JOIN audit_entry_snapshots
+            ON audit_entry_snapshots.audit_entry_id = audit_entries.id
           WHERE entity_type IN ('RULE_SET', 'SUBSTANCE')
           ORDER BY timestamp DESC, id DESC
           LIMIT 1
@@ -191,9 +195,12 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           entity_type,
           entity_id,
           payload_hash,
+          audit_entry_snapshots.payload AS payload_snapshot,
           prev_hash,
           entry_hash
         FROM audit_entries
+        LEFT JOIN audit_entry_snapshots
+          ON audit_entry_snapshots.audit_entry_id = audit_entries.id
         WHERE ${clause}
         ORDER BY timestamp DESC, id DESC
         LIMIT 1
@@ -241,8 +248,42 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
         entry.entryHash,
       ],
     );
+    if (entry.payloadSnapshot !== undefined) {
+      await executor.query(
+        `
+          INSERT INTO audit_entry_snapshots (
+            audit_entry_id,
+            payload
+          )
+          VALUES ($1, $2::jsonb)
+        `,
+        [result.rows[0].id, JSON.stringify(entry.payloadSnapshot)],
+      );
+    }
 
-    return this.mapEntry(result.rows[0]);
+    const hydrated = await executor.query<AuditEntryRow>(
+      `
+        SELECT
+          audit_entries.id,
+          audit_entries.timestamp,
+          audit_entries.actor,
+          audit_entries.action,
+          audit_entries.entity_type,
+          audit_entries.entity_id,
+          audit_entries.payload_hash,
+          audit_entry_snapshots.payload AS payload_snapshot,
+          audit_entries.prev_hash,
+          audit_entries.entry_hash
+        FROM audit_entries
+        LEFT JOIN audit_entry_snapshots
+          ON audit_entry_snapshots.audit_entry_id = audit_entries.id
+        WHERE audit_entries.id = $1
+        LIMIT 1
+      `,
+      [result.rows[0].id],
+    );
+
+    return this.mapEntry(hydrated.rows[0]);
   }
 
   async findEntriesForLane(
@@ -263,9 +304,12 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           entity_type,
           entity_id,
           payload_hash,
+          audit_entry_snapshots.payload AS payload_snapshot,
           prev_hash,
           entry_hash
         FROM audit_entries
+        LEFT JOIN audit_entry_snapshots
+          ON audit_entry_snapshots.audit_entry_id = audit_entries.id
         WHERE ${clause}
         ORDER BY timestamp ASC, id ASC
         ${pagination.clause}
@@ -291,9 +335,12 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
           entity_type,
           entity_id,
           payload_hash,
+          audit_entry_snapshots.payload AS payload_snapshot,
           prev_hash,
           entry_hash
         FROM audit_entries
+        LEFT JOIN audit_entry_snapshots
+          ON audit_entry_snapshots.audit_entry_id = audit_entries.id
         WHERE entity_type = $1 AND entity_id = $2
         ORDER BY timestamp ASC, id ASC
       `,
@@ -416,6 +463,7 @@ export class PrismaAuditStore implements AuditStore, OnModuleDestroy {
       entityType: entry.entity_type as AuditEntryRecord['entityType'],
       entityId: entry.entity_id,
       payloadHash: entry.payload_hash,
+      payloadSnapshot: entry.payload_snapshot,
       prevHash: entry.prev_hash,
       entryHash: entry.entry_hash,
     };

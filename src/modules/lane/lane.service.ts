@@ -10,7 +10,9 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
+import { ProofPackService } from '../evidence/proof-pack.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
+import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
@@ -19,6 +21,7 @@ import {
   MAX_LANE_LIMIT,
 } from './lane.constants';
 import type {
+  CreateCheckpointInput,
   CreateLaneInput,
   LaneStatus,
   LaneColdChainMode,
@@ -29,6 +32,7 @@ import type {
   LaneStore,
   LaneDetail,
   LaneTimelineEvent,
+  LaneTimelineEventMetadata,
   TransitionLaneInput,
   UpdateCheckpointInput,
   UpdateLaneInput,
@@ -110,6 +114,7 @@ export class LaneService {
     private readonly ruleSnapshotResolver: LaneRuleSnapshotResolver,
     private readonly coldChainService: ColdChainService,
     private readonly rulesEngineService: RulesEngineService,
+    private readonly proofPackService: ProofPackService,
   ) {}
 
   async create(input: CreateLaneInput, actor: LaneRequestUser) {
@@ -371,6 +376,44 @@ export class LaneService {
     return this.laneStore.findCheckpointsForLane(laneId);
   }
 
+  async getCheckpointById(
+    checkpointId: string,
+  ): Promise<LaneDetail['checkpoints'][number]> {
+    const checkpoint = await this.laneStore.findCheckpointById(checkpointId);
+    if (checkpoint === null) {
+      throw new NotFoundException('Checkpoint not found.');
+    }
+
+    return checkpoint;
+  }
+
+  async createCheckpoint(
+    laneId: string,
+    input: CreateCheckpointInput,
+    actor: LaneRequestUser,
+  ): Promise<LaneDetail['checkpoints'][number]> {
+    const lane = await this.laneStore.findLaneById(laneId);
+    if (lane === null) {
+      throw new NotFoundException('Lane not found.');
+    }
+
+    const checkpoint = await this.laneStore.createCheckpoint(laneId, input);
+    const payloadHash = await this.hashingService.hashString(
+      this.buildCheckpointAuditPayload(lane.laneId, checkpoint),
+    );
+
+    await this.auditService.createEntry({
+      actor: actor.id,
+      action: AuditAction.CREATE,
+      entityType: AuditEntityType.CHECKPOINT,
+      entityId: checkpoint.id,
+      payloadHash,
+      payloadSnapshot: this.buildCheckpointAuditSnapshot(checkpoint),
+    });
+
+    return checkpoint;
+  }
+
   async updateCheckpoint(
     laneId: string,
     checkpointId: string,
@@ -392,11 +435,7 @@ export class LaneService {
     }
 
     const payloadHash = await this.hashingService.hashString(
-      JSON.stringify({
-        laneId: lane.laneId,
-        checkpointId,
-        status: checkpoint.status,
-      }),
+      this.buildCheckpointAuditPayload(lane.laneId, checkpoint),
     );
 
     await this.auditService.createEntry({
@@ -405,6 +444,7 @@ export class LaneService {
       entityType: AuditEntityType.CHECKPOINT,
       entityId: checkpointId,
       payloadHash,
+      payloadSnapshot: this.buildCheckpointAuditSnapshot(checkpoint),
     });
 
     return checkpoint;
@@ -415,16 +455,34 @@ export class LaneService {
     if (lane === null) {
       throw new NotFoundException('Lane not found.');
     }
-    const entries = await this.auditService.getEntriesForLane(laneId);
-    return entries.map((entry) => ({
-      id: entry.id,
-      timestamp: entry.timestamp,
-      actor: entry.actor,
-      action: entry.action,
-      entityType: entry.entityType,
-      entityId: entry.entityId,
-      description: describeAuditEntry(entry.action, entry.entityType),
-    }));
+    const [entries, artifacts] = await Promise.all([
+      this.auditService.getEntriesForLane(laneId),
+      this.laneStore.listEvidenceArtifactsForLane(laneId),
+    ]);
+    const artifactsById = new Map(
+      (artifacts ?? []).map((artifact) => [artifact.id, artifact]),
+    );
+    const checkpointsById = new Map(
+      (lane.checkpoints ?? []).map((checkpoint) => [checkpoint.id, checkpoint]),
+    );
+
+    return await Promise.all(
+      entries.map(async (entry) => ({
+        id: entry.id,
+        timestamp: entry.timestamp,
+        actor: entry.actor,
+        action: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        description: describeAuditEntry(entry.action, entry.entityType),
+        metadata: await this.buildTimelineMetadata(
+          entry,
+          lane,
+          artifactsById,
+          checkpointsById,
+        ),
+      })),
+    );
   }
 
   async reconcileAutomaticTransitions(laneId: string, actorId: string) {
@@ -564,11 +622,178 @@ export class LaneService {
     }
   }
 
+  private buildCheckpointAuditPayload(
+    lanePublicId: string,
+    checkpoint: LaneDetail['checkpoints'][number],
+  ): string {
+    return JSON.stringify({
+      laneId: lanePublicId,
+      checkpoint,
+    });
+  }
+
+  private async buildTimelineMetadata(
+    entry: {
+      entityType: AuditEntityType;
+      entityId: string;
+      payloadSnapshot?: Record<string, unknown> | null;
+    },
+    lane: LaneDetail,
+    artifactsById: Map<string, RuleLaneArtifact>,
+    checkpointsById: Map<string, LaneDetail['checkpoints'][number]>,
+  ): Promise<LaneTimelineEventMetadata | undefined> {
+    if (entry.payloadSnapshot?.['kind'] === 'lane') {
+      return {
+        kind: 'lane',
+        status: entry.payloadSnapshot['status'] as LaneStatus,
+        completenessScore: Number(entry.payloadSnapshot['completenessScore']),
+        productType: entry.payloadSnapshot[
+          'productType'
+        ] as CreateLaneInput['product'],
+        destinationMarket: entry.payloadSnapshot[
+          'destinationMarket'
+        ] as CreateLaneInput['destination']['market'],
+        statusChangedAt: new Date(
+          String(entry.payloadSnapshot['statusChangedAt']),
+        ),
+      };
+    }
+
+    if (entry.payloadSnapshot?.['kind'] === 'checkpoint') {
+      const checkpointTimestamp = entry.payloadSnapshot['timestamp'];
+
+      return {
+        kind: 'checkpoint',
+        sequence: Number(entry.payloadSnapshot['sequence']),
+        locationName: String(entry.payloadSnapshot['locationName']),
+        status: entry.payloadSnapshot['status'] as
+          | 'PENDING'
+          | 'COMPLETED'
+          | 'OVERDUE',
+        timestamp:
+          checkpointTimestamp === null
+            ? null
+            : typeof checkpointTimestamp === 'string'
+              ? new Date(checkpointTimestamp)
+              : null,
+        temperature:
+          entry.payloadSnapshot['temperature'] === null
+            ? null
+            : Number(entry.payloadSnapshot['temperature']),
+        signerName:
+          typeof entry.payloadSnapshot['signerName'] === 'string'
+            ? entry.payloadSnapshot['signerName']
+            : null,
+        conditionNotes:
+          typeof entry.payloadSnapshot['conditionNotes'] === 'string'
+            ? entry.payloadSnapshot['conditionNotes']
+            : null,
+      };
+    }
+
+    if (entry.payloadSnapshot?.['kind'] === 'artifact') {
+      return {
+        kind: 'artifact',
+        artifactType: String(entry.payloadSnapshot['artifactType']),
+        fileName: String(entry.payloadSnapshot['fileName']),
+        metadata:
+          (entry.payloadSnapshot['metadata'] as Record<
+            string,
+            unknown
+          > | null) ?? null,
+      };
+    }
+
+    if (entry.payloadSnapshot?.['kind'] === 'proofPack') {
+      return {
+        kind: 'proofPack',
+        packType: String(entry.payloadSnapshot['packType']),
+        version: Number(entry.payloadSnapshot['version']),
+        status: entry.payloadSnapshot['status'] as
+          | 'GENERATING'
+          | 'READY'
+          | 'FAILED',
+        contentHash:
+          typeof entry.payloadSnapshot['contentHash'] === 'string'
+            ? entry.payloadSnapshot['contentHash']
+            : null,
+        generatedAt: new Date(String(entry.payloadSnapshot['generatedAt'])),
+        errorMessage:
+          typeof entry.payloadSnapshot['errorMessage'] === 'string'
+            ? entry.payloadSnapshot['errorMessage']
+            : null,
+      };
+    }
+
+    if (entry.entityType === AuditEntityType.LANE) {
+      return {
+        kind: 'lane',
+        status: lane.status,
+        completenessScore: lane.completenessScore,
+        productType: lane.productType,
+        destinationMarket: lane.destinationMarket,
+        statusChangedAt: lane.statusChangedAt,
+      };
+    }
+
+    if (entry.entityType === AuditEntityType.CHECKPOINT) {
+      const checkpoint = checkpointsById.get(entry.entityId);
+      if (checkpoint === undefined) {
+        return undefined;
+      }
+
+      return {
+        kind: 'checkpoint',
+        sequence: checkpoint.sequence,
+        locationName: checkpoint.locationName,
+        status: checkpoint.status,
+        timestamp: checkpoint.timestamp,
+        temperature: checkpoint.temperature,
+        signerName: checkpoint.signerName,
+        conditionNotes: checkpoint.conditionNotes,
+      };
+    }
+
+    if (entry.entityType === AuditEntityType.ARTIFACT) {
+      const artifact = artifactsById.get(entry.entityId);
+      if (artifact === undefined) {
+        return undefined;
+      }
+
+      return {
+        kind: 'artifact',
+        artifactType: artifact.artifactType,
+        fileName: artifact.fileName,
+        metadata: artifact.metadata,
+      };
+    }
+
+    if (entry.entityType === AuditEntityType.PROOF_PACK) {
+      try {
+        const pack = await this.proofPackService.getPackById(entry.entityId);
+        return {
+          kind: 'proofPack',
+          packType: pack.packType,
+          version: pack.version,
+          status: pack.status,
+          contentHash: pack.contentHash,
+          generatedAt: pack.generatedAt,
+          errorMessage: pack.errorMessage,
+        };
+      } catch {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
   private async appendAuditEntry(
     actorId: string,
     action: AuditAction,
     lane: LaneDetail,
   ): Promise<void> {
+    const payloadSnapshot = this.buildLaneAuditSnapshot(lane);
     const payloadHash = await this.hashingService.hashString(
       JSON.stringify({
         laneId: lane.laneId,
@@ -586,6 +811,7 @@ export class LaneService {
       entityType: AuditEntityType.LANE,
       entityId: lane.id,
       payloadHash,
+      payloadSnapshot,
     });
   }
 
@@ -595,6 +821,7 @@ export class LaneService {
     lane: LaneDetail,
     targetStatus: LaneStatus,
   ): Promise<void> {
+    const payloadSnapshot = this.buildLaneAuditSnapshot(lane);
     const payloadHash = await this.hashingService.hashString(
       JSON.stringify({
         laneId: lane.laneId,
@@ -613,6 +840,36 @@ export class LaneService {
       entityType: AuditEntityType.LANE,
       entityId: lane.id,
       payloadHash,
+      payloadSnapshot,
     });
+  }
+
+  private buildLaneAuditSnapshot(lane: LaneDetail): Record<string, unknown> {
+    return {
+      kind: 'lane',
+      status: lane.status,
+      completenessScore: lane.completenessScore,
+      productType: lane.productType,
+      destinationMarket: lane.destinationMarket,
+      statusChangedAt: lane.statusChangedAt.toISOString(),
+    };
+  }
+
+  private buildCheckpointAuditSnapshot(
+    checkpoint: LaneDetail['checkpoints'][number],
+  ): Record<string, unknown> {
+    return {
+      kind: 'checkpoint',
+      sequence: checkpoint.sequence,
+      locationName: checkpoint.locationName,
+      status: checkpoint.status,
+      timestamp: checkpoint.timestamp?.toISOString() ?? null,
+      temperature: checkpoint.temperature,
+      signerName: checkpoint.signerName,
+      conditionNotes: checkpoint.conditionNotes,
+      signatureHash: checkpoint.signatureHash,
+      gpsLat: checkpoint.gpsLat,
+      gpsLng: checkpoint.gpsLng,
+    };
   }
 }

@@ -57,6 +57,7 @@ export class AuditService {
         entityType: input.entityType,
         entityId: input.entityId,
         payloadHash: input.payloadHash,
+        payloadSnapshot: input.payloadSnapshot,
         prevHash,
         entryHash,
       });

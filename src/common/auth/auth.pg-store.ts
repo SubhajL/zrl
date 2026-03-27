@@ -219,6 +219,38 @@ export class PrismaAuthStore implements AuthStore, OnModuleDestroy {
     return result.rowCount === 0 ? null : result.rows[0].exporter_id;
   }
 
+  async resolveProofPackOwnerId(packId: string): Promise<string | null> {
+    const executor = this.requireExecutor();
+    const result = await executor.query<{ exporter_id: string }>(
+      `
+        SELECT lanes.exporter_id
+        FROM proof_packs
+        INNER JOIN lanes ON lanes.id = proof_packs.lane_id
+        WHERE proof_packs.id = $1
+        LIMIT 1
+      `,
+      [packId],
+    );
+
+    return result.rowCount === 0 ? null : result.rows[0].exporter_id;
+  }
+
+  async resolveCheckpointOwnerId(checkpointId: string): Promise<string | null> {
+    const executor = this.requireExecutor();
+    const result = await executor.query<{ exporter_id: string }>(
+      `
+        SELECT lanes.exporter_id
+        FROM checkpoints
+        INNER JOIN lanes ON lanes.id = checkpoints.lane_id
+        WHERE checkpoints.id = $1
+        LIMIT 1
+      `,
+      [checkpointId],
+    );
+
+    return result.rowCount === 0 ? null : result.rows[0].exporter_id;
+  }
+
   private async findOneUser(
     clause: string,
     values: unknown[],
