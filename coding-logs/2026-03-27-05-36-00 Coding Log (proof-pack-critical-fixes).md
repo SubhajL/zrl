@@ -802,3 +802,145 @@ LOW
 ### Rollout Notes
 - Apply `prisma/migrations/20260327155000_proof_pack_job_queue/migration.sql` before enabling the durable worker in shared environments.
 - The queue is now restart-safe and lease-fenced, but it still relies on the web process to execute jobs; monitor render latency before increasing queue volume.
+
+## 2026-03-27 11:56 ICT
+
+- Goal: Submit the durable proof-pack queue change through Graphite, clear remote gates, and land it on `main`.
+- What happened:
+  - Created Graphite branch `feat/proof-pack-durable-queue` from the staged proof-pack queue slice only.
+  - Submitted PR [#29](https://github.com/SubhajL/zrl/pull/29) with `gt submit --publish`.
+  - Verified GitHub checks all passed: `Frontend Tests`, `Database Migrations`, `Backend Tests`, `Security Scan`, `Integration Tests`, `Build`, and `claude-review`.
+  - Confirmed there were no GitHub inline review comments from Claude to address before merge.
+  - Merged PR `#29` with squash and branch deletion.
+  - Verified merged commit `05330c2e5eae38e3f22c606cf3290450c74c1cdf` is on `main` and local checkout is back on updated `main`.
+- Commands run:
+  - `gt add ...`
+  - `gt create -m "feat(evidence): add durable proof-pack queue" feat/proof-pack-durable-queue`
+  - `gt submit --publish`
+  - `gh pr checks 29 --watch --interval 10`
+  - `gh pr view 29 --comments`
+  - `gh api repos/SubhajL/zrl/pulls/29/comments --paginate`
+  - `gh pr merge 29 --squash --delete-branch`
+  - `gh pr view 29 --json state,mergedAt,mergeCommit,url`
+- Notes:
+  - The unrelated local edits in `AGENTS.md`, older coding logs, and similar files were intentionally left untouched and remain in the working tree after the merge.
+
+## 2026-03-27 20:00 ICT
+
+- Goal: Confirm Task `7.3` from live code and implement Task `5.5` password reset flow in the auth module.
+- What changed:
+  - `src/common/auth/auth.controller.ts`
+    - Added `POST /auth/forgot-password` and `POST /auth/reset-password`.
+  - `src/common/auth/auth.service.ts`
+    - Confirmed `7.3` is already implemented via lane automatic-transition reconciliation after evidence upload.
+    - Added forgot-password flow with normalized email handling, 3-per-hour throttling, 1-hour token expiry, and non-production preview-token responses for local/test use.
+    - Added reset-password flow with minimum password length enforcement, hashed token lookup, bcrypt password re-hash, and session invalidation on successful reset.
+  - `src/common/auth/auth.pg-store.ts`
+    - Added password-reset request counting, token issuance with revocation of superseded active tokens, and transactional token consumption that marks the token used and increments `users.session_version`.
+  - `src/common/auth/auth.types.ts`
+    - Added forgot/reset DTOs plus password-reset request and consume-result contracts on `AuthStore`.
+  - `src/common/auth/auth.constants.ts`
+    - Added password-reset TTL, throttle window, max requests, token size, and minimum password constants.
+  - `src/common/auth/auth.utils.ts`
+    - Added opaque reset-token generation and HMAC hashing helpers.
+  - `prisma/schema.prisma`
+    - Added the `PasswordResetRequest` model and relation from `User`.
+  - `prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql`
+    - Added the `password_reset_requests` table plus token-hash uniqueness and email/time lookup index.
+  - `src/common/auth/auth.service.spec.ts`
+    - Added unit coverage for known-user issuance, unknown-email generic handling, per-email rate limiting, successful reset/session invalidation, and invalid-token rejection.
+  - `test/auth.e2e-spec.ts`
+    - Added route coverage for `/auth/forgot-password` and `/auth/reset-password`.
+    - Overrode `ProofPackWorkerService` in the auth e2e bootstrap so unrelated proof-pack polling does not break auth-route app startup.
+  - `docs/PROGRESS.md`
+    - Added the Task `5.5` progress entry.
+  - `.taskmaster/tasks/tasks.json`
+    - Marked Task `5.5` done in Task Master.
+- TDD evidence:
+  - RED: `npm run test -- --runInBand src/common/auth/auth.service.spec.ts && npm run test:e2e -- --runInBand test/auth.e2e-spec.ts`
+    - Failed because `AuthService` did not yet implement `forgotPassword` or `resetPassword`.
+  - GREEN: `npm run test -- --runInBand src/common/auth/auth.service.spec.ts`
+  - GREEN: `npm run test:e2e -- --runInBand test/auth.e2e-spec.ts`
+- Tests run and results:
+  - `npm run db:generate` -> passed.
+  - `npm run test -- --runInBand src/common/auth/auth.service.spec.ts` -> passed.
+  - `npm run test:e2e -- --runInBand test/auth.e2e-spec.ts` -> passed.
+  - `npm run lint` -> passed.
+  - `npm run typecheck` -> passed.
+  - `npm run build` -> passed.
+- Wiring verification evidence:
+  - `AuthController` now exposes `/auth/forgot-password` and `/auth/reset-password`.
+  - `AuthModule` already owns `AuthController` and `AuthService`, so the new routes are live through `AppModule -> AuthModule`.
+  - Password reset uses the existing `users.session_version` invalidation path semantics, so old access/refresh tokens go stale after a successful reset.
+- Behavior changes and risk notes:
+  - The flow is fail-closed on reset: invalid, used, revoked, or expired tokens all return the same error.
+  - Forgot-password remains generic to avoid account enumeration; in non-production it includes `resetTokenPreview` so local and test environments can complete the flow before a real notifier exists.
+  - Superseded active reset tokens are revoked when a new reset token is issued for the same email.
+- Follow-ups / known gaps:
+  - Real password-reset email delivery is still pending the notification/email infrastructure; current production behavior persists the secure token flow but does not yet send mail.
+
+## Review (2026-03-27 20:00 +07) - working-tree (task-5-5 auth password-reset slice)
+
+### Reviewed
+- Repo: `/Users/subhajlimanond/dev/zrl`
+- Branch: `main`
+- Scope: `working-tree`
+- Commands Run: `git status --short`; `git diff -- .taskmaster/tasks/tasks.json docs/PROGRESS.md src/common/auth/auth.controller.ts src/common/auth/auth.service.ts src/common/auth/auth.pg-store.ts src/common/auth/auth.types.ts src/common/auth/auth.constants.ts src/common/auth/auth.utils.ts src/common/auth/auth.service.spec.ts test/auth.e2e-spec.ts prisma/schema.prisma prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql`; `nl -ba src/common/auth/auth.service.ts | sed -n '198,260p'`; `nl -ba src/common/auth/auth.pg-store.ts | sed -n '222,407p'`; `nl -ba src/common/auth/auth.controller.ts | sed -n '58,76p'`; `npm run db:generate`; `npm run test -- --runInBand src/common/auth/auth.service.spec.ts`; `npm run test:e2e -- --runInBand test/auth.e2e-spec.ts`; `npm run lint`; `npm run typecheck`; `npm run build`
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- Assumed the non-production `resetTokenPreview` bridge is acceptable until the dedicated notification/email infrastructure lands.
+- Assumed case-normalized email matching is consistent with how `users.email` is stored in this repo.
+
+### Recommended Tests / Validation
+- Add a store-backed integration test for password-reset token consumption against real Postgres to prove the transactional `used_at` plus `session_version` update under actual SQL locking.
+- Add a future notifier integration test once reset-email delivery is wired.
+
+### Rollout Notes
+- Apply `prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql` before enabling the password-reset routes in shared environments.
+- Local/test environments can rely on `resetTokenPreview`; production still needs a real delivery channel before end users can complete the flow without operator help.
+
+## Review (2026-03-27 20:10:34 +0700) - working-tree (task-5-5 auth password-reset landing pass)
+
+### Reviewed
+- Repo: `/Users/subhajlimanond/dev/zrl`
+- Branch: `main`
+- Scope: `working-tree`
+- Commands Run: `git status --short`; `git diff -- src/common/auth/auth.controller.ts src/common/auth/auth.service.ts src/common/auth/auth.pg-store.ts src/common/auth/auth.types.ts src/common/auth/auth.constants.ts src/common/auth/auth.utils.ts src/common/auth/auth.service.spec.ts test/auth.e2e-spec.ts prisma/schema.prisma prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql docs/PROGRESS.md .taskmaster/tasks/tasks.json`; `rg -n "ses|smtp|mailer|sendMail|forgot-password|reset-password|resetTokenPreview|notification service|aws ses|nodemailer" src test docs prisma`; `nl -ba src/common/auth/auth.service.ts | sed -n '198,275p'`; `nl -ba src/common/auth/auth.utils.ts | sed -n '55,80p'`; `nl -ba test/auth.e2e-spec.ts | sed -n '1,180p'`; `npm run db:generate`; `npm run test -- --runInBand src/common/auth/auth.service.spec.ts`; `npm run test:e2e -- --runInBand test/auth.e2e-spec.ts`; `npm run lint`; `npm run typecheck`; `npm run build`
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- Assumed the current non-production `resetTokenPreview` bridge is an intentional interim path until the dedicated notification/email infrastructure is built.
+- Assumed shipping the secure token persistence and consumption flow now is still valuable even though the repo has no mailer integration yet.
+
+### Recommended Tests / Validation
+- Add a real Postgres integration test around concurrent forgot/reset requests if password reset traffic becomes non-trivial.
+- Add notifier-delivery integration coverage once email transport exists.
+
+### Rollout Notes
+- Apply `prisma/migrations/20260327131500_auth_password_reset_flow/migration.sql` before enabling the new routes outside local development.
+- Production still needs a real reset-email delivery channel before end users can complete the flow without operator assistance.

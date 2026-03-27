@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { compare } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import * as speakeasy from 'speakeasy';
 import {
   AUTH_ACCESS_TOKEN_TTL_SECONDS,
@@ -8,14 +8,20 @@ import {
   AUTH_JWT_ISSUER,
   AUTH_MFA_ENROLLMENT_TOKEN_TTL_SECONDS,
   AUTH_MFA_TOKEN_TTL_SECONDS,
+  AUTH_PASSWORD_MIN_LENGTH,
+  AUTH_PASSWORD_RESET_MAX_REQUESTS_PER_WINDOW,
+  AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS,
+  AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS,
   AUTH_REFRESH_TOKEN_TTL_SECONDS,
   AUTH_TOTP_WINDOW,
   AUTH_STORE,
 } from './auth.constants';
 import {
   buildPublicAuthUser,
+  createPasswordResetToken,
   createRawApiKey,
   hashApiKey,
+  hashPasswordResetToken,
   type JwtBaseClaims,
   resolveAuthSecret,
   signAccessToken,
@@ -24,6 +30,7 @@ import {
   signRefreshToken,
   verifyJwt,
 } from './auth.utils';
+import { AuthPasswordResetConsumeState } from './auth.types';
 import type {
   AuthAccessTokenClaims,
   AuthApiKeyCreationInput,
@@ -31,6 +38,8 @@ import type {
   AuthApiKeyValidationInput,
   AuthApiKeyValidationResult,
   AuthEnrollmentTokenClaims,
+  AuthForgotPasswordInput,
+  AuthForgotPasswordResult,
   AuthLoginInput,
   AuthLoginResult,
   AuthLoginSuccessResult,
@@ -43,6 +52,7 @@ import type {
   AuthRefreshTokenClaims,
   AuthRole,
   AuthJwtVerificationResult,
+  AuthResetPasswordInput,
   AuthStore,
   AuthTokenPair,
   AuthUserRecord,
@@ -59,6 +69,9 @@ function normalizeIpAddress(ipAddress: string): string {
 function normalizeScope(scope: string): string {
   return scope.trim().toLowerCase();
 }
+
+const PASSWORD_RESET_GENERIC_MESSAGE =
+  'If an account exists for that email, password reset instructions have been sent.';
 
 @Injectable()
 export class AuthService {
@@ -180,6 +193,71 @@ export class AuthService {
         AUTH_ACCESS_TOKEN_TTL_SECONDS,
       ),
     };
+  }
+
+  async forgotPassword(
+    input: AuthForgotPasswordInput,
+  ): Promise<AuthForgotPasswordResult> {
+    const email = input.email.toLowerCase().trim();
+    const now = new Date();
+    const windowStart = new Date(
+      now.getTime() - AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS * 1000,
+    );
+    const recentRequestCount =
+      await this.authStore.countPasswordResetRequestsSince(email, windowStart);
+
+    if (recentRequestCount >= AUTH_PASSWORD_RESET_MAX_REQUESTS_PER_WINDOW) {
+      return this.buildForgotPasswordResult(null);
+    }
+
+    const user = await this.authStore.findUserByEmail(email);
+    if (user === null) {
+      await this.authStore.createPasswordResetRequest({
+        email,
+        userId: null,
+        tokenHash: null,
+        expiresAt: null,
+      });
+      return this.buildForgotPasswordResult(null);
+    }
+
+    const rawToken = createPasswordResetToken();
+    const expiresAt = new Date(
+      now.getTime() + AUTH_PASSWORD_RESET_TOKEN_TTL_SECONDS * 1000,
+    );
+
+    await this.authStore.createPasswordResetRequest({
+      email,
+      userId: user.id,
+      tokenHash: hashPasswordResetToken(rawToken),
+      expiresAt,
+    });
+
+    return this.buildForgotPasswordResult(rawToken);
+  }
+
+  async resetPassword(
+    input: AuthResetPasswordInput,
+  ): Promise<{ success: true }> {
+    if (input.newPassword.length < AUTH_PASSWORD_MIN_LENGTH) {
+      throw new Error(
+        `Password must be at least ${AUTH_PASSWORD_MIN_LENGTH} characters.`,
+      );
+    }
+
+    const now = new Date();
+    const passwordHash = await hash(input.newPassword, 10);
+    const result = await this.authStore.consumePasswordResetToken(
+      hashPasswordResetToken(input.token.trim()),
+      passwordHash,
+      now,
+    );
+
+    if (result.state !== AuthPasswordResetConsumeState.SUCCESS) {
+      throw new Error('Invalid or expired password reset token.');
+    }
+
+    return { success: true };
   }
 
   async logout(userId: string): Promise<AuthLogoutResult> {
@@ -378,6 +456,21 @@ export class AuthService {
         AUTH_MFA_TOKEN_TTL_SECONDS,
       ),
       user: buildPublicAuthUser(user),
+    };
+  }
+
+  private buildForgotPasswordResult(
+    resetTokenPreview: string | null,
+  ): AuthForgotPasswordResult {
+    if (process.env['NODE_ENV'] === 'production') {
+      return {
+        message: PASSWORD_RESET_GENERIC_MESSAGE,
+      };
+    }
+
+    return {
+      message: PASSWORD_RESET_GENERIC_MESSAGE,
+      resetTokenPreview,
     };
   }
 

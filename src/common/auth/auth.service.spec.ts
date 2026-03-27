@@ -2,7 +2,15 @@ import { hashSync } from 'bcrypt';
 import * as speakeasy from 'speakeasy';
 import { AuthService } from './auth.service';
 import { AuthApiKeyState, AuthRole } from './auth.types';
-import type { AuthStore, AuthUserRecord } from './auth.types';
+import type {
+  AuthApiKeyCreationInput,
+  AuthApiKeyRecord,
+  AuthPasswordResetConsumeResult,
+  AuthPasswordResetRequestInput,
+  AuthPasswordResetRequestRecord,
+  AuthStore,
+  AuthUserRecord,
+} from './auth.types';
 
 class MockAuthStore implements AuthStore {
   findUserByEmail = jest.fn<Promise<AuthUserRecord | null>, [string]>();
@@ -28,8 +36,20 @@ class MockAuthStore implements AuthStore {
     } | null>,
     [string]
   >();
-  createApiKey = jest.fn();
-  revokeApiKey = jest.fn();
+  createApiKey = jest.fn<
+    Promise<AuthApiKeyRecord>,
+    [AuthApiKeyCreationInput]
+  >();
+  revokeApiKey = jest.fn<Promise<AuthApiKeyRecord | null>, [string]>();
+  countPasswordResetRequestsSince = jest.fn<Promise<number>, [string, Date]>();
+  createPasswordResetRequest = jest.fn<
+    Promise<AuthPasswordResetRequestRecord>,
+    [AuthPasswordResetRequestInput]
+  >();
+  consumePasswordResetToken = jest.fn<
+    Promise<AuthPasswordResetConsumeResult>,
+    [string, string, Date]
+  >();
   resolveLaneOwnerId = jest.fn<Promise<string | null>, [string]>();
   resolveProofPackOwnerId = jest.fn<Promise<string | null>, [string]>();
   resolveCheckpointOwnerId = jest.fn<Promise<string | null>, [string]>();
@@ -303,5 +323,133 @@ describe('AuthService', () => {
         refreshToken: login.refreshToken,
       }),
     ).rejects.toThrow('Refresh token is stale.');
+  });
+
+  it('creates a password reset request for a known user', async () => {
+    const store = new MockAuthStore();
+    const service = new AuthService(store);
+
+    store.countPasswordResetRequestsSince.mockResolvedValue(0);
+    store.findUserByEmail.mockResolvedValue(
+      buildUser({
+        id: 'user-5',
+        email: 'reset@example.com',
+      }),
+    );
+    store.createPasswordResetRequest.mockResolvedValue({
+      id: 'reset-request-1',
+      email: 'reset@example.com',
+      userId: 'user-5',
+      tokenHash: 'token-hash',
+      expiresAt: new Date('2026-03-27T14:00:00.000Z'),
+      usedAt: null,
+      revokedAt: null,
+      createdAt: new Date('2026-03-27T13:00:00.000Z'),
+    });
+
+    const result = await service.forgotPassword({
+      email: 'reset@example.com',
+    });
+
+    expect(result.message).toContain('If an account exists');
+    expect(store.countPasswordResetRequestsSince).toHaveBeenCalledWith(
+      'reset@example.com',
+      expect.any(Date),
+    );
+    expect(store.createPasswordResetRequest).toHaveBeenCalledTimes(1);
+    const createdRequest = store.createPasswordResetRequest.mock.calls[0]?.[0];
+    expect(createdRequest).toMatchObject({
+      email: 'reset@example.com',
+      userId: 'user-5',
+    });
+    expect(typeof createdRequest?.tokenHash).toBe('string');
+    expect(createdRequest?.expiresAt).toBeInstanceOf(Date);
+  });
+
+  it('records a generic forgot-password attempt for an unknown email', async () => {
+    const store = new MockAuthStore();
+    const service = new AuthService(store);
+
+    store.countPasswordResetRequestsSince.mockResolvedValue(0);
+    store.findUserByEmail.mockResolvedValue(null);
+    store.createPasswordResetRequest.mockResolvedValue({
+      id: 'reset-request-2',
+      email: 'missing@example.com',
+      userId: null,
+      tokenHash: null,
+      expiresAt: null,
+      usedAt: null,
+      revokedAt: null,
+      createdAt: new Date('2026-03-27T13:00:00.000Z'),
+    });
+
+    const result = await service.forgotPassword({
+      email: 'missing@example.com',
+    });
+
+    expect(result.message).toContain('If an account exists');
+    expect(store.createPasswordResetRequest).toHaveBeenCalledWith({
+      email: 'missing@example.com',
+      userId: null,
+      tokenHash: null,
+      expiresAt: null,
+    });
+  });
+
+  it('rate limits forgot-password requests after three attempts in one hour', async () => {
+    const store = new MockAuthStore();
+    const service = new AuthService(store);
+
+    store.countPasswordResetRequestsSince.mockResolvedValue(3);
+
+    const result = await service.forgotPassword({
+      email: 'reset@example.com',
+    });
+
+    expect(result.message).toContain('If an account exists');
+    expect(store.findUserByEmail).not.toHaveBeenCalled();
+    expect(store.createPasswordResetRequest).not.toHaveBeenCalled();
+  });
+
+  it('resets a password with a valid token and invalidates existing sessions', async () => {
+    const store = new MockAuthStore();
+    const service = new AuthService(store);
+
+    store.consumePasswordResetToken.mockResolvedValue({
+      state: 'SUCCESS',
+      user: buildUser({
+        id: 'user-6',
+        email: 'reset2@example.com',
+        sessionVersion: 4,
+      }),
+    });
+
+    const result = await service.resetPassword({
+      token: 'raw-reset-token',
+      newPassword: 'new-password',
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(store.consumePasswordResetToken).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.not.stringContaining('new-password'),
+      expect.any(Date),
+    );
+  });
+
+  it('rejects invalid or expired password reset tokens', async () => {
+    const store = new MockAuthStore();
+    const service = new AuthService(store);
+
+    store.consumePasswordResetToken.mockResolvedValue({
+      state: 'EXPIRED',
+    });
+
+    await expect(
+      service.resetPassword({
+        token: 'expired-token',
+        newPassword: 'new-password',
+      }),
+    ).rejects.toThrow('Invalid or expired password reset token.');
   });
 });
