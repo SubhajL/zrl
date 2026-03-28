@@ -5,7 +5,7 @@
 - Repo type: single-project repo with an initial scaffold in place.
 - Primary stack target: NestJS + TypeScript backend, Next.js frontend, PostgreSQL, AWS S3, Kafka, Redis.
 - Core domain: Thai fresh-fruit export compliance, evidence integrity, cold-chain monitoring, and dispute-defense workflows.
-- This root file contains repo-wide guidance. Nearer `AGENTS.md` files currently exist for `frontend/AGENTS.md`, `prisma/AGENTS.md`, `src/AGENTS.md`, `test/AGENTS.md`, `rules/AGENTS.md`; prefer them when working in those areas.
+- This root file contains repo-wide guidance. Nearer `AGENTS.md` files currently exist for `frontend/AGENTS.md`, `prisma/AGENTS.md`, `src/AGENTS.md`, `test/AGENTS.md`, `rules/AGENTS.md`, `templates/AGENTS.md`; prefer them when working in those areas.
 <!-- END AUTO-GENERATED:ROOT_PROJECT_SNAPSHOT -->
 
 ## Working Model
@@ -19,6 +19,7 @@
 - The repo now has a real scaffold: NestJS app wiring under `src/`, a Next.js app under `frontend/`, a Prisma schema under `prisma/`, Jest test wiring under `test/`.
 - The scaffold is still early-stage. Prefer extending what exists over introducing new top-level architecture prematurely.
 - `rules/` is now on disk. Keep rule definitions explicit and data-driven, and keep a local guide there aligned with the actual market-file structure.
+- `templates/` is now on disk. Keep proof-pack template guidance close to the actual template groups and generation flow.
 - Task Master is installed in project scope and intentionally limited to `core` tools to reduce token usage.
 - Global Claude hooks enforce protected-file checks, LEVER warnings, dangerous-command blocking, formatting, task-context injection, and Coding Log reminders.
 - Root guidance should stay stable; implementation details belong in the nearer local `AGENTS.md` files and existing module-level `CLAUDE.md` files.
@@ -92,6 +93,7 @@ test -f frontend/package.json && (cd frontend && npm run lint)
 - `prisma/AGENTS.md`
 - `rules/AGENTS.md`
 - `src/AGENTS.md`
+- `templates/AGENTS.md`
 - `test/AGENTS.md`
 
 ### Planned High-Value Directories
@@ -99,7 +101,7 @@ test -f frontend/package.json && (cd frontend && npm run lint)
 - Frontend application: `frontend/`
 - Database schema and migrations: `prisma/`
 - Market rule definitions: `rules/`
-- Templates for proof packs: `templates/` (planned, not yet present)
+- Templates for proof packs: `templates/`
 - Test infrastructure: `test/`
 
 ### Quick Find Commands

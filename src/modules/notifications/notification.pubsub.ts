@@ -1,10 +1,14 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { createClient } from 'redis';
-import { NOTIFICATION_CREATED_CHANNEL } from './notification.constants';
+import {
+  NOTIFICATION_CREATED_CHANNEL,
+  TEMPERATURE_EXCURSION_CHANNEL,
+} from './notification.constants';
 import { NotificationGateway } from './notification.gateway';
 import type {
   NotificationFanoutPublisher,
   NotificationRecord,
+  TemperatureExcursionRealtimeEvent,
 } from './notification.types';
 
 interface NotificationRedisClient {
@@ -36,6 +40,22 @@ interface NotificationCreatedEventPayload {
   readonly notification: SerializedNotificationRecord;
 }
 
+interface SerializedTemperatureExcursionAlertSummary {
+  readonly severity: TemperatureExcursionRealtimeEvent['highestSeverity'];
+  readonly startedAt: string;
+  readonly endedAt: string | null;
+  readonly type: 'CHILLING' | 'HEAT';
+  readonly direction: 'LOW' | 'HIGH';
+  readonly durationMinutes: number;
+}
+
+interface TemperatureExcursionEventPayload {
+  readonly userId: string;
+  readonly event: Omit<TemperatureExcursionRealtimeEvent, 'excursions'> & {
+    readonly excursions: readonly SerializedTemperatureExcursionAlertSummary[];
+  };
+}
+
 function serializeNotificationRecord(
   notification: NotificationRecord,
 ): NotificationCreatedEventPayload {
@@ -58,6 +78,43 @@ function parseNotificationRecord(
       value.notification.readAt === null
         ? null
         : new Date(value.notification.readAt),
+  };
+}
+
+function serializeTemperatureExcursionEvent(
+  userId: string,
+  event: TemperatureExcursionRealtimeEvent,
+): TemperatureExcursionEventPayload {
+  return {
+    userId,
+    event: {
+      ...event,
+      excursions: event.excursions.map((excursion) => ({
+        ...excursion,
+        startedAt: excursion.startedAt.toISOString(),
+        endedAt: excursion.endedAt?.toISOString() ?? null,
+      })),
+    },
+  };
+}
+
+function parseTemperatureExcursionEvent(
+  value: TemperatureExcursionEventPayload,
+): {
+  userId: string;
+  event: TemperatureExcursionRealtimeEvent;
+} {
+  return {
+    userId: value.userId,
+    event: {
+      ...value.event,
+      excursions: value.event.excursions.map((excursion) => ({
+        ...excursion,
+        startedAt: new Date(excursion.startedAt),
+        endedAt:
+          excursion.endedAt === null ? null : new Date(excursion.endedAt),
+      })),
+    },
   };
 }
 
@@ -94,7 +151,13 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
       await subscriber.subscribe(
         NOTIFICATION_CREATED_CHANNEL,
         (payload: string) => {
-          this.handleMessage(payload);
+          this.handleNotificationMessage(payload);
+        },
+      );
+      await subscriber.subscribe(
+        TEMPERATURE_EXCURSION_CHANNEL,
+        (payload: string) => {
+          this.handleTemperatureExcursionMessage(payload);
         },
       );
       this.publisher = publisher;
@@ -139,7 +202,31 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
     }
   }
 
-  private handleMessage(payload: string): void {
+  async publishTemperatureExcursion(
+    userId: string,
+    event: TemperatureExcursionRealtimeEvent,
+  ): Promise<boolean> {
+    if (this.publisher === null) {
+      this.gateway.emitTemperatureExcursion(userId, event);
+      return false;
+    }
+
+    try {
+      await this.publisher.publish(
+        TEMPERATURE_EXCURSION_CHANNEL,
+        JSON.stringify(serializeTemperatureExcursionEvent(userId, event)),
+      );
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `Temperature excursion publish failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      this.gateway.emitTemperatureExcursion(userId, event);
+      return false;
+    }
+  }
+
+  private handleNotificationMessage(payload: string): void {
     try {
       const event = JSON.parse(payload) as NotificationCreatedEventPayload;
       const notification = parseNotificationRecord(event);
@@ -147,6 +234,19 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
     } catch (error) {
       this.logger.warn(
         `Ignoring invalid notification pubsub payload: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private handleTemperatureExcursionMessage(payload: string): void {
+    try {
+      const parsed = parseTemperatureExcursionEvent(
+        JSON.parse(payload) as TemperatureExcursionEventPayload,
+      );
+      this.gateway.emitTemperatureExcursion(parsed.userId, parsed.event);
+    } catch (error) {
+      this.logger.warn(
+        `Ignoring invalid temperature excursion pubsub payload: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

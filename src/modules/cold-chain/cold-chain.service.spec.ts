@@ -24,7 +24,10 @@ describe('ColdChainService', () => {
   let listTemperatureReadingsMock: jest.Mock;
   let replaceExcursionsMock: jest.Mock;
   let listLaneExcursionsMock: jest.Mock;
-  let notificationService: { notifyLaneOwner: jest.Mock };
+  let notificationService: {
+    notifyLaneOwner: jest.Mock;
+    notifyLaneOwnerAboutTemperatureExcursions: jest.Mock;
+  };
   let service: ColdChainService;
 
   beforeEach(() => {
@@ -76,6 +79,9 @@ describe('ColdChainService', () => {
     listLaneExcursionsMock = jest.fn().mockResolvedValue([]);
     notificationService = {
       notifyLaneOwner: jest.fn().mockResolvedValue([]),
+      notifyLaneOwnerAboutTemperatureExcursions: jest
+        .fn()
+        .mockResolvedValue([]),
     };
 
     const store = {
@@ -292,18 +298,45 @@ describe('ColdChainService', () => {
       }),
     ]);
     expect(replaceExcursionsMock).toHaveBeenCalled();
-    expect(notificationService.notifyLaneOwner).toHaveBeenCalledWith(
-      'lane-db-1',
-      {
-        type: 'EXCURSION_ALERT',
-        title: 'Temperature excursion detected',
-        message: '1 new temperature excursion was detected for this lane.',
-        data: {
-          excursionCount: 1,
-          highestSeverity: 'MINOR',
+    expect(
+      notificationService.notifyLaneOwnerAboutTemperatureExcursions,
+    ).toHaveBeenCalledWith('lane-db-1', {
+      excursionCount: 1,
+      highestSeverity: 'MINOR',
+      slaBreached: false,
+      excursions: [
+        expect.objectContaining({
+          direction: 'LOW',
+          durationMinutes: 10,
+          endedAt: new Date('2026-03-24T00:10:00.000Z'),
+          severity: 'MINOR',
+          startedAt: new Date('2026-03-24T00:00:00.000Z'),
+          type: 'CHILLING',
+        }),
+      ],
+    });
+  });
+
+  it('ingestLaneReadings uses the resolved internal lane id after public lookup', async () => {
+    await service.ingestLaneReadings('LN-2026-001', {
+      readings: [
+        {
+          timestamp: new Date('2026-03-24T00:00:00.000Z'),
+          temperatureC: 11,
+          deviceId: 'logger-1',
         },
-      },
-    );
+      ],
+    });
+
+    expect(findLaneTemperatureContextMock).toHaveBeenCalledWith('LN-2026-001');
+    expect(listLaneExcursionsMock).toHaveBeenCalledWith('lane-db-1');
+    expect(createTemperatureReadingsMock).toHaveBeenCalledWith('lane-db-1', [
+      expect.objectContaining({
+        temperatureC: 11,
+      }),
+    ]);
+    expect(listTemperatureReadingsMock).toHaveBeenCalledWith('lane-db-1');
+    expect(replaceExcursionsMock).toHaveBeenCalledWith('lane-db-1', []);
   });
 
   it('detectExcursions classifies minor, moderate, severe, and critical boundaries', async () => {
@@ -375,6 +408,75 @@ describe('ColdChainService', () => {
     );
   });
 
+  it('suppresses duplicate alerts for unchanged ongoing excursions', async () => {
+    listLaneExcursionsMock.mockResolvedValue([
+      {
+        id: 'exc-existing',
+        laneId: 'lane-db-1',
+        startedAt: new Date('2026-03-24T00:00:00.000Z'),
+        endedAt: null,
+        ongoing: true,
+        durationMinutes: 10,
+        severity: 'CRITICAL',
+        direction: 'LOW',
+        type: 'CHILLING',
+        thresholdC: 10,
+        minObservedC: 9,
+        maxObservedC: 9,
+        maxDeviationC: 1,
+        shelfLifeImpactPercent: 100,
+      },
+    ]);
+    listTemperatureReadingsMock.mockResolvedValue([
+      {
+        id: 'reading-1',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:00:00.000Z'),
+        temperatureC: 9,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-2',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:05:00.000Z'),
+        temperatureC: 9,
+        deviceId: 'logger-1',
+      },
+    ]);
+    replaceExcursionsMock.mockResolvedValue([
+      {
+        id: 'exc-existing',
+        laneId: 'lane-db-1',
+        startedAt: new Date('2026-03-24T00:00:00.000Z'),
+        endedAt: null,
+        ongoing: true,
+        durationMinutes: 10,
+        severity: 'CRITICAL',
+        direction: 'LOW',
+        type: 'CHILLING',
+        thresholdC: 10,
+        minObservedC: 9,
+        maxObservedC: 9,
+        maxDeviationC: 1,
+        shelfLifeImpactPercent: 100,
+      },
+    ]);
+
+    await service.ingestLaneReadings('lane-db-1', {
+      readings: [
+        {
+          timestamp: new Date('2026-03-24T00:05:00.000Z'),
+          temperatureC: 9,
+          deviceId: 'logger-1',
+        },
+      ],
+    });
+
+    expect(
+      notificationService.notifyLaneOwnerAboutTemperatureExcursions,
+    ).not.toHaveBeenCalled();
+  });
+
   it('listLaneTemperatureData downsamples readings by requested resolution', async () => {
     listTemperatureReadingsMock.mockResolvedValue([
       {
@@ -418,6 +520,25 @@ describe('ColdChainService', () => {
         ],
       }),
     );
+  });
+
+  it('listLaneTemperatureData uses the resolved internal lane id after public lookup', async () => {
+    listTemperatureReadingsMock.mockResolvedValue([]);
+    listLaneExcursionsMock.mockResolvedValue([]);
+
+    await service.listLaneTemperatureData('LN-2026-001', {
+      resolution: 'raw',
+    });
+
+    expect(findLaneTemperatureContextMock).toHaveBeenCalledWith('LN-2026-001');
+    expect(listTemperatureReadingsMock).toHaveBeenCalledWith('lane-db-1', {
+      from: undefined,
+      to: undefined,
+    });
+    expect(listLaneExcursionsMock).toHaveBeenCalledWith('lane-db-1', {
+      from: undefined,
+      to: undefined,
+    });
   });
 
   it('calculateShelfLifeImpact caps cumulative reduction at one hundred percent', async () => {

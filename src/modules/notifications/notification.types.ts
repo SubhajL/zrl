@@ -97,6 +97,35 @@ export interface NotificationCreatedEvent {
   readonly notification: NotificationRecord;
 }
 
+export type TemperatureExcursionAlertSeverity =
+  | 'MINOR'
+  | 'MODERATE'
+  | 'SEVERE'
+  | 'CRITICAL';
+
+export interface TemperatureExcursionAlertSummary {
+  readonly severity: TemperatureExcursionAlertSeverity;
+  readonly startedAt: Date;
+  readonly endedAt: Date | null;
+  readonly type: 'CHILLING' | 'HEAT';
+  readonly direction: 'LOW' | 'HIGH';
+  readonly durationMinutes: number;
+}
+
+export interface TemperatureExcursionAlertInput {
+  readonly excursionCount: number;
+  readonly highestSeverity: TemperatureExcursionAlertSeverity;
+  readonly slaBreached: boolean;
+  readonly excursions: readonly TemperatureExcursionAlertSummary[];
+}
+
+export interface TemperatureExcursionRealtimeEvent extends TemperatureExcursionAlertInput {
+  readonly laneId: string;
+  readonly notificationId: string | null;
+  readonly title: string;
+  readonly message: string;
+}
+
 export interface NotificationServiceStore {
   listNotifications(
     userId: string,
@@ -142,11 +171,19 @@ export interface NotificationChannelDispatcher {
 
 export interface NotificationRealtimeGateway {
   emitNotification(userId: string, notification: NotificationRecord): void;
+  emitTemperatureExcursion(
+    userId: string,
+    event: TemperatureExcursionRealtimeEvent,
+  ): void;
 }
 
 export interface NotificationFanoutPublisher {
   publishNotificationCreated(
     notification: NotificationRecord,
+  ): Promise<boolean>;
+  publishTemperatureExcursion(
+    userId: string,
+    event: TemperatureExcursionRealtimeEvent,
   ): Promise<boolean>;
 }
 

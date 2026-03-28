@@ -205,25 +205,25 @@ enum NotificationType {
 // ─── Models ─────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole
-  companyName  String?  @map("company_name")
-  mfaEnabled   Boolean  @default(false) @map("mfa_enabled")
-  totpSecret   String?  @map("totp_secret")
-  sessionVersion Int    @default(0) @map("session_version")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           UserRole
+  companyName    String?  @map("company_name")
+  mfaEnabled     Boolean  @default(false) @map("mfa_enabled")
+  totpSecret     String?  @map("totp_secret")
+  sessionVersion Int      @default(0) @map("session_version")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  apiKeys           ApiKey[]
-  passwordResetRequests PasswordResetRequest[]
-  lanes             Lane[]
-  uploadedArtifacts EvidenceArtifact[]
-  generatedPacks    ProofPack[]
-  notifications     Notification[]
-  notificationPreferences NotificationPreference[]
+  apiKeys                   ApiKey[]
+  passwordResetRequests     PasswordResetRequest[]
+  lanes                     Lane[]
+  uploadedArtifacts         EvidenceArtifact[]
+  generatedPacks            ProofPack[]
+  notifications             Notification[]
+  notificationPreferences   NotificationPreference[]
   notificationChannelTarget NotificationChannelTarget?
 
   @@map("users")
@@ -273,7 +273,7 @@ model Notification {
   readAt    DateTime?        @map("read_at")
   createdAt DateTime         @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   lane Lane? @relation(fields: [laneId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
@@ -312,19 +312,19 @@ model NotificationChannelTarget {
 }
 
 model CertificationAlertDelivery {
-  id             String   @id @default(uuid())
-  laneId         String   @map("lane_id")
-  artifactId     String   @map("artifact_id")
+  id             String       @id @default(uuid())
+  laneId         String       @map("lane_id")
+  artifactId     String       @map("artifact_id")
   artifactType   ArtifactType @map("artifact_type")
-  alertCode      String   @map("alert_code")
-  warningDays    Int?     @map("warning_days")
-  expiresAt      DateTime? @map("expires_at")
-  notificationId String?  @unique @map("notification_id")
-  deliveryStatus String   @map("delivery_status")
-  claimedAt      DateTime @map("claimed_at")
-  deliveredAt    DateTime? @map("delivered_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  alertCode      String       @map("alert_code")
+  warningDays    Int?         @map("warning_days")
+  expiresAt      DateTime?    @map("expires_at")
+  notificationId String?      @unique @map("notification_id")
+  deliveryStatus String       @map("delivery_status")
+  claimedAt      DateTime     @map("claimed_at")
+  deliveredAt    DateTime?    @map("delivered_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   @@unique([laneId, artifactId, alertCode])
   @@index([deliveryStatus, claimedAt])
@@ -332,46 +332,47 @@ model CertificationAlertDelivery {
 }
 
 model Lane {
-  id                String            @id @default(uuid())
-  laneId            String            @unique @map("lane_id")
-  exporterId        String            @map("exporter_id")
-  status            LaneStatus        @default(CREATED)
-  productType       ProductType       @map("product_type")
-  destinationMarket DestinationMarket @map("destination_market")
-  completenessScore Decimal           @default(0) @map("completeness_score") @db.Decimal(5, 2)
-  coldChainMode     ColdChainMode?    @map("cold_chain_mode")
-  statusChangedAt   DateTime          @default(now()) @map("status_changed_at")
-  coldChainDeviceId String?           @map("cold_chain_device_id")
-  coldChainDataFrequencySeconds Int?  @map("cold_chain_data_frequency_seconds")
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
+  id                            String            @id @default(uuid())
+  laneId                        String            @unique @map("lane_id")
+  exporterId                    String            @map("exporter_id")
+  status                        LaneStatus        @default(CREATED)
+  productType                   ProductType       @map("product_type")
+  destinationMarket             DestinationMarket @map("destination_market")
+  completenessScore             Decimal           @default(0) @map("completeness_score") @db.Decimal(5, 2)
+  coldChainMode                 ColdChainMode?    @map("cold_chain_mode")
+  statusChangedAt               DateTime          @default(now()) @map("status_changed_at")
+  coldChainDeviceId             String?           @map("cold_chain_device_id")
+  coldChainDataFrequencySeconds Int?              @map("cold_chain_data_frequency_seconds")
+  coldChainSlaBreachedAt        DateTime?         @map("cold_chain_sla_breached_at")
+  createdAt                     DateTime          @default(now()) @map("created_at")
+  updatedAt                     DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  exporter     User               @relation(fields: [exporterId], references: [id], onDelete: Restrict)
-  batch        Batch?
-  route        Route?
-  ruleSnapshot RuleSnapshot?
-  checkpoints  Checkpoint[]
-  artifacts    EvidenceArtifact[]
-  proofPacks   ProofPack[]
-  notifications Notification[]
+  exporter            User                 @relation(fields: [exporterId], references: [id], onDelete: Restrict)
+  batch               Batch?
+  route               Route?
+  ruleSnapshot        RuleSnapshot?
+  checkpoints         Checkpoint[]
+  artifacts           EvidenceArtifact[]
+  proofPacks          ProofPack[]
+  notifications       Notification[]
   temperatureReadings TemperatureReading[]
-  excursions   Excursion[]
+  excursions          Excursion[]
 
   @@map("lanes")
 }
 
 model FruitProfile {
-  id                        String      @id @default(uuid())
-  productType               ProductType @unique @map("product_type")
-  optimalMinC               Decimal     @map("optimal_min_c") @db.Decimal(5, 2)
-  optimalMaxC               Decimal     @map("optimal_max_c") @db.Decimal(5, 2)
-  chillingThresholdC        Decimal?    @map("chilling_threshold_c") @db.Decimal(5, 2)
-  heatThresholdC            Decimal     @map("heat_threshold_c") @db.Decimal(5, 2)
-  shelfLifeMinDays          Int         @map("shelf_life_min_days")
-  shelfLifeMaxDays          Int         @map("shelf_life_max_days")
-  createdAt                 DateTime    @default(now()) @map("created_at")
-  updatedAt                 DateTime    @updatedAt @map("updated_at")
+  id                 String      @id @default(uuid())
+  productType        ProductType @unique @map("product_type")
+  optimalMinC        Decimal     @map("optimal_min_c") @db.Decimal(5, 2)
+  optimalMaxC        Decimal     @map("optimal_max_c") @db.Decimal(5, 2)
+  chillingThresholdC Decimal?    @map("chilling_threshold_c") @db.Decimal(5, 2)
+  heatThresholdC     Decimal     @map("heat_threshold_c") @db.Decimal(5, 2)
+  shelfLifeMinDays   Int         @map("shelf_life_min_days")
+  shelfLifeMaxDays   Int         @map("shelf_life_max_days")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
 
   @@map("fruit_profiles")
 }
@@ -516,21 +517,21 @@ model ArtifactLink {
 }
 
 model ProofPack {
-  id          String   @id @default(uuid())
-  laneId      String   @map("lane_id")
-  packType    PackType @map("pack_type")
-  version     Int      @default(1)
-  status      PackStatus @default(GENERATING)
-  contentHash String?  @map("content_hash") @db.Char(64)
-  filePath    String?  @map("file_path")
-  errorMessage String? @map("error_message")
-  generatedAt DateTime @default(now()) @map("generated_at")
-  generatedBy String   @map("generated_by")
-  recipient   String?
+  id           String     @id @default(uuid())
+  laneId       String     @map("lane_id")
+  packType     PackType   @map("pack_type")
+  version      Int        @default(1)
+  status       PackStatus @default(GENERATING)
+  contentHash  String?    @map("content_hash") @db.Char(64)
+  filePath     String?    @map("file_path")
+  errorMessage String?    @map("error_message")
+  generatedAt  DateTime   @default(now()) @map("generated_at")
+  generatedBy  String     @map("generated_by")
+  recipient    String?
 
   // Relations
-  lane      Lane         @relation(fields: [laneId], references: [id], onDelete: Restrict)
-  generator User         @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
+  lane      Lane          @relation(fields: [laneId], references: [id], onDelete: Restrict)
+  generator User          @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
   job       ProofPackJob?
 
   @@map("proof_packs")
@@ -601,16 +602,16 @@ model RuleSnapshot {
 }
 
 model Substance {
-  id               String            @id @default(uuid())
-  market           DestinationMarket
-  name             String
-  cas              String
-  thaiMrl          Decimal           @map("thai_mrl") @db.Decimal(10, 4)
-  destinationMrl   Decimal           @map("destination_mrl") @db.Decimal(10, 4)
-  stringencyRatio  Decimal           @map("stringency_ratio") @db.Decimal(10, 2)
-  riskLevel        RiskLevel         @map("risk_level")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  id              String            @id @default(uuid())
+  market          DestinationMarket
+  name            String
+  cas             String
+  thaiMrl         Decimal           @map("thai_mrl") @db.Decimal(10, 4)
+  destinationMrl  Decimal           @map("destination_mrl") @db.Decimal(10, 4)
+  stringencyRatio Decimal           @map("stringency_ratio") @db.Decimal(10, 2)
+  riskLevel       RiskLevel         @map("risk_level")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
 
   @@unique([market, name])
   @@map("substances")

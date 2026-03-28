@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Pool, type QueryResultRow } from 'pg';
 import { DATABASE_POOL } from '../../common/database/database.constants';
 import type { LaneColdChainMode, LaneProduct } from '../lane/lane.types';
@@ -127,7 +128,8 @@ export class PrismaColdChainStore implements ColdChainStore {
         FROM lanes l
         INNER JOIN fruit_profiles fp
           ON fp.product_type = l.product_type
-        WHERE l.id = $1
+        WHERE l.id = $1 OR l.lane_id = $1
+        LIMIT 1
       `,
       [laneId],
     );
@@ -157,20 +159,22 @@ export class PrismaColdChainStore implements ColdChainStore {
 
     const values: unknown[] = [];
     const placeholders = readings.map((reading, index) => {
-      const base = index * 4;
+      const base = index * 5;
       values.push(
+        randomUUID(),
         laneId,
         reading.timestamp,
         reading.temperatureC,
         reading.deviceId,
       );
 
-      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
     });
 
     await this.requirePool().query(
       `
         INSERT INTO temperature_readings (
+          id,
           lane_id,
           recorded_at,
           temperature_c,
@@ -220,8 +224,9 @@ export class PrismaColdChainStore implements ColdChainStore {
       if (excursions.length > 0) {
         const values: unknown[] = [];
         const placeholders = excursions.map((excursion, index) => {
-          const base = index * 13;
+          const base = index * 14;
           values.push(
+            randomUUID(),
             excursion.laneId,
             excursion.startedAt,
             excursion.endedAt,
@@ -237,12 +242,13 @@ export class PrismaColdChainStore implements ColdChainStore {
             excursion.shelfLifeImpactPercent,
           );
 
-          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13})`;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14})`;
         });
 
         await client.query(
           `
             INSERT INTO excursions (
+              id,
               lane_id,
               started_at,
               ended_at,
@@ -260,6 +266,33 @@ export class PrismaColdChainStore implements ColdChainStore {
             VALUES ${placeholders.join(', ')}
           `,
           values,
+        );
+      }
+
+      const earliestCriticalStartedAt = excursions
+        .filter((excursion) => excursion.severity === 'CRITICAL')
+        .reduce<Date | null>(
+          (earliest, excursion) =>
+            earliest === null || excursion.startedAt < earliest
+              ? excursion.startedAt
+              : earliest,
+          null,
+        );
+
+      if (earliestCriticalStartedAt !== null) {
+        await client.query(
+          `
+            UPDATE lanes
+            SET
+              cold_chain_sla_breached_at = CASE
+                WHEN cold_chain_sla_breached_at IS NULL THEN $2
+                WHEN cold_chain_sla_breached_at > $2 THEN $2
+                ELSE cold_chain_sla_breached_at
+              END,
+              updated_at = NOW()
+            WHERE id = $1
+          `,
+          [laneId, earliestCriticalStartedAt],
         );
       }
 

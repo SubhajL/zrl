@@ -402,7 +402,7 @@ export class PrismaAuthStore implements AuthStore {
       `
         SELECT exporter_id
         FROM lanes
-        WHERE id = $1
+        WHERE id = $1 OR lane_id = $1
         LIMIT 1
       `,
       [laneId],

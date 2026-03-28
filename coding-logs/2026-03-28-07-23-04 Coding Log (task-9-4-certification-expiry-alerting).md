@@ -450,3 +450,28 @@ LOW
 ### Rollout Notes
 - Apply `prisma/migrations/20260328075500_certification_expiry_alerting/migration.sql` before enabling the daily certification expiry worker in shared environments.
 - The daily scan now suppresses duplicates through `certification_alert_deliveries`; backout is additive and can disable the worker without affecting existing notification rows.
+
+## Submission / Merge - 2026-03-28 10:54 +07
+
+### Graphite / PR
+- Branch created with Graphite: `feat/certification-expiry-alerting`
+- Commit submitted: `766aee242be117966e8fc83ec207fa3210df80fa`
+- Pull request: [#33](https://github.com/SubhajL/zrl/pull/33)
+
+### Remote Gates
+- `Database Migrations` passed
+- `Backend Tests` passed
+- `Frontend Tests` passed
+- `Integration Tests` passed
+- `Build` passed
+- `Security Scan` passed
+- `claude-review` passed
+- No auto-Claude review comments were posted on the PR
+
+### Merge Outcome
+- PR `#33` merged to `main` with squash
+- Merge commit: `1cace14c5d9b7c08dc9a709b7aac8d8a053d1743`
+- Local checkout synced back to `main` after merge
+
+### Notes
+- Unrelated pre-existing local edits in `AGENTS.md`, older coding logs, and local guide files were intentionally left untouched and were not included in the PR.

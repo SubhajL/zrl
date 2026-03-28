@@ -9,7 +9,7 @@
 - The primary schema file is [`prisma/schema.prisma`](/Users/subhajlimanond/dev/zrl/prisma/schema.prisma).
 - The datasource provider is `postgresql`.
 - Prisma Client currently generates into `../generated/prisma`.
-- `prisma/migrations/` exists with 6 committed file(s).
+- `prisma/migrations/` exists with 18 committed file(s).
 <!-- END AUTO-GENERATED:PRISMA_CURRENT_STATE -->
 
 ## Core Commands

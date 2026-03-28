@@ -9,8 +9,8 @@
 <!-- BEGIN AUTO-GENERATED:SRC_CURRENT_SHAPE -->
 - Entry point: [`src/main.ts`](/Users/subhajlimanond/dev/zrl/src/main.ts)
 - Root wiring: [`src/app.module.ts`](/Users/subhajlimanond/dev/zrl/src/app.module.ts)
-- Shared capabilities currently live under `src/common/`: `audit`, `auth`, `dto`, `hashing`.
-- Domain modules currently live under `src/modules/`: `cold-chain`, `dispute`, `evidence`, `lane`, `mrv-lite`, `rules-engine`.
+- Shared capabilities currently live under `src/common/`: `audit`, `auth`, `database`, `dto`, `hashing`.
+- Domain modules currently live under `src/modules/`: `cold-chain`, `dispute`, `evidence`, `lane`, `mrv-lite`, `notifications`, `rules-engine`.
 - Existing module-specific guidance already exists for `audit`, `auth`, `cold-chain`, `dispute`, `evidence`, `hashing`, `lane`, `mrv-lite`, `rules-engine`.
 <!-- END AUTO-GENERATED:SRC_CURRENT_SHAPE -->
 

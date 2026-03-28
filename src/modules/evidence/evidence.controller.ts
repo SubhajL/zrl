@@ -244,7 +244,9 @@ export class EvidenceController {
     @Param('id') laneId: string,
     @Query() query: Record<string, string | undefined>,
   ) {
-    return await this.evidenceService.listLaneArtifacts(laneId, {
+    const resolvedLaneId = await this.resolveLaneDbId(laneId);
+
+    return await this.evidenceService.listLaneArtifacts(resolvedLaneId, {
       type:
         query['type'] === undefined
           ? undefined
@@ -274,9 +276,11 @@ export class EvidenceController {
       throw new BadRequestException('File upload is required.');
     }
 
+    const resolvedLaneId = await this.resolveLaneDbId(laneId);
+
     return await this.evidenceService.uploadArtifact(
       {
-        laneId,
+        laneId: resolvedLaneId,
         artifactType: parseArtifactType(body['artifactType']),
         fileName: file.originalname,
         mimeType: file.mimetype,
@@ -294,7 +298,9 @@ export class EvidenceController {
   @Get('lanes/:id/evidence/graph')
   @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async getLaneEvidenceGraph(@Param('id') laneId: string) {
-    return await this.evidenceService.getLaneGraph(laneId);
+    return await this.evidenceService.getLaneGraph(
+      await this.resolveLaneDbId(laneId),
+    );
   }
 
   @Post('lanes/:id/evidence/graph/verify')
@@ -303,7 +309,10 @@ export class EvidenceController {
     @Param('id') laneId: string,
     @Req() request: AuthPrincipalRequest,
   ) {
-    return await this.evidenceService.verifyLaneGraph(laneId, request.user!);
+    return await this.evidenceService.verifyLaneGraph(
+      await this.resolveLaneDbId(laneId),
+      request.user!,
+    );
   }
 
   @Get('evidence/:id')
@@ -400,7 +409,7 @@ export class EvidenceController {
       );
     }
 
-    const artifacts = await this.evidenceService.listLaneArtifacts(laneId, {});
+    const artifacts = await this.evidenceService.listLaneArtifacts(lane.id, {});
 
     let checklistItems: ProofPackTemplateData['checklistItems'] = [];
     let labResults: ProofPackTemplateData['labResults'] = null;
@@ -467,7 +476,7 @@ export class EvidenceController {
 
     let auditEntries: ProofPackTemplateData['auditEntries'] | undefined;
     if (packType === 'REGULATOR' || packType === 'DEFENSE') {
-      const entries = await this.auditService.getEntriesForLane(laneId);
+      const entries = await this.auditService.getEntriesForLane(lane.id);
       auditEntries = entries.map((entry) => ({
         timestamp: entry.timestamp.toISOString(),
         actor: entry.actor,
@@ -515,7 +524,16 @@ export class EvidenceController {
   @Get('lanes/:id/packs')
   @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async listPacks(@Param('id') laneId: string) {
-    return { packs: await this.proofPackService.listPacks(laneId) };
+    return {
+      packs: await this.proofPackService.listPacks(
+        await this.resolveLaneDbId(laneId),
+      ),
+    };
+  }
+
+  private async resolveLaneDbId(laneIdentifier: string): Promise<string> {
+    const { lane } = await this.laneService.findById(laneIdentifier);
+    return lane.id;
   }
 
   @Get('packs/jobs/metrics')

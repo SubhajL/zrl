@@ -429,35 +429,12 @@ export class PrismaLaneStore implements LaneStore {
 
   async findLaneById(id: string): Promise<LaneDetail | null> {
     const executor = this.requireExecutor();
-    const laneResult = await executor.query<LaneRow>(
-      `
-        SELECT
-          id,
-          lane_id,
-          exporter_id,
-          status,
-          product_type,
-          destination_market,
-          completeness_score,
-          cold_chain_mode,
-          status_changed_at,
-          cold_chain_device_id,
-          cold_chain_data_frequency_seconds,
-          status_changed_at,
-          created_at,
-          updated_at
-        FROM lanes
-        WHERE id = $1
-        LIMIT 1
-      `,
-      [id],
-    );
-
-    if (laneResult.rowCount === 0) {
+    const laneRow = await this.resolveLaneRow(id);
+    if (laneRow === null) {
       return null;
     }
 
-    const laneRow = laneResult.rows[0];
+    const laneDbId = laneRow.id;
     const [batchResult, routeResult, checkpointsResult, ruleSnapshotResult] =
       await Promise.all([
         executor.query<BatchRow>(
@@ -476,7 +453,7 @@ export class PrismaLaneStore implements LaneStore {
             WHERE lane_id = $1
             LIMIT 1
           `,
-          [id],
+          [laneDbId],
         ),
         executor.query<RouteRow>(
           `
@@ -492,7 +469,7 @@ export class PrismaLaneStore implements LaneStore {
             WHERE lane_id = $1
             LIMIT 1
           `,
-          [id],
+          [laneDbId],
         ),
         executor.query<CheckpointRow>(
           `
@@ -513,7 +490,7 @@ export class PrismaLaneStore implements LaneStore {
             WHERE lane_id = $1
             ORDER BY sequence ASC
           `,
-          [id],
+          [laneDbId],
         ),
         executor.query<RuleSnapshotRow>(
           `
@@ -530,7 +507,7 @@ export class PrismaLaneStore implements LaneStore {
             WHERE lane_id = $1
             LIMIT 1
           `,
-          [id],
+          [laneDbId],
         ),
       ]);
 
@@ -585,6 +562,11 @@ export class PrismaLaneStore implements LaneStore {
   }
 
   async listEvidenceArtifactsForLane(id: string): Promise<RuleLaneArtifact[]> {
+    const lane = await this.resolveLaneRow(id);
+    if (lane === null) {
+      return [];
+    }
+
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
@@ -597,7 +579,7 @@ export class PrismaLaneStore implements LaneStore {
           AND deleted_at IS NULL
         ORDER BY uploaded_at ASC, id ASC
       `,
-      [id],
+      [lane.id],
     );
 
     return result.rows.map((row) => ({
@@ -617,6 +599,8 @@ export class PrismaLaneStore implements LaneStore {
     if (existing === null) {
       return null;
     }
+
+    const laneDbId = existing.id;
 
     if (
       input.coldChainMode !== undefined ||
@@ -643,7 +627,12 @@ export class PrismaLaneStore implements LaneStore {
             updated_at = NOW()
           WHERE id = $1
         `,
-        [id, coldChainMode, coldChainDeviceId, coldChainDataFrequencySeconds],
+        [
+          laneDbId,
+          coldChainMode,
+          coldChainDeviceId,
+          coldChainDataFrequencySeconds,
+        ],
       );
     }
 
@@ -660,7 +649,7 @@ export class PrismaLaneStore implements LaneStore {
           WHERE lane_id = $1
         `,
         [
-          id,
+          laneDbId,
           input.batch.variety ?? null,
           input.batch.quantityKg ?? null,
           input.batch.originProvince ?? null,
@@ -683,7 +672,7 @@ export class PrismaLaneStore implements LaneStore {
           WHERE lane_id = $1
         `,
         [
-          id,
+          laneDbId,
           input.route.transportMode ?? null,
           input.route.carrier ?? null,
           input.route.originGps === undefined
@@ -703,10 +692,10 @@ export class PrismaLaneStore implements LaneStore {
         SET updated_at = NOW()
         WHERE id = $1
       `,
-      [id],
+      [laneDbId],
     );
 
-    return await this.findLaneById(id);
+    return await this.findLaneById(laneDbId);
   }
 
   async transitionLaneStatus(
@@ -729,13 +718,18 @@ export class PrismaLaneStore implements LaneStore {
           updated_at = $3
         WHERE id = $1
       `,
-      [id, targetStatus, transitionedAt],
+      [existing.id, targetStatus, transitionedAt],
     );
 
-    return await this.findLaneById(id);
+    return await this.findLaneById(existing.id);
   }
 
   async countProofPacksForLane(id: string): Promise<number> {
+    const lane = await this.resolveLaneRow(id);
+    if (lane === null) {
+      return 0;
+    }
+
     const result = await this.requireExecutor().query<{ total: string }>(
       `
         SELECT COUNT(*)::text AS total
@@ -743,7 +737,7 @@ export class PrismaLaneStore implements LaneStore {
         WHERE lane_id = $1
           AND status = 'READY'
       `,
-      [id],
+      [lane.id],
     );
 
     return Number(result.rows[0]?.total ?? 0);
@@ -752,6 +746,11 @@ export class PrismaLaneStore implements LaneStore {
   async findCheckpointsForLane(
     laneId: string,
   ): Promise<LaneDetail['checkpoints']> {
+    const lane = await this.resolveLaneRow(laneId);
+    if (lane === null) {
+      return [];
+    }
+
     const result = await this.requireExecutor().query<CheckpointRow>(
       `
         SELECT
@@ -771,7 +770,7 @@ export class PrismaLaneStore implements LaneStore {
         WHERE lane_id = $1
         ORDER BY sequence ASC
       `,
-      [laneId],
+      [lane.id],
     );
 
     return result.rows.map((row) => this.mapCheckpointRow(row));
@@ -809,6 +808,11 @@ export class PrismaLaneStore implements LaneStore {
     laneId: string,
     input: CreateCheckpointInput,
   ): Promise<LaneDetail['checkpoints'][number]> {
+    const lane = await this.resolveLaneRow(laneId);
+    if (lane === null) {
+      throw new Error('Lane not found.');
+    }
+
     const result = await this.requireExecutor().query<CheckpointRow>(
       `
         INSERT INTO checkpoints (
@@ -833,7 +837,7 @@ export class PrismaLaneStore implements LaneStore {
       `,
       [
         randomUUID(),
-        laneId,
+        lane.id,
         input.sequence,
         input.locationName,
         input.gpsLat ?? null,
@@ -855,6 +859,12 @@ export class PrismaLaneStore implements LaneStore {
     checkpointId: string,
     input: UpdateCheckpointInput,
   ): Promise<LaneDetail['checkpoints'][number] | null> {
+    const lane = await this.resolveLaneRow(laneId);
+    if (lane === null) {
+      return null;
+    }
+
+    const laneDbId = lane.id;
     const fieldMap: Array<{ column: string; value: unknown }> = [];
 
     if (input.status !== undefined) {
@@ -893,7 +903,7 @@ export class PrismaLaneStore implements LaneStore {
           WHERE id = $1 AND lane_id = $2
           LIMIT 1
         `,
-        [checkpointId, laneId],
+        [checkpointId, laneDbId],
       );
 
       if (existing.rowCount === 0) {
@@ -906,7 +916,7 @@ export class PrismaLaneStore implements LaneStore {
     const setClauses = fieldMap.map((f, i) => `${f.column} = $${i + 3}`);
     const values: unknown[] = [
       checkpointId,
-      laneId,
+      laneDbId,
       ...fieldMap.map((f) => f.value),
     ];
 
@@ -936,6 +946,34 @@ export class PrismaLaneStore implements LaneStore {
     }
 
     return this.executor;
+  }
+
+  private async resolveLaneRow(identifier: string): Promise<LaneRow | null> {
+    const laneResult = await this.requireExecutor().query<LaneRow>(
+      `
+        SELECT
+          id,
+          lane_id,
+          exporter_id,
+          status,
+          product_type,
+          destination_market,
+          completeness_score,
+          cold_chain_mode,
+          status_changed_at,
+          cold_chain_device_id,
+          cold_chain_data_frequency_seconds,
+          status_changed_at,
+          created_at,
+          updated_at
+        FROM lanes
+        WHERE id = $1 OR lane_id = $1
+        LIMIT 1
+      `,
+      [identifier],
+    );
+
+    return laneResult.rowCount === 0 ? null : laneResult.rows[0];
   }
 
   private mapLaneSummary(row: LaneRow): LaneSummary {
