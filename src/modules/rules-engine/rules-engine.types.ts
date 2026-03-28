@@ -162,6 +162,57 @@ export interface RuleCertificationAlert {
   message: string;
 }
 
+export type RuleCertificationArtifactType =
+  | 'PHYTO_CERT'
+  | 'VHT_CERT'
+  | 'GAP_CERT';
+
+export interface RuleCertificationArtifact extends RuleLaneArtifact {
+  artifactType: RuleCertificationArtifactType;
+}
+
+export interface RuleCertificationUploadAlertInput {
+  laneId: string;
+  lanePublicId: string;
+  artifact: RuleCertificationArtifact;
+}
+
+export interface RuleCertificationScanArtifact {
+  laneId: string;
+  lanePublicId: string;
+  artifactId: string;
+  artifactType: RuleCertificationArtifactType;
+  fileName: string;
+  metadata: Record<string, unknown> | null;
+  uploadedAt: Date;
+}
+
+export interface RuleCertificationAlertDeliveryClaimInput {
+  laneId: string;
+  artifactId: string;
+  artifactType: RuleCertificationArtifactType;
+  alertCode: string;
+  warningDays: number | null;
+  expiresAt: Date | null;
+  claimedAt: Date;
+}
+
+export interface RuleCertificationAlertDeliveryClaimRecord {
+  id: string;
+}
+
+export interface RuleCertificationAlertDeliveryCompletionInput {
+  notificationId: string | null;
+  deliveryStatus: 'DELIVERED' | 'SKIPPED';
+  deliveredAt: Date;
+}
+
+export interface RuleCertificationScanResult {
+  processed: number;
+  notified: number;
+  skipped: number;
+}
+
 export interface RuleLaneEvaluation {
   score: number;
   required: number;
@@ -220,6 +271,17 @@ export interface RuleStore {
     substanceId: string;
     payloadHash: string;
   }): Promise<void>;
+  listLatestActiveCertificationArtifacts(): Promise<
+    RuleCertificationScanArtifact[]
+  >;
+  claimCertificationAlertDelivery(
+    input: RuleCertificationAlertDeliveryClaimInput,
+  ): Promise<RuleCertificationAlertDeliveryClaimRecord | null>;
+  completeCertificationAlertDelivery(
+    deliveryId: string,
+    input: RuleCertificationAlertDeliveryCompletionInput,
+  ): Promise<void>;
+  releaseCertificationAlertDelivery(deliveryId: string): Promise<void>;
 }
 
 export interface RuleVersionFilter {

@@ -498,4 +498,239 @@ describe('RulesEngineService', () => {
       }),
     );
   });
+
+  it('notifies lane owners when an uploaded certification is already expired', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const notifyLaneOwner = jest.fn().mockResolvedValue([
+      {
+        id: 'notification-1',
+      },
+    ]);
+    const notificationService = {
+      notifyLaneOwner,
+    };
+    const claimCertificationAlertDelivery = jest.fn().mockResolvedValue({
+      id: 'delivery-1',
+    });
+    const completeCertificationAlertDelivery = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    const releaseCertificationAlertDelivery = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    const store = {
+      claimCertificationAlertDelivery,
+      completeCertificationAlertDelivery,
+      releaseCertificationAlertDelivery,
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn(),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+      listLatestActiveCertificationArtifacts: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      store,
+      { hashString: jest.fn() } as unknown as HashingService,
+      notificationService as never,
+    );
+
+    await service.notifyCertificationAlertForArtifact({
+      laneId: 'lane-1',
+      lanePublicId: 'LN-2026-001',
+      artifact: {
+        id: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: {
+          expiresAt: '2026-03-01T00:00:00.000Z',
+        },
+      },
+    });
+
+    expect(claimCertificationAlertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        laneId: 'lane-1',
+        artifactId: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        alertCode: 'EXPIRED',
+      }),
+    );
+    const notifyLaneOwnerCalls = notifyLaneOwner.mock.calls as Array<
+      [
+        string,
+        {
+          type: string;
+          title: string;
+          message: string;
+          data: Record<string, unknown>;
+        },
+      ]
+    >;
+    const notifiedLaneId = notifyLaneOwnerCalls[0]?.[0] ?? null;
+    const notificationInput = notifyLaneOwnerCalls[0]?.[1] ?? null;
+    expect(notifiedLaneId).toBe('lane-1');
+    expect(notificationInput).toMatchObject({
+      type: 'CERTIFICATION_EXPIRY',
+      title: 'Certification expired',
+      data: {
+        artifactId: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        alertCode: 'EXPIRED',
+      },
+    });
+    expect(notificationInput?.message).toContain('Lane LN-2026-001');
+    expect(completeCertificationAlertDelivery).toHaveBeenCalledWith(
+      'delivery-1',
+      expect.objectContaining({
+        notificationId: 'notification-1',
+        deliveryStatus: 'DELIVERED',
+      }),
+    );
+  });
+
+  it('does not notify for uploaded certifications that are still valid', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const notifyLaneOwner = jest.fn().mockResolvedValue([]);
+    const notificationService = {
+      notifyLaneOwner,
+    };
+    const claimCertificationAlertDelivery = jest.fn();
+    const store = {
+      claimCertificationAlertDelivery,
+      completeCertificationAlertDelivery: jest.fn(),
+      releaseCertificationAlertDelivery: jest.fn(),
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn(),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+      listLatestActiveCertificationArtifacts: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      store,
+      { hashString: jest.fn() } as unknown as HashingService,
+      notificationService as never,
+    );
+
+    await service.notifyCertificationAlertForArtifact({
+      laneId: 'lane-1',
+      lanePublicId: 'LN-2026-001',
+      artifact: {
+        id: 'artifact-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: {
+          expiresAt: '2026-04-15T00:00:00.000Z',
+        },
+      },
+    });
+
+    expect(claimCertificationAlertDelivery).not.toHaveBeenCalled();
+    expect(notifyLaneOwner).not.toHaveBeenCalled();
+  });
+
+  it('scanCertificationExpirations emits warning notifications for upcoming expiries', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const notifyLaneOwner = jest.fn().mockResolvedValue([
+      {
+        id: 'notification-14',
+      },
+    ]);
+    const notificationService = {
+      notifyLaneOwner,
+    };
+    const claimCertificationAlertDelivery = jest.fn().mockResolvedValue({
+      id: 'delivery-14',
+    });
+    const store = {
+      claimCertificationAlertDelivery,
+      completeCertificationAlertDelivery: jest
+        .fn()
+        .mockResolvedValue(undefined),
+      releaseCertificationAlertDelivery: jest.fn().mockResolvedValue(undefined),
+      listLatestActiveCertificationArtifacts: jest.fn().mockResolvedValue([
+        {
+          laneId: 'lane-1',
+          lanePublicId: 'LN-2026-001',
+          artifactId: 'artifact-1',
+          artifactType: 'PHYTO_CERT',
+          fileName: 'phyto.pdf',
+          metadata: {
+            expiresAt: '2026-04-07T00:00:00.000Z',
+          },
+          uploadedAt: new Date('2026-03-20T00:00:00.000Z'),
+        },
+      ]),
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn(),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      store,
+      { hashString: jest.fn() } as unknown as HashingService,
+      notificationService as never,
+    );
+
+    const result = await service.scanCertificationExpirations();
+
+    expect(claimCertificationAlertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        laneId: 'lane-1',
+        artifactId: 'artifact-1',
+        alertCode: 'WARNING_14',
+        warningDays: 14,
+      }),
+    );
+    const warningNotifyLaneOwnerCalls = notifyLaneOwner.mock.calls as Array<
+      [
+        string,
+        {
+          type: string;
+          title: string;
+          message: string;
+          data: Record<string, unknown>;
+        },
+      ]
+    >;
+    const warningLaneId = warningNotifyLaneOwnerCalls[0]?.[0] ?? null;
+    const warningNotificationInput =
+      warningNotifyLaneOwnerCalls[0]?.[1] ?? null;
+    expect(warningLaneId).toBe('lane-1');
+    expect(warningNotificationInput).toMatchObject({
+      type: 'CERTIFICATION_EXPIRY',
+      title: 'Certification expires in 14 days',
+      data: {
+        alertCode: 'WARNING_14',
+        warningDays: 14,
+      },
+    });
+    expect(warningNotificationInput?.message).toContain('Lane LN-2026-001');
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        notified: 1,
+      }),
+    );
+  });
 });

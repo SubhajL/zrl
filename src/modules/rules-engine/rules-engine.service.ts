@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AuditAction } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { NotificationService } from '../notifications/notification.service';
@@ -18,6 +18,11 @@ import type {
   RuleChecklistItem,
   RuleMarket,
   RuleCertificationAlert,
+  RuleCertificationArtifact,
+  RuleCertificationAlertDeliveryClaimInput,
+  RuleCertificationScanArtifact,
+  RuleCertificationScanResult,
+  RuleCertificationUploadAlertInput,
   RuleLabValidationResult,
   RuleLabValidationResultItem,
   RuleReloadResult,
@@ -63,6 +68,21 @@ const CERTIFICATION_ARTIFACT_TYPES = [
   'VHT_CERT',
   'GAP_CERT',
 ] as const;
+const CERTIFICATION_WARNING_DAYS = [7, 14, 30] as const;
+const DAY_MS = 24 * 60 * 60_000;
+
+interface CertificationAlertCandidate {
+  laneId: string;
+  lanePublicId: string;
+  artifactId: string;
+  artifactType: 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT';
+  alertCode: 'EXPIRED' | 'WARNING_30' | 'WARNING_14' | 'WARNING_7';
+  warningDays: number | null;
+  expiresAt: Date | null;
+  title: string;
+  message: string;
+  data: Record<string, unknown>;
+}
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
@@ -121,6 +141,8 @@ function parseDateString(value: unknown): string | null {
 
 @Injectable()
 export class RulesEngineService {
+  private readonly logger = new Logger(RulesEngineService.name);
+
   constructor(
     private readonly loader: RuleLoaderPort,
     private readonly store: RuleStore,
@@ -347,6 +369,66 @@ export class RulesEngineService {
     };
   }
 
+  async notifyCertificationAlertForArtifact(
+    input: RuleCertificationUploadAlertInput,
+    now = new Date(),
+  ): Promise<void> {
+    const candidate = this.buildImmediateCertificationAlertCandidate(
+      input.laneId,
+      input.lanePublicId,
+      input.artifact,
+      now,
+    );
+    if (candidate === null) {
+      return;
+    }
+
+    await this.dispatchCertificationAlertCandidate(candidate, now);
+  }
+
+  async scanCertificationExpirations(
+    now = new Date(),
+  ): Promise<RuleCertificationScanResult> {
+    const artifacts = await this.store.listLatestActiveCertificationArtifacts();
+    let notified = 0;
+    let skipped = 0;
+
+    for (const artifact of artifacts) {
+      const candidate = this.buildScheduledCertificationAlertCandidate(
+        artifact,
+        now,
+      );
+      if (candidate === null) {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        const dispatched = await this.dispatchCertificationAlertCandidate(
+          candidate,
+          now,
+        );
+        if (dispatched) {
+          notified += 1;
+        } else {
+          skipped += 1;
+        }
+      } catch (error) {
+        skipped += 1;
+        this.logger.error(
+          `Certification expiry scan failed for artifact ${artifact.artifactId}: ${error instanceof Error ? error.message : String(error)}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+
+    return {
+      processed: artifacts.length,
+      notified,
+      skipped,
+    };
+  }
+
   private async buildSubstancePayloadHash(
     substance: RuleSubstanceRecord,
   ): Promise<string> {
@@ -384,6 +466,209 @@ export class RulesEngineService {
 
   private formatMarketLabel(market: RuleMarket): string {
     return market.charAt(0) + market.slice(1).toLowerCase();
+  }
+
+  private async dispatchCertificationAlertCandidate(
+    candidate: CertificationAlertCandidate,
+    now: Date,
+  ): Promise<boolean> {
+    const claim = await this.store.claimCertificationAlertDelivery({
+      laneId: candidate.laneId,
+      artifactId: candidate.artifactId,
+      artifactType: candidate.artifactType,
+      alertCode: candidate.alertCode,
+      warningDays: candidate.warningDays,
+      expiresAt: candidate.expiresAt,
+      claimedAt: now,
+    } satisfies RuleCertificationAlertDeliveryClaimInput);
+    if (claim === null) {
+      return false;
+    }
+
+    try {
+      const notifications =
+        (await this.notificationService?.notifyLaneOwner(candidate.laneId, {
+          type: 'CERTIFICATION_EXPIRY',
+          title: candidate.title,
+          message: candidate.message,
+          data: candidate.data,
+        })) ?? [];
+      await this.store.completeCertificationAlertDelivery(claim.id, {
+        notificationId: notifications[0]?.id ?? null,
+        deliveryStatus: notifications.length > 0 ? 'DELIVERED' : 'SKIPPED',
+        deliveredAt: now,
+      });
+      return notifications.length > 0;
+    } catch (error) {
+      await this.store.releaseCertificationAlertDelivery(claim.id);
+      throw error;
+    }
+  }
+
+  private buildImmediateCertificationAlertCandidate(
+    laneId: string,
+    lanePublicId: string,
+    artifact: RuleCertificationArtifact,
+    now: Date,
+  ): CertificationAlertCandidate | null {
+    const expiryStatus = this.readCertificationExpiryStatus(artifact, now);
+    if (expiryStatus.status === 'VALID') {
+      return null;
+    }
+
+    return {
+      laneId,
+      lanePublicId,
+      artifactId: artifact.id,
+      artifactType: artifact.artifactType,
+      alertCode: 'EXPIRED',
+      warningDays: null,
+      expiresAt: expiryStatus.expiresAt,
+      title:
+        expiryStatus.reason === 'MISSING_EXPIRY'
+          ? 'Certification expiry metadata missing'
+          : 'Certification expired',
+      message:
+        expiryStatus.reason === 'MISSING_EXPIRY'
+          ? `Lane ${lanePublicId} ${this.formatCertificationLabel(artifact.artifactType)} is missing expiry metadata.`
+          : `Lane ${lanePublicId} ${this.formatCertificationLabel(artifact.artifactType)} has expired.`,
+      data: {
+        laneId,
+        lanePublicId,
+        artifactId: artifact.id,
+        artifactType: artifact.artifactType,
+        alertCode: 'EXPIRED',
+        expiresAt: expiryStatus.expiresAt?.toISOString() ?? null,
+        issue:
+          expiryStatus.reason === 'MISSING_EXPIRY'
+            ? 'MISSING_EXPIRY'
+            : 'EXPIRED',
+      },
+    };
+  }
+
+  private buildScheduledCertificationAlertCandidate(
+    artifact: RuleCertificationScanArtifact,
+    now: Date,
+  ): CertificationAlertCandidate | null {
+    const certificationArtifact: RuleCertificationArtifact = {
+      id: artifact.artifactId,
+      artifactType: artifact.artifactType,
+      fileName: artifact.fileName,
+      metadata: artifact.metadata,
+    };
+    const expiryStatus = this.readCertificationExpiryStatus(
+      certificationArtifact,
+      now,
+    );
+    if (expiryStatus.status === 'EXPIRED') {
+      return this.buildImmediateCertificationAlertCandidate(
+        artifact.laneId,
+        artifact.lanePublicId,
+        certificationArtifact,
+        now,
+      );
+    }
+
+    if (expiryStatus.expiresAt === null) {
+      return null;
+    }
+
+    const warningDays = this.resolveWarningDays(expiryStatus.expiresAt, now);
+    if (warningDays === null) {
+      return null;
+    }
+
+    return {
+      laneId: artifact.laneId,
+      lanePublicId: artifact.lanePublicId,
+      artifactId: artifact.artifactId,
+      artifactType: artifact.artifactType,
+      alertCode: `WARNING_${warningDays}` as
+        | 'WARNING_30'
+        | 'WARNING_14'
+        | 'WARNING_7',
+      warningDays,
+      expiresAt: expiryStatus.expiresAt,
+      title: `Certification expires in ${warningDays} days`,
+      message: `Lane ${artifact.lanePublicId} ${this.formatCertificationLabel(artifact.artifactType)} expires in ${warningDays} days.`,
+      data: {
+        laneId: artifact.laneId,
+        lanePublicId: artifact.lanePublicId,
+        artifactId: artifact.artifactId,
+        artifactType: artifact.artifactType,
+        alertCode: `WARNING_${warningDays}`,
+        warningDays,
+        expiresAt: expiryStatus.expiresAt.toISOString(),
+      },
+    };
+  }
+
+  private readCertificationExpiryStatus(
+    artifact: RuleCertificationArtifact,
+    now: Date,
+  ): {
+    status: 'VALID' | 'EXPIRED';
+    reason: 'VALID' | 'EXPIRED' | 'MISSING_EXPIRY';
+    expiresAt: Date | null;
+  } {
+    const expiresAtValue = this.readExpiryDate(artifact.metadata);
+    if (expiresAtValue === null) {
+      return {
+        status: 'EXPIRED',
+        reason: 'MISSING_EXPIRY',
+        expiresAt: null,
+      };
+    }
+
+    const expiresAt = new Date(expiresAtValue);
+    if (expiresAt.getTime() <= now.getTime()) {
+      return {
+        status: 'EXPIRED',
+        reason: 'EXPIRED',
+        expiresAt,
+      };
+    }
+
+    return {
+      status: 'VALID',
+      reason: 'VALID',
+      expiresAt,
+    };
+  }
+
+  private resolveWarningDays(expiresAt: Date, now: Date): number | null {
+    const daysUntilExpiry = Math.ceil(
+      (expiresAt.getTime() - now.getTime()) / DAY_MS,
+    );
+    if (daysUntilExpiry <= 0) {
+      return null;
+    }
+
+    if (daysUntilExpiry <= CERTIFICATION_WARNING_DAYS[0]) {
+      return CERTIFICATION_WARNING_DAYS[0];
+    }
+    if (daysUntilExpiry <= CERTIFICATION_WARNING_DAYS[1]) {
+      return CERTIFICATION_WARNING_DAYS[1];
+    }
+    if (daysUntilExpiry <= CERTIFICATION_WARNING_DAYS[2]) {
+      return CERTIFICATION_WARNING_DAYS[2];
+    }
+
+    return null;
+  }
+
+  private formatCertificationLabel(
+    artifactType: RuleCertificationArtifact['artifactType'],
+  ): string {
+    switch (artifactType) {
+      case 'PHYTO_CERT':
+        return 'phytosanitary certificate';
+      case 'VHT_CERT':
+        return 'VHT certificate';
+      case 'GAP_CERT':
+        return 'GAP certificate';
+    }
   }
 
   private buildChecklist(

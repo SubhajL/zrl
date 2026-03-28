@@ -194,6 +194,7 @@ enum RiskLevel {
 enum NotificationType {
   RULE_CHANGE
   EXCURSION_ALERT
+  CERTIFICATION_EXPIRY
   MISSING_DOCUMENT
   PACK_GENERATED
   CLAIM_FILED
@@ -308,6 +309,26 @@ model NotificationChannelTarget {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_channel_targets")
+}
+
+model CertificationAlertDelivery {
+  id             String   @id @default(uuid())
+  laneId         String   @map("lane_id")
+  artifactId     String   @map("artifact_id")
+  artifactType   ArtifactType @map("artifact_type")
+  alertCode      String   @map("alert_code")
+  warningDays    Int?     @map("warning_days")
+  expiresAt      DateTime? @map("expires_at")
+  notificationId String?  @unique @map("notification_id")
+  deliveryStatus String   @map("delivery_status")
+  claimedAt      DateTime @map("claimed_at")
+  deliveredAt    DateTime? @map("delivered_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([laneId, artifactId, alertCode])
+  @@index([deliveryStatus, claimedAt])
+  @@map("certification_alert_deliveries")
 }
 
 model Lane {

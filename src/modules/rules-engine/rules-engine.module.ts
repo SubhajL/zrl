@@ -10,6 +10,7 @@ import {
   DEFAULT_RULES_DIRECTORY,
   RULES_DIRECTORY,
 } from './rules-engine.constants';
+import { CertificationExpiryWorkerService } from './certification-expiry.worker';
 import { RuleLoaderService } from './rule-loader.service';
 import { RulesEngineController } from './rules-engine.controller';
 import { PrismaRulesEngineStore } from './rules-engine.pg-store';
@@ -31,6 +32,7 @@ import { RulesEngineService } from './rules-engine.service';
     },
     RuleLoaderService,
     PrismaRulesEngineStore,
+    CertificationExpiryWorkerService,
     {
       provide: RulesEngineService,
       useFactory: (
