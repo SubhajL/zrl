@@ -1,14 +1,20 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { createClient } from 'redis';
 import {
+  LANE_REALTIME_CHANNEL,
   NOTIFICATION_CREATED_CHANNEL,
   TEMPERATURE_EXCURSION_CHANNEL,
+  USER_REALTIME_CHANNEL,
 } from './notification.constants';
 import { NotificationGateway } from './notification.gateway';
 import type {
+  LaneRealtimeEventName,
+  LaneRealtimeEventPayloadMap,
   NotificationFanoutPublisher,
   NotificationRecord,
   TemperatureExcursionRealtimeEvent,
+  UserRealtimeEventName,
+  UserRealtimeEventPayloadMap,
 } from './notification.types';
 
 interface NotificationRedisClient {
@@ -50,10 +56,23 @@ interface SerializedTemperatureExcursionAlertSummary {
 }
 
 interface TemperatureExcursionEventPayload {
-  readonly userId: string;
-  readonly event: Omit<TemperatureExcursionRealtimeEvent, 'excursions'> & {
+  readonly eventName: 'temperature.excursion';
+  readonly laneId: string;
+  readonly payload: Omit<TemperatureExcursionRealtimeEvent, 'excursions'> & {
     readonly excursions: readonly SerializedTemperatureExcursionAlertSummary[];
   };
+}
+
+interface GenericLaneRealtimeEventPayload {
+  readonly eventName: Exclude<LaneRealtimeEventName, 'temperature.excursion'>;
+  readonly laneId: string;
+  readonly payload: Record<string, unknown>;
+}
+
+interface UserRealtimeEventPayload {
+  readonly eventName: UserRealtimeEventName;
+  readonly userId: string;
+  readonly payload: UserRealtimeEventPayloadMap[UserRealtimeEventName];
 }
 
 function serializeNotificationRecord(
@@ -82,12 +101,12 @@ function parseNotificationRecord(
 }
 
 function serializeTemperatureExcursionEvent(
-  userId: string,
   event: TemperatureExcursionRealtimeEvent,
 ): TemperatureExcursionEventPayload {
   return {
-    userId,
-    event: {
+    eventName: 'temperature.excursion',
+    laneId: event.laneId,
+    payload: {
       ...event,
       excursions: event.excursions.map((excursion) => ({
         ...excursion,
@@ -101,20 +120,62 @@ function serializeTemperatureExcursionEvent(
 function parseTemperatureExcursionEvent(
   value: TemperatureExcursionEventPayload,
 ): {
-  userId: string;
+  laneId: string;
   event: TemperatureExcursionRealtimeEvent;
 } {
   return {
-    userId: value.userId,
+    laneId: value.laneId,
     event: {
-      ...value.event,
-      excursions: value.event.excursions.map((excursion) => ({
+      ...value.payload,
+      excursions: value.payload.excursions.map((excursion) => ({
         ...excursion,
         startedAt: new Date(excursion.startedAt),
         endedAt:
           excursion.endedAt === null ? null : new Date(excursion.endedAt),
       })),
     },
+  };
+}
+
+function serializeLaneEvent<TEventName extends LaneRealtimeEventName>(
+  eventName: TEventName,
+  laneId: string,
+  payload: LaneRealtimeEventPayloadMap[TEventName],
+): TemperatureExcursionEventPayload | GenericLaneRealtimeEventPayload {
+  if (eventName === 'temperature.excursion') {
+    return serializeTemperatureExcursionEvent(
+      payload as LaneRealtimeEventPayloadMap['temperature.excursion'],
+    );
+  }
+
+  return {
+    eventName,
+    laneId,
+    payload: payload as unknown as Record<string, unknown>,
+  };
+}
+
+function parseLaneEvent(
+  value: TemperatureExcursionEventPayload | GenericLaneRealtimeEventPayload,
+): {
+  eventName: LaneRealtimeEventName;
+  laneId: string;
+  payload: LaneRealtimeEventPayloadMap[LaneRealtimeEventName];
+} {
+  if (value.eventName === 'temperature.excursion') {
+    const parsed = parseTemperatureExcursionEvent(value);
+    return {
+      eventName: 'temperature.excursion',
+      laneId: parsed.laneId,
+      payload: parsed.event,
+    };
+  }
+
+  return {
+    eventName: value.eventName,
+    laneId: value.laneId,
+    payload:
+      value.payload as unknown as LaneRealtimeEventPayloadMap[LaneRealtimeEventName],
   };
 }
 
@@ -160,6 +221,12 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
           this.handleTemperatureExcursionMessage(payload);
         },
       );
+      await subscriber.subscribe(LANE_REALTIME_CHANNEL, (payload: string) => {
+        this.handleLaneRealtimeMessage(payload);
+      });
+      await subscriber.subscribe(USER_REALTIME_CHANNEL, (payload: string) => {
+        this.handleUserRealtimeMessage(payload);
+      });
       this.publisher = publisher;
       this.subscriber = subscriber;
     } catch (error) {
@@ -206,22 +273,66 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
     userId: string,
     event: TemperatureExcursionRealtimeEvent,
   ): Promise<boolean> {
+    void userId;
+    return await this.publishLaneEvent(
+      'temperature.excursion',
+      event.laneId,
+      event,
+    );
+  }
+
+  async publishLaneEvent<TEventName extends LaneRealtimeEventName>(
+    eventName: TEventName,
+    laneId: string,
+    payload: LaneRealtimeEventPayloadMap[TEventName],
+  ): Promise<boolean> {
     if (this.publisher === null) {
-      this.gateway.emitTemperatureExcursion(userId, event);
+      this.gateway.emitLaneEvent(eventName, laneId, payload);
       return false;
     }
 
     try {
       await this.publisher.publish(
-        TEMPERATURE_EXCURSION_CHANNEL,
-        JSON.stringify(serializeTemperatureExcursionEvent(userId, event)),
+        eventName === 'temperature.excursion'
+          ? TEMPERATURE_EXCURSION_CHANNEL
+          : LANE_REALTIME_CHANNEL,
+        JSON.stringify(serializeLaneEvent(eventName, laneId, payload)),
       );
       return true;
     } catch (error) {
       this.logger.warn(
-        `Temperature excursion publish failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Lane realtime publish failed: ${error instanceof Error ? error.message : String(error)}`,
       );
-      this.gateway.emitTemperatureExcursion(userId, event);
+      this.gateway.emitLaneEvent(eventName, laneId, payload);
+      return false;
+    }
+  }
+
+  async publishUserEvent<TEventName extends UserRealtimeEventName>(
+    eventName: TEventName,
+    userId: string,
+    payload: UserRealtimeEventPayloadMap[TEventName],
+  ): Promise<boolean> {
+    if (this.publisher === null) {
+      this.gateway.emitUserEvent(eventName, userId, payload);
+      return false;
+    }
+
+    try {
+      await this.publisher.publish(
+        USER_REALTIME_CHANNEL,
+        JSON.stringify({
+          eventName,
+          userId,
+          payload,
+        } satisfies UserRealtimeEventPayload),
+      );
+      return true;
+    } catch (error) {
+      this.logger.warn(
+        `User realtime publish failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      this.gateway.emitUserEvent(eventName, userId, payload);
       return false;
     }
   }
@@ -243,10 +354,46 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
       const parsed = parseTemperatureExcursionEvent(
         JSON.parse(payload) as TemperatureExcursionEventPayload,
       );
-      this.gateway.emitTemperatureExcursion(parsed.userId, parsed.event);
+      this.gateway.emitLaneEvent(
+        'temperature.excursion',
+        parsed.laneId,
+        parsed.event,
+      );
     } catch (error) {
       this.logger.warn(
         `Ignoring invalid temperature excursion pubsub payload: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private handleLaneRealtimeMessage(payload: string): void {
+    try {
+      const parsed = parseLaneEvent(
+        JSON.parse(payload) as GenericLaneRealtimeEventPayload,
+      );
+      this.gateway.emitLaneEvent(
+        parsed.eventName,
+        parsed.laneId,
+        parsed.payload,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Ignoring invalid lane realtime pubsub payload: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private handleUserRealtimeMessage(payload: string): void {
+    try {
+      const parsed = JSON.parse(payload) as UserRealtimeEventPayload;
+      this.gateway.emitUserEvent(
+        parsed.eventName,
+        parsed.userId,
+        parsed.payload,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Ignoring invalid user realtime pubsub payload: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

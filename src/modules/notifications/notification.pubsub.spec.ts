@@ -100,7 +100,7 @@ describe('NotificationPubSub', () => {
   });
 
   it('publishes and replays serialized temperature excursion events', async () => {
-    const emitTemperatureExcursion = jest.fn();
+    const emitLaneEvent = jest.fn();
     const handlers = new Map<string, (payload: string) => void>();
     const connect = jest.fn().mockResolvedValue(undefined);
     const disconnect = jest.fn().mockResolvedValue(undefined);
@@ -108,7 +108,8 @@ describe('NotificationPubSub', () => {
     const pubSub = new NotificationPubSub(
       {
         emitNotification: jest.fn(),
-        emitTemperatureExcursion,
+        emitLaneEvent,
+        emitUserEvent: jest.fn(),
       } as unknown as NotificationGateway,
       () => ({
         duplicate: jest.fn().mockReturnValue({
@@ -133,8 +134,9 @@ describe('NotificationPubSub', () => {
     await expect(
       (
         pubSub as unknown as {
-          publishTemperatureExcursion: (
-            userId: string,
+          publishLaneEvent: (
+            eventName: string,
+            laneId: string,
             payload: {
               laneId: string;
               highestSeverity: string;
@@ -143,7 +145,7 @@ describe('NotificationPubSub', () => {
             },
           ) => Promise<boolean>;
         }
-      ).publishTemperatureExcursion('user-1', {
+      ).publishLaneEvent('temperature.excursion', 'lane-db-1', {
         laneId: 'lane-1',
         highestSeverity: 'SEVERE',
         excursionCount: 1,
@@ -164,10 +166,11 @@ describe('NotificationPubSub', () => {
       }),
     ).resolves.toBe(true);
 
-    handlers.get('temperature.excursion')?.(
+    handlers.get('realtime.lane')?.(
       JSON.stringify({
-        userId: 'user-1',
-        event: {
+        eventName: 'temperature.excursion',
+        laneId: 'lane-db-1',
+        payload: {
           laneId: 'lane-1',
           highestSeverity: 'SEVERE',
           excursionCount: 1,
@@ -189,12 +192,77 @@ describe('NotificationPubSub', () => {
       }),
     );
 
-    expect(emitTemperatureExcursion).toHaveBeenCalledWith(
-      'user-1',
+    expect(emitLaneEvent).toHaveBeenCalledWith(
+      'temperature.excursion',
+      'lane-db-1',
       expect.objectContaining({
         laneId: 'lane-1',
         highestSeverity: 'SEVERE',
       }),
     );
+  });
+
+  it('publishes and replays user scoped realtime events', async () => {
+    const emitUserEvent = jest.fn();
+    const handlers = new Map<string, (payload: string) => void>();
+    const connect = jest.fn().mockResolvedValue(undefined);
+    const disconnect = jest.fn().mockResolvedValue(undefined);
+    const publish = jest.fn().mockResolvedValue(1);
+    const pubSub = new NotificationPubSub(
+      {
+        emitNotification: jest.fn(),
+        emitLaneEvent: jest.fn(),
+        emitUserEvent,
+      } as unknown as NotificationGateway,
+      () => ({
+        duplicate: jest.fn().mockReturnValue({
+          connect,
+          subscribe: jest
+            .fn()
+            .mockImplementation(
+              (channel: string, callback: (payload: string) => void) => {
+                handlers.set(channel, callback);
+                return Promise.resolve();
+              },
+            ),
+          disconnect,
+        }),
+        connect,
+        publish,
+        disconnect,
+      }),
+    );
+
+    await pubSub.onModuleInit();
+    await expect(
+      (
+        pubSub as unknown as {
+          publishUserEvent: (
+            eventName: string,
+            userId: string,
+            payload: { marketId: string; changedSubstances: string[] },
+          ) => Promise<boolean>;
+        }
+      ).publishUserEvent('rule.updated', 'user-1', {
+        marketId: 'JAPAN',
+        changedSubstances: ['Carbendazim'],
+      }),
+    ).resolves.toBe(true);
+
+    handlers.get('realtime.user')?.(
+      JSON.stringify({
+        eventName: 'rule.updated',
+        userId: 'user-1',
+        payload: {
+          marketId: 'JAPAN',
+          changedSubstances: ['Carbendazim'],
+        },
+      }),
+    );
+
+    expect(emitUserEvent).toHaveBeenCalledWith('rule.updated', 'user-1', {
+      marketId: 'JAPAN',
+      changedSubstances: ['Carbendazim'],
+    });
   });
 });

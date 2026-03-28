@@ -3,6 +3,7 @@ import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { ProofPackService } from '../evidence/proof-pack.service';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
 import type {
@@ -160,6 +161,15 @@ describe('LaneService', () => {
   const proofPackService = {
     getPackById: getPackByIdMock,
   } as unknown as ProofPackService;
+  const publishLaneStatusChangedMock = jest.fn().mockResolvedValue(undefined);
+  const publishCheckpointRecordedMock = jest.fn().mockResolvedValue(undefined);
+  const realtimeEvents = {
+    publishLaneStatusChanged: publishLaneStatusChangedMock,
+    publishCheckpointRecorded: publishCheckpointRecordedMock,
+  } as unknown as Pick<
+    RealtimeEventsService,
+    'publishLaneStatusChanged' | 'publishCheckpointRecorded'
+  >;
 
   function createService() {
     return new LaneService(
@@ -170,6 +180,7 @@ describe('LaneService', () => {
       coldChainService,
       rulesEngineService,
       proofPackService,
+      realtimeEvents as never,
     );
   }
 
@@ -872,6 +883,11 @@ describe('LaneService', () => {
         entityId: 'lane-db-1',
       }),
     );
+    expect(publishLaneStatusChangedMock).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      oldStatus: 'EVIDENCE_COLLECTING',
+      newStatus: 'VALIDATED',
+    });
   });
 
   it('reconcileAutomaticTransitions moves incomplete lanes back into collecting before validation', async () => {
@@ -921,6 +937,16 @@ describe('LaneService', () => {
       expect.any(Date),
     );
     expect(createAuditEntryMock).toHaveBeenCalledTimes(2);
+    expect(publishLaneStatusChangedMock).toHaveBeenNthCalledWith(1, {
+      laneId: 'lane-db-1',
+      oldStatus: 'INCOMPLETE',
+      newStatus: 'EVIDENCE_COLLECTING',
+    });
+    expect(publishLaneStatusChangedMock).toHaveBeenNthCalledWith(2, {
+      laneId: 'lane-db-1',
+      oldStatus: 'EVIDENCE_COLLECTING',
+      newStatus: 'VALIDATED',
+    });
   });
 
   it('reconcileAutomaticTransitions is a no-op when no automatic transition applies', async () => {
@@ -1035,6 +1061,11 @@ describe('LaneService', () => {
         payloadHash: 'payload-hash',
       }),
     );
+    expect(publishCheckpointRecordedMock).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      checkpointId: 'cp-2',
+      sequence: 2,
+    });
   });
 
   it('updateCheckpoint updates and returns checkpoint', async () => {
@@ -1082,6 +1113,11 @@ describe('LaneService', () => {
       status: 'COMPLETED',
       temperature: 12.5,
       conditionNotes: 'Good condition',
+    });
+    expect(publishCheckpointRecordedMock).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      checkpointId: 'cp-1',
+      sequence: 1,
     });
   });
 

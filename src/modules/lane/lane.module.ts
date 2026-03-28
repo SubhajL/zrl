@@ -9,6 +9,8 @@ import { ColdChainModule } from '../cold-chain/cold-chain.module';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { EvidenceModule } from '../evidence/evidence.module';
 import { ProofPackService } from '../evidence/proof-pack.service';
+import { NotificationModule } from '../notifications/notification.module';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineModule } from '../rules-engine/rules-engine.module';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { CheckpointController, LaneController } from './lane.controller';
@@ -24,6 +26,7 @@ import { LaneService } from './lane.service';
     HashingModule,
     RulesEngineModule,
     ColdChainModule,
+    NotificationModule,
     forwardRef(() => EvidenceModule),
   ],
   controllers: [LaneController, CheckpointController],
@@ -40,6 +43,7 @@ import { LaneService } from './lane.service';
         coldChainService: ColdChainService,
         rulesEngineService: RulesEngineService,
         proofPackService: ProofPackService,
+        realtimeEvents: RealtimeEventsService,
       ) =>
         new LaneService(
           laneStore,
@@ -49,6 +53,7 @@ import { LaneService } from './lane.service';
           coldChainService,
           rulesEngineService,
           proofPackService,
+          realtimeEvents,
         ),
       inject: [
         PrismaLaneStore,
@@ -58,6 +63,7 @@ import { LaneService } from './lane.service';
         ColdChainService,
         RulesEngineService,
         ProofPackService,
+        RealtimeEventsService,
       ],
     },
   ],

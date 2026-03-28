@@ -6,6 +6,7 @@ import { NotificationController } from './notification.controller';
 import { NotificationGateway } from './notification.gateway';
 import { PrismaNotificationStore } from './notification.pg-store';
 import { NotificationPubSub } from './notification.pubsub';
+import { RealtimeEventsService } from './realtime-events.service';
 import { NotificationService } from './notification.service';
 import { NOTIFICATION_FANOUT, NOTIFICATION_STORE } from './notification.types';
 
@@ -25,8 +26,9 @@ import { NOTIFICATION_FANOUT, NOTIFICATION_STORE } from './notification.types';
       provide: NOTIFICATION_FANOUT,
       useExisting: NotificationPubSub,
     },
+    RealtimeEventsService,
     NotificationService,
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, RealtimeEventsService],
 })
 export class NotificationModule {}
