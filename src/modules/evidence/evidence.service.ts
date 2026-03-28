@@ -175,6 +175,16 @@ function findCycleNodeIds(graph: EvidenceArtifactGraph): string[] {
   return [...cycleNodeIds];
 }
 
+function isCertificationArtifactType(
+  artifactType: string,
+): artifactType is 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT' {
+  return (
+    artifactType === 'PHYTO_CERT' ||
+    artifactType === 'VHT_CERT' ||
+    artifactType === 'GAP_CERT'
+  );
+}
+
 @Injectable()
 export class EvidenceService {
   private readonly logger = new Logger(EvidenceService.name);
@@ -537,6 +547,8 @@ export class EvidenceService {
         },
       );
 
+      await this.notifyCertificationAlertAfterUpload(lane, artifact);
+
       await this.reconcileLaneTransitionsAfterUpload(lane, actor.id);
 
       return { artifact: this.mapArtifact(artifact) };
@@ -569,6 +581,41 @@ export class EvidenceService {
       const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
         `Automatic lane transition reconciliation failed for lane ${lane.id}: ${message}`,
+        stack,
+      );
+    }
+  }
+
+  private async notifyCertificationAlertAfterUpload(
+    lane: {
+      id: string;
+      laneId: string;
+    },
+    artifact: EvidenceArtifactRecord,
+  ) {
+    if (!isCertificationArtifactType(artifact.artifactType)) {
+      return;
+    }
+
+    try {
+      await this.rulesEngineService.notifyCertificationAlertForArtifact({
+        laneId: lane.id,
+        lanePublicId: lane.laneId,
+        artifact: {
+          id: artifact.id,
+          artifactType: artifact.artifactType,
+          fileName: artifact.fileName,
+          metadata: artifact.metadata,
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown certification alert error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Certification alert notification failed for artifact ${artifact.id}: ${message}`,
         stack,
       );
     }

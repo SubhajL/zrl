@@ -83,6 +83,7 @@ describe('EvidenceService', () => {
   let softDeleteArtifactMock: jest.Mock;
   let rulesEngineService: {
     evaluateLane: jest.Mock;
+    notifyCertificationAlertForArtifact: jest.Mock;
   };
   let laneService: Pick<LaneService, 'reconcileAutomaticTransitions'>;
 
@@ -163,6 +164,9 @@ describe('EvidenceService', () => {
         labValidation: null,
         certificationAlerts: [],
       }),
+      notifyCertificationAlertForArtifact: jest
+        .fn()
+        .mockResolvedValue(undefined),
     };
     laneService = {
       reconcileAutomaticTransitions: jest.fn().mockResolvedValue({
@@ -636,6 +640,137 @@ describe('EvidenceService', () => {
 
     expect(updateLaneCompletenessScoreMock).not.toHaveBeenCalled();
     expect(laneService.reconcileAutomaticTransitions).not.toHaveBeenCalled();
+  });
+
+  it('uploadArtifact notifies on expired certification artifacts after persistence', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-expired',
+      artifactType: 'PHYTO_CERT',
+      metadata: {
+        expiresAt: '2026-03-01T00:00:00.000Z',
+      },
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: {
+          expiresAt: '2026-03-01T00:00:00.000Z',
+        },
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    const certificationAlertCalls = rulesEngineService
+      .notifyCertificationAlertForArtifact.mock.calls as Array<
+      [
+        {
+          laneId: string;
+          lanePublicId: string;
+          artifact: {
+            id: string;
+            artifactType: string;
+            metadata: Record<string, unknown> | null;
+          };
+        },
+      ]
+    >;
+    const certificationAlertInput = certificationAlertCalls[0]?.[0] ?? null;
+    expect(certificationAlertInput).toMatchObject({
+      laneId: 'lane-db-1',
+      lanePublicId: 'LN-2026-001',
+      artifact: {
+        id: 'artifact-expired',
+        artifactType: 'PHYTO_CERT',
+        metadata: {
+          expiresAt: '2026-03-01T00:00:00.000Z',
+        },
+      },
+    });
+  });
+
+  it('uploadArtifact does not notify on non-certification artifacts', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-temp',
+      artifactType: 'TEMP_DATA',
+      fileName: 'temperature.json',
+      mimeType: 'application/json',
+      metadata: {
+        recordedAt: '2026-03-22T10:00:00.000Z',
+      },
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'TEMP_DATA',
+        fileName: 'temperature.json',
+        mimeType: 'application/json',
+        fileSizeBytes: 512,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.PARTNER_API,
+        checkpointId: null,
+        metadata: {
+          recordedAt: '2026-03-22T10:00:00.000Z',
+        },
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(
+      rulesEngineService.notifyCertificationAlertForArtifact,
+    ).not.toHaveBeenCalled();
   });
 
   it('uploadArtifact preserves the committed artifact when automatic lane reconciliation fails', async () => {

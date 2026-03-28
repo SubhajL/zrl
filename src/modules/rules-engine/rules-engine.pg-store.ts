@@ -12,6 +12,10 @@ import {
   normalizeRuleProduct,
 } from './rules-engine.utils';
 import type {
+  RuleCertificationAlertDeliveryClaimInput,
+  RuleCertificationAlertDeliveryClaimRecord,
+  RuleCertificationAlertDeliveryCompletionInput,
+  RuleCertificationScanArtifact,
   RuleMarket,
   RuleProduct,
   RuleSetDefinition,
@@ -60,6 +64,20 @@ interface SubstanceRow extends QueryResultRow {
   risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   created_at: Date | string;
   updated_at: Date | string;
+}
+
+interface CertificationScanArtifactRow extends QueryResultRow {
+  lane_id: string;
+  lane_public_id: string;
+  artifact_id: string;
+  artifact_type: 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT';
+  file_name: string;
+  metadata: Record<string, unknown> | string | null;
+  uploaded_at: Date | string;
+}
+
+interface CertificationAlertDeliveryRow extends QueryResultRow {
+  id: string;
 }
 
 @Injectable()
@@ -516,6 +534,142 @@ export class PrismaRulesEngineStore implements RuleStore {
       entityId: input.substanceId,
       payloadHash: input.payloadHash,
     });
+  }
+
+  async listLatestActiveCertificationArtifacts(): Promise<
+    RuleCertificationScanArtifact[]
+  > {
+    const executor = this.requireExecutor();
+    const result = await executor.query<CertificationScanArtifactRow>(
+      `
+        SELECT DISTINCT ON (artifacts.lane_id, artifacts.artifact_type)
+          lanes.id AS lane_id,
+          lanes.lane_id AS lane_public_id,
+          artifacts.id AS artifact_id,
+          artifacts.artifact_type,
+          artifacts.file_name,
+          artifacts.metadata,
+          artifacts.uploaded_at
+        FROM evidence_artifacts AS artifacts
+        INNER JOIN lanes
+          ON lanes.id = artifacts.lane_id
+        WHERE artifacts.deleted_at IS NULL
+          AND artifacts.artifact_type IN ('PHYTO_CERT', 'VHT_CERT', 'GAP_CERT')
+          AND lanes.status IN (
+            'CREATED',
+            'EVIDENCE_COLLECTING',
+            'VALIDATED',
+            'PACKED',
+            'INCOMPLETE'
+          )
+        ORDER BY
+          artifacts.lane_id ASC,
+          artifacts.artifact_type ASC,
+          artifacts.uploaded_at DESC,
+          artifacts.id DESC
+      `,
+    );
+
+    return result.rows.map((row) => ({
+      laneId: row.lane_id,
+      lanePublicId: row.lane_public_id,
+      artifactId: row.artifact_id,
+      artifactType: row.artifact_type,
+      fileName: row.file_name,
+      metadata:
+        typeof row.metadata === 'string'
+          ? (JSON.parse(row.metadata) as Record<string, unknown>)
+          : row.metadata,
+      uploadedAt: new Date(row.uploaded_at),
+    }));
+  }
+
+  async claimCertificationAlertDelivery(
+    input: RuleCertificationAlertDeliveryClaimInput,
+  ): Promise<RuleCertificationAlertDeliveryClaimRecord | null> {
+    const executor = this.requireExecutor();
+    const result = await executor.query<CertificationAlertDeliveryRow>(
+      `
+        INSERT INTO certification_alert_deliveries (
+          id,
+          lane_id,
+          artifact_id,
+          artifact_type,
+          alert_code,
+          warning_days,
+          expires_at,
+          notification_id,
+          delivery_status,
+          claimed_at,
+          delivered_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          NULL,
+          'CLAIMED',
+          $8,
+          NULL,
+          $8,
+          $8
+        )
+        ON CONFLICT (lane_id, artifact_id, alert_code)
+        DO NOTHING
+        RETURNING id
+      `,
+      [
+        randomUUID(),
+        input.laneId,
+        input.artifactId,
+        input.artifactType,
+        input.alertCode,
+        input.warningDays,
+        input.expiresAt,
+        input.claimedAt,
+      ],
+    );
+
+    return result.rowCount === 0 ? null : { id: result.rows[0].id };
+  }
+
+  async completeCertificationAlertDelivery(
+    deliveryId: string,
+    input: RuleCertificationAlertDeliveryCompletionInput,
+  ): Promise<void> {
+    await this.requireExecutor().query(
+      `
+        UPDATE certification_alert_deliveries
+        SET
+          notification_id = $2,
+          delivery_status = $3,
+          delivered_at = $4,
+          updated_at = $4
+        WHERE id = $1
+      `,
+      [
+        deliveryId,
+        input.notificationId,
+        input.deliveryStatus,
+        input.deliveredAt,
+      ],
+    );
+  }
+
+  async releaseCertificationAlertDelivery(deliveryId: string): Promise<void> {
+    await this.requireExecutor().query(
+      `
+        DELETE FROM certification_alert_deliveries
+        WHERE id = $1
+      `,
+      [deliveryId],
+    );
   }
 
   private async recordRuleVersion(
