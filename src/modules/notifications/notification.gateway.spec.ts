@@ -1,9 +1,12 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { NotificationGateway } from './notification.gateway';
 
 describe('NotificationGateway', () => {
   let authService: {
     verifyAccessToken: jest.Mock;
+  };
+  let store: {
+    findLaneRealtimeAccess: jest.Mock;
   };
   let gateway: NotificationGateway;
 
@@ -34,8 +37,11 @@ describe('NotificationGateway', () => {
         },
       }),
     };
+    store = {
+      findLaneRealtimeAccess: jest.fn(),
+    };
 
-    gateway = new NotificationGateway(authService as never);
+    gateway = new NotificationGateway(authService as never, store as never);
     gateway.server = {
       to: jest.fn().mockReturnValue({
         emit: jest.fn(),
@@ -69,6 +75,82 @@ describe('NotificationGateway', () => {
     expect(client.data['userId']).toBe('user-1');
   });
 
+  it('joins the canonical lane room for an authorized public lane subscription', async () => {
+    const join = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      handshake: {
+        auth: { token: 'jwt-token' },
+        headers: {},
+      },
+      join,
+      data: {
+        userId: 'user-1',
+        role: 'EXPORTER',
+      },
+    };
+    store.findLaneRealtimeAccess.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'user-1',
+    });
+
+    await gateway.handleSubscribeLane(client as never, {
+      laneId: 'LN-2026-001',
+    });
+
+    expect(store.findLaneRealtimeAccess).toHaveBeenCalledWith('LN-2026-001');
+    expect(join).toHaveBeenCalledWith('lane:lane-db-1');
+  });
+
+  it('rejects lane subscription for an unauthorized exporter', async () => {
+    const join = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      handshake: {
+        auth: { token: 'jwt-token' },
+        headers: {},
+      },
+      join,
+      data: {
+        userId: 'user-2',
+        role: 'EXPORTER',
+      },
+    };
+    store.findLaneRealtimeAccess.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'user-1',
+    });
+
+    await expect(
+      gateway.handleSubscribeLane(client as never, {
+        laneId: 'LN-2026-001',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(join).not.toHaveBeenCalled();
+  });
+
+  it('leaves the canonical lane room on unsubscribe', async () => {
+    const leave = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      leave,
+      data: {
+        userId: 'user-1',
+        role: 'EXPORTER',
+      },
+    };
+    store.findLaneRealtimeAccess.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'user-1',
+    });
+
+    await gateway.handleUnsubscribeLane(client as never, {
+      laneId: 'LN-2026-001',
+    });
+
+    expect(leave).toHaveBeenCalledWith('lane:lane-db-1');
+  });
+
   it('emits notification.new to the recipient room', () => {
     const emit = jest.fn();
     const to = jest.fn().mockReturnValue({ emit });
@@ -98,31 +180,19 @@ describe('NotificationGateway', () => {
     });
   });
 
-  it('emits temperature.excursion to the recipient room', () => {
+  it('emits lane scoped events to the lane room', () => {
     const emit = jest.fn();
     const to = jest.fn().mockReturnValue({ emit });
     gateway.server = { to } as never;
 
-    (
-      gateway as unknown as {
-        emitTemperatureExcursion: (
-          userId: string,
-          payload: {
-            laneId: string;
-            highestSeverity: string;
-            excursionCount: number;
-            slaBreached: boolean;
-          },
-        ) => void;
-      }
-    ).emitTemperatureExcursion('user-1', {
+    gateway.emitLaneEvent('temperature.excursion', 'lane-db-1', {
       laneId: 'lane-1',
       highestSeverity: 'CRITICAL',
       excursionCount: 2,
       slaBreached: true,
     });
 
-    expect(to).toHaveBeenCalledWith('user:user-1');
+    expect(to).toHaveBeenCalledWith('lane:lane-db-1');
     const [event, payload] = emit.mock.calls[0] as [
       string,
       {
@@ -138,6 +208,23 @@ describe('NotificationGateway', () => {
       highestSeverity: 'CRITICAL',
       excursionCount: 2,
       slaBreached: true,
+    });
+  });
+
+  it('emits rule.updated to the recipient user room', () => {
+    const emit = jest.fn();
+    const to = jest.fn().mockReturnValue({ emit });
+    gateway.server = { to } as never;
+
+    gateway.emitUserEvent('rule.updated', 'user-1', {
+      marketId: 'JAPAN',
+      changedSubstances: ['Carbendazim'],
+    });
+
+    expect(to).toHaveBeenCalledWith('user:user-1');
+    expect(emit).toHaveBeenCalledWith('rule.updated', {
+      marketId: 'JAPAN',
+      changedSubstances: ['Carbendazim'],
     });
   });
 });

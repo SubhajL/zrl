@@ -4,6 +4,7 @@ import {
   DEFAULT_NOTIFICATION_PAGE_SIZE,
 } from './notification.constants';
 import { NotificationChannels } from './notification.channels';
+import { RealtimeEventsService } from './realtime-events.service';
 import type {
   NotificationChannelDispatcher,
   NotificationChannelPreference,
@@ -48,6 +49,7 @@ export class NotificationService {
     private readonly fanout: NotificationFanoutPublisher,
     @Inject(NotificationChannels)
     private readonly channels: NotificationChannelDispatcher,
+    private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
   async listNotifications(
@@ -158,12 +160,28 @@ export class NotificationService {
         createdAt,
       })),
     );
-    return await this.dispatchCreatedNotifications(created, (notification) =>
-      this.requirePreference(
-        preferencesByUser.get(notification.userId),
-        input.type,
-      ),
+    const notifications = await this.dispatchCreatedNotifications(
+      created,
+      (notification) =>
+        this.requirePreference(
+          preferencesByUser.get(notification.userId),
+          input.type,
+        ),
     );
+
+    if (input.type === 'PACK_GENERATED' && input.laneId !== null) {
+      const packId = this.readString(input.data, 'packId');
+      const packType = this.readString(input.data, 'packType');
+      if (packId !== null && packType !== null) {
+        await this.realtimeEvents.publishPackGenerated({
+          laneId: input.laneId,
+          packId,
+          packType,
+        });
+      }
+    }
+
+    return notifications;
   }
 
   async notifyLaneOwner(
@@ -190,10 +208,18 @@ export class NotificationService {
     input: Omit<NotifyUsersInput, 'userIds'>,
   ): Promise<NotificationRecord[]> {
     const userIds = await this.store.listMarketAudienceUserIds(market);
-    return await this.notifyUsers({
+    const notifications = await this.notifyUsers({
       userIds,
       ...input,
     });
+    if (input.type === 'RULE_CHANGE') {
+      const changedSubstances = this.readChangedSubstances(input.data);
+      if (changedSubstances.length > 0) {
+        await this.realtimeEvents.publishRuleUpdated(market, changedSubstances);
+      }
+    }
+
+    return notifications;
   }
 
   async notifyLaneOwnerAboutTemperatureExcursions(
@@ -241,8 +267,7 @@ export class NotificationService {
       created,
       () => effectivePreference,
       async (notification) => {
-        await this.fanout.publishTemperatureExcursion(
-          ownerId,
+        await this.realtimeEvents.publishTemperatureExcursion(
           this.buildTemperatureExcursionEvent(laneId, notification, input),
         );
       },
@@ -425,6 +450,30 @@ export class NotificationService {
     return excursionCount === 1
       ? '1 new temperature excursion was detected for this lane.'
       : `${excursionCount} new temperature excursions were detected for this lane.`;
+  }
+
+  private readString(
+    data: Record<string, unknown> | null,
+    key: string,
+  ): string | null {
+    const value = data?.[key];
+    return typeof value === 'string' && value.trim().length > 0
+      ? value.trim()
+      : null;
+  }
+
+  private readChangedSubstances(
+    data: Record<string, unknown> | null,
+  ): string[] {
+    const explicit = data?.['changedSubstances'];
+    if (Array.isArray(explicit)) {
+      return dedupeStrings(
+        explicit.filter((value): value is string => typeof value === 'string'),
+      );
+    }
+
+    const single = this.readString(data, 'substanceName');
+    return single === null ? [] : [single];
   }
 
   private buildTemperatureExcursionEvent(

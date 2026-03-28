@@ -4,6 +4,7 @@ import type { AuditService } from '../../common/audit/audit.service';
 import type { HashingService } from '../../common/hashing/hashing.service';
 import type { ColdChainService } from '../cold-chain/cold-chain.service';
 import type { ProofPackService } from '../evidence/proof-pack.service';
+import type { RealtimeEventsService } from '../notifications/realtime-events.service';
 import type { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
 import type { LaneRuleSnapshotResolver, LaneStore } from './lane.types';
@@ -51,6 +52,13 @@ describe('LaneService.getTimeline', () => {
   const proofPackService = {
     getPackById: getPackByIdMock,
   } as unknown as ProofPackService;
+  const realtimeEvents = {
+    publishLaneStatusChanged: jest.fn(),
+    publishCheckpointRecorded: jest.fn(),
+  } as unknown as Pick<
+    RealtimeEventsService,
+    'publishLaneStatusChanged' | 'publishCheckpointRecorded'
+  >;
 
   const service = new LaneService(
     laneStore,
@@ -62,6 +70,7 @@ describe('LaneService.getTimeline', () => {
     } as unknown as ColdChainService,
     { evaluateLane: jest.fn() } as unknown as RulesEngineService,
     proofPackService,
+    realtimeEvents as never,
   );
 
   beforeEach(() => {

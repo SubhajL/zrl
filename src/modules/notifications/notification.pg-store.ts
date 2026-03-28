@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool, type QueryResultRow } from 'pg';
 import { DATABASE_POOL } from '../../common/database/database.constants';
 import type {
+  LaneRealtimeAccessRecord,
   NotificationChannelPreference,
   NotificationChannelTargets,
   NotificationCreationInput,
@@ -48,6 +49,12 @@ interface UserDeliveryTargetRow extends QueryResultRow {
 interface NotificationChannelTargetRow extends QueryResultRow {
   line_user_id: string | null;
   push_endpoint: string | null;
+}
+
+interface LaneRealtimeAccessRow extends QueryResultRow {
+  id: string;
+  lane_id: string;
+  exporter_id: string;
 }
 
 @Injectable()
@@ -352,6 +359,31 @@ export class PrismaNotificationStore implements NotificationServiceStore {
     );
 
     return await this.getChannelTargets(userId);
+  }
+
+  async findLaneRealtimeAccess(
+    laneId: string,
+  ): Promise<LaneRealtimeAccessRecord | null> {
+    const result = await this.requirePool().query<LaneRealtimeAccessRow>(
+      `
+        SELECT
+          id,
+          lane_id,
+          exporter_id
+        FROM lanes
+        WHERE id = $1 OR lane_id = $1
+        LIMIT 1
+      `,
+      [laneId],
+    );
+
+    return result.rowCount === 0
+      ? null
+      : {
+          id: result.rows[0].id,
+          laneId: result.rows[0].lane_id,
+          exporterId: result.rows[0].exporter_id,
+        };
   }
 
   async findLaneOwnerUserId(laneId: string): Promise<string | null> {

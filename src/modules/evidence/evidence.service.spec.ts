@@ -11,6 +11,7 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import type { AuditStore } from '../../common/audit/audit.types';
 import type { HashingService } from '../../common/hashing/hashing.service';
 import type { LaneService } from '../lane/lane.service';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { EvidenceService } from './evidence.service';
 import {
   ArtifactSource,
@@ -86,6 +87,7 @@ describe('EvidenceService', () => {
     notifyCertificationAlertForArtifact: jest.Mock;
   };
   let laneService: Pick<LaneService, 'reconcileAutomaticTransitions'>;
+  let realtimeEvents: Pick<RealtimeEventsService, 'publishEvidenceUploaded'>;
 
   beforeEach(() => {
     auditStore = {
@@ -174,6 +176,9 @@ describe('EvidenceService', () => {
         transitions: [],
       }),
     };
+    realtimeEvents = {
+      publishEvidenceUploaded: jest.fn().mockResolvedValue(undefined),
+    };
     service = new EvidenceService(
       store,
       objectStore,
@@ -182,6 +187,7 @@ describe('EvidenceService', () => {
       photoMetadataExtractor as never,
       rulesEngineService as never,
       laneService as never,
+      realtimeEvents as never,
     );
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
     uploadFilePath = join(tempDirectory, 'phyto.pdf');
@@ -265,6 +271,12 @@ describe('EvidenceService', () => {
       metadata: createdArtifact.metadata,
       createdAt: createdArtifact.uploadedAt.toISOString(),
       updatedAt: createdArtifact.updatedAt.toISOString(),
+    });
+    expect(realtimeEvents.publishEvidenceUploaded).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      artifactId: 'artifact-1',
+      type: 'PHYTO_CERT',
+      completeness: 0,
     });
   });
 
@@ -494,6 +506,7 @@ describe('EvidenceService', () => {
         },
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(realtimeEvents.publishEvidenceUploaded).not.toHaveBeenCalled();
   });
 
   it('uploadArtifact recalculates lane completeness after evidence persistence', async () => {
@@ -592,6 +605,12 @@ describe('EvidenceService', () => {
       'lane-db-1',
       40,
     );
+    expect(realtimeEvents.publishEvidenceUploaded).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      artifactId: 'artifact-1',
+      type: 'MRL_TEST',
+      completeness: 40,
+    });
     expect(laneService.reconcileAutomaticTransitions).toHaveBeenCalledWith(
       'lane-db-1',
       'exporter-1',

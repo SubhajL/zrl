@@ -13,6 +13,7 @@ import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { LaneService } from '../lane/lane.service';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   DEFAULT_EVIDENCE_LIMIT,
@@ -197,6 +198,7 @@ export class EvidenceService {
     private readonly photoMetadataExtractor: EvidencePhotoMetadataExtractor,
     private readonly rulesEngineService: RulesEngineService,
     private readonly laneService: LaneService,
+    private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
   async uploadArtifact(input: UploadArtifactInput, actor: EvidenceRequestUser) {
@@ -458,7 +460,7 @@ export class EvidenceService {
     });
 
     try {
-      const artifact = await this.store.runInTransaction(
+      const { artifact, completeness } = await this.store.runInTransaction(
         async (transactional) => {
           const latestLaneArtifact =
             await transactional.findLatestArtifactForLane(lane.id);
@@ -529,6 +531,11 @@ export class EvidenceService {
             },
           );
 
+          let completeness =
+            typeof lane.completenessScore === 'number'
+              ? lane.completenessScore
+              : 0;
+
           if (lane.ruleSnapshot !== null && lane.ruleSnapshot !== undefined) {
             const artifacts = await transactional.listArtifactsForEvaluation(
               lane.id,
@@ -541,13 +548,23 @@ export class EvidenceService {
               lane.id,
               evaluation.score,
             );
+            completeness = evaluation.score;
           }
 
-          return created;
+          return {
+            artifact: created,
+            completeness,
+          };
         },
       );
 
       await this.notifyCertificationAlertAfterUpload(lane, artifact);
+      await this.realtimeEvents.publishEvidenceUploaded({
+        laneId: artifact.laneId,
+        artifactId: artifact.id,
+        type: artifact.artifactType,
+        completeness,
+      });
 
       await this.reconcileLaneTransitionsAfterUpload(lane, actor.id);
 

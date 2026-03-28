@@ -1,4 +1,5 @@
 import { NotificationService } from './notification.service';
+import { RealtimeEventsService } from './realtime-events.service';
 import type {
   NotificationChannelPreference,
   NotificationChannelTargets,
@@ -96,6 +97,7 @@ class MockNotificationStore implements NotificationServiceStore {
     Promise<NotificationChannelTargets>,
     [string, NotificationChannelTargets]
   >();
+  findLaneRealtimeAccess = jest.fn();
 }
 
 describe('NotificationService', () => {
@@ -105,6 +107,12 @@ describe('NotificationService', () => {
     publishTemperatureExcursion: jest.Mock;
   };
   let channels: { dispatch: jest.Mock };
+  let realtimeEvents: Pick<
+    RealtimeEventsService,
+    | 'publishPackGenerated'
+    | 'publishRuleUpdated'
+    | 'publishTemperatureExcursion'
+  >;
   let service: NotificationService;
 
   beforeEach(() => {
@@ -126,11 +134,17 @@ describe('NotificationService', () => {
       publishTemperatureExcursion: jest.fn().mockResolvedValue(true),
     };
     channels = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    realtimeEvents = {
+      publishPackGenerated: jest.fn().mockResolvedValue(undefined),
+      publishRuleUpdated: jest.fn().mockResolvedValue(undefined),
+      publishTemperatureExcursion: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new NotificationService(
       store,
       fanout as never,
       channels as never,
+      realtimeEvents as never,
     );
   });
 
@@ -282,8 +296,7 @@ describe('NotificationService', () => {
         type: 'EXCURSION_ALERT',
       }),
     );
-    expect(fanout.publishTemperatureExcursion).toHaveBeenCalledWith(
-      'user-1',
+    expect(realtimeEvents.publishTemperatureExcursion).toHaveBeenCalledWith(
       expect.objectContaining({
         laneId: 'lane-1',
         highestSeverity: 'MODERATE',
@@ -378,14 +391,75 @@ describe('NotificationService', () => {
         userId: 'user-1',
       }),
     );
-    expect(fanout.publishTemperatureExcursion).toHaveBeenCalledWith(
-      'user-1',
+    expect(realtimeEvents.publishTemperatureExcursion).toHaveBeenCalledWith(
       expect.objectContaining({
         laneId: 'lane-1',
         highestSeverity: 'CRITICAL',
         slaBreached: true,
       }),
     );
+  });
+
+  it('publishes pack generated realtime events after durable notification creation', async () => {
+    store.createNotifications.mockResolvedValue([
+      buildNotification({
+        type: 'PACK_GENERATED',
+        laneId: 'lane-1',
+        data: {
+          packId: 'pack-1',
+          packType: 'REGULATOR',
+        },
+      }),
+    ]);
+    store.listPreferences.mockResolvedValue([]);
+
+    await service.notifyUsers({
+      userIds: ['user-1'],
+      laneId: 'lane-1',
+      type: 'PACK_GENERATED',
+      title: 'Proof pack ready',
+      message: 'Your regulator pack is ready.',
+      data: {
+        packId: 'pack-1',
+        packType: 'REGULATOR',
+      },
+    });
+
+    expect(realtimeEvents.publishPackGenerated).toHaveBeenCalledWith({
+      laneId: 'lane-1',
+      packId: 'pack-1',
+      packType: 'REGULATOR',
+    });
+  });
+
+  it('publishes rule updated realtime events after market notifications', async () => {
+    store.listMarketAudienceUserIds.mockResolvedValue(['user-1']);
+    store.createNotifications.mockResolvedValue([
+      buildNotification({
+        type: 'RULE_CHANGE',
+        laneId: null,
+        data: {
+          market: 'JAPAN',
+          substanceName: 'Carbendazim',
+        },
+      }),
+    ]);
+    store.listPreferences.mockResolvedValue([]);
+
+    await service.notifyMarketAudience('JAPAN', {
+      laneId: null,
+      type: 'RULE_CHANGE',
+      title: 'Rule update published',
+      message: 'Japan market rules were updated for Carbendazim.',
+      data: {
+        market: 'JAPAN',
+        substanceName: 'Carbendazim',
+      },
+    });
+
+    expect(realtimeEvents.publishRuleUpdated).toHaveBeenCalledWith('JAPAN', [
+      'Carbendazim',
+    ]);
   });
 
   it('returns stored channel targets for the caller', async () => {

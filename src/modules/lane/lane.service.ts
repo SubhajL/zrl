@@ -11,6 +11,7 @@ import { AuditService } from '../../common/audit/audit.service';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { ProofPackService } from '../evidence/proof-pack.service';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
 import {
@@ -115,6 +116,7 @@ export class LaneService {
     private readonly coldChainService: ColdChainService,
     private readonly rulesEngineService: RulesEngineService,
     private readonly proofPackService: ProofPackService,
+    private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
   async create(input: CreateLaneInput, actor: LaneRequestUser) {
@@ -364,6 +366,11 @@ export class LaneService {
       lane,
       input.targetStatus,
     );
+    await this.realtimeEvents.publishLaneStatusChanged({
+      laneId: lane.id,
+      oldStatus: existingLane.status,
+      newStatus: lane.status,
+    });
     return { lane };
   }
 
@@ -410,6 +417,11 @@ export class LaneService {
       payloadHash,
       payloadSnapshot: this.buildCheckpointAuditSnapshot(checkpoint),
     });
+    await this.realtimeEvents.publishCheckpointRecorded({
+      laneId: checkpoint.laneId,
+      checkpointId: checkpoint.id,
+      sequence: checkpoint.sequence,
+    });
 
     return checkpoint;
   }
@@ -445,6 +457,11 @@ export class LaneService {
       entityId: checkpointId,
       payloadHash,
       payloadSnapshot: this.buildCheckpointAuditSnapshot(checkpoint),
+    });
+    await this.realtimeEvents.publishCheckpointRecorded({
+      laneId: checkpoint.laneId,
+      checkpointId: checkpoint.id,
+      sequence: checkpoint.sequence,
     });
 
     return checkpoint;
@@ -519,6 +536,11 @@ export class LaneService {
         transitionedLane,
         targetStatus,
       );
+      await this.realtimeEvents.publishLaneStatusChanged({
+        laneId: transitionedLane.id,
+        oldStatus: lane.status,
+        newStatus: transitionedLane.status,
+      });
       transitions.push(targetStatus);
       lane = transitionedLane;
     }

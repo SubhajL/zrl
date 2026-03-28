@@ -97,6 +97,16 @@ export interface NotificationCreatedEvent {
   readonly notification: NotificationRecord;
 }
 
+export interface LaneRealtimeAccessRecord {
+  readonly id: string;
+  readonly laneId: string;
+  readonly exporterId: string;
+}
+
+export interface LaneSubscriptionInput {
+  readonly laneId: string;
+}
+
 export type TemperatureExcursionAlertSeverity =
   | 'MINOR'
   | 'MODERATE'
@@ -126,6 +136,52 @@ export interface TemperatureExcursionRealtimeEvent extends TemperatureExcursionA
   readonly message: string;
 }
 
+export interface LaneStatusChangedRealtimeEvent {
+  readonly laneId: string;
+  readonly oldStatus: string;
+  readonly newStatus: string;
+}
+
+export interface EvidenceUploadedRealtimeEvent {
+  readonly laneId: string;
+  readonly artifactId: string;
+  readonly type: string;
+  readonly completeness: number;
+}
+
+export interface CheckpointRecordedRealtimeEvent {
+  readonly laneId: string;
+  readonly checkpointId: string;
+  readonly sequence: number;
+}
+
+export interface PackGeneratedRealtimeEvent {
+  readonly laneId: string;
+  readonly packId: string;
+  readonly packType: string;
+}
+
+export interface RuleUpdatedRealtimeEvent {
+  readonly marketId: string;
+  readonly changedSubstances: readonly string[];
+}
+
+export interface LaneRealtimeEventPayloadMap {
+  readonly 'lane.status.changed': LaneStatusChangedRealtimeEvent;
+  readonly 'evidence.uploaded': EvidenceUploadedRealtimeEvent;
+  readonly 'checkpoint.recorded': CheckpointRecordedRealtimeEvent;
+  readonly 'temperature.excursion': TemperatureExcursionRealtimeEvent;
+  readonly 'pack.generated': PackGeneratedRealtimeEvent;
+}
+
+export type LaneRealtimeEventName = keyof LaneRealtimeEventPayloadMap;
+
+export interface UserRealtimeEventPayloadMap {
+  readonly 'rule.updated': RuleUpdatedRealtimeEvent;
+}
+
+export type UserRealtimeEventName = keyof UserRealtimeEventPayloadMap;
+
 export interface NotificationServiceStore {
   listNotifications(
     userId: string,
@@ -154,6 +210,9 @@ export interface NotificationServiceStore {
     userId: string,
     targets: NotificationChannelTargets,
   ): Promise<NotificationChannelTargets>;
+  findLaneRealtimeAccess(
+    laneId: string,
+  ): Promise<LaneRealtimeAccessRecord | null>;
   findLaneOwnerUserId(laneId: string): Promise<string | null>;
   listMarketAudienceUserIds(market: string): Promise<string[]>;
   listDeliveryTargets(
@@ -171,6 +230,16 @@ export interface NotificationChannelDispatcher {
 
 export interface NotificationRealtimeGateway {
   emitNotification(userId: string, notification: NotificationRecord): void;
+  emitLaneEvent<TEventName extends LaneRealtimeEventName>(
+    eventName: TEventName,
+    laneId: string,
+    payload: LaneRealtimeEventPayloadMap[TEventName],
+  ): void;
+  emitUserEvent<TEventName extends UserRealtimeEventName>(
+    eventName: TEventName,
+    userId: string,
+    payload: UserRealtimeEventPayloadMap[TEventName],
+  ): void;
   emitTemperatureExcursion(
     userId: string,
     event: TemperatureExcursionRealtimeEvent,
@@ -180,6 +249,16 @@ export interface NotificationRealtimeGateway {
 export interface NotificationFanoutPublisher {
   publishNotificationCreated(
     notification: NotificationRecord,
+  ): Promise<boolean>;
+  publishLaneEvent<TEventName extends LaneRealtimeEventName>(
+    eventName: TEventName,
+    laneId: string,
+    payload: LaneRealtimeEventPayloadMap[TEventName],
+  ): Promise<boolean>;
+  publishUserEvent<TEventName extends UserRealtimeEventName>(
+    eventName: TEventName,
+    userId: string,
+    payload: UserRealtimeEventPayloadMap[TEventName],
   ): Promise<boolean>;
   publishTemperatureExcursion(
     userId: string,

@@ -10,6 +10,7 @@ import { LaneService } from '../lane/lane.service';
 import { RulesEngineModule } from '../rules-engine/rules-engine.module';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { NotificationModule } from '../notifications/notification.module';
+import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import {
   EVIDENCE_OBJECT_STORE,
   EVIDENCE_PHOTO_METADATA_EXTRACTOR,
@@ -66,6 +67,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         photoMetadataExtractor: ExifPhotoMetadataExtractor,
         rulesEngineService: RulesEngineService,
         laneService: LaneService,
+        realtimeEvents: RealtimeEventsService,
       ) =>
         new EvidenceService(
           store,
@@ -75,6 +77,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
           photoMetadataExtractor,
           rulesEngineService,
           laneService,
+          realtimeEvents,
         ),
       inject: [
         PrismaEvidenceStore,
@@ -84,6 +87,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         EVIDENCE_PHOTO_METADATA_EXTRACTOR,
         RulesEngineService,
         LaneService,
+        RealtimeEventsService,
       ],
     },
     ProofPackService,
