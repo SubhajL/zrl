@@ -97,4 +97,47 @@ describe('NotificationGateway', () => {
       type: 'PACK_GENERATED',
     });
   });
+
+  it('emits temperature.excursion to the recipient room', () => {
+    const emit = jest.fn();
+    const to = jest.fn().mockReturnValue({ emit });
+    gateway.server = { to } as never;
+
+    (
+      gateway as unknown as {
+        emitTemperatureExcursion: (
+          userId: string,
+          payload: {
+            laneId: string;
+            highestSeverity: string;
+            excursionCount: number;
+            slaBreached: boolean;
+          },
+        ) => void;
+      }
+    ).emitTemperatureExcursion('user-1', {
+      laneId: 'lane-1',
+      highestSeverity: 'CRITICAL',
+      excursionCount: 2,
+      slaBreached: true,
+    });
+
+    expect(to).toHaveBeenCalledWith('user:user-1');
+    const [event, payload] = emit.mock.calls[0] as [
+      string,
+      {
+        laneId: string;
+        highestSeverity: string;
+        excursionCount: number;
+        slaBreached: boolean;
+      },
+    ];
+    expect(event).toBe('temperature.excursion');
+    expect(payload).toMatchObject({
+      laneId: 'lane-1',
+      highestSeverity: 'CRITICAL',
+      excursionCount: 2,
+      slaBreached: true,
+    });
+  });
 });

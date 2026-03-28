@@ -6,7 +6,10 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import { AuthService } from '../../common/auth/auth.service';
-import type { NotificationRecord } from './notification.types';
+import type {
+  NotificationRecord,
+  TemperatureExcursionRealtimeEvent,
+} from './notification.types';
 
 function getBearerToken(value: string | undefined): string | null {
   if (value === undefined || value.trim().length === 0) {
@@ -56,6 +59,13 @@ export class NotificationGateway implements OnGatewayConnection {
     this.server.to(this.roomName(userId)).emit('notification.new', {
       notification,
     });
+  }
+
+  emitTemperatureExcursion(
+    userId: string,
+    event: TemperatureExcursionRealtimeEvent,
+  ): void {
+    this.server.to(this.roomName(userId)).emit('temperature.excursion', event);
   }
 
   private resolveToken(client: NotificationSocket): string | null {

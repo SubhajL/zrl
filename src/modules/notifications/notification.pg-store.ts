@@ -404,7 +404,7 @@ export class PrismaNotificationStore implements NotificationServiceStore {
         FROM users
         LEFT JOIN notification_channel_targets AS targets
           ON targets.user_id = users.id
-        WHERE id::text = ANY($1::text[])
+        WHERE users.id::text = ANY($1::text[])
       `,
       [userIds],
     );

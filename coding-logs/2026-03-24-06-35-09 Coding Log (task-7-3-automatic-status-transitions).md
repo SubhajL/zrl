@@ -240,3 +240,16 @@ LOW
 - No schema or env changes.
 - Automatic lifecycle movement is now triggered by evidence upload after completeness recomputation.
 - Reconciliation failures are logged and do not roll back or delete already-committed evidence objects.
+
+## Environment Fix (2026-03-24 07:30 +07)
+
+### Goal
+Restore Codex-side `taskmaster-ai` MCP connectivity for this machine so Task Master tools can be called from fresh Codex sessions in `zrl`.
+
+### What Changed
+- `/Users/subhajlimanond/.codex/mcp/taskmaster-ai-mcp-wrapper.py`
+  - Replaced the broken stdout/header-sniffing wrapper with a raw stdio relay that preserves the upstream `task-master-ai` MCP transport and still forces `TASK_MASTER_TOOLS=core`.
+
+### Verification
+- `codex exec --ephemeral --json --output-last-message /tmp/codex-taskmaster-use-after-fix2.txt "Use the taskmaster-ai MCP tool to fetch the task list for /Users/subhajlimanond/dev/zrl and report only whether the call succeeded. Do not use shell commands unless the MCP tool is unavailable."`
+  - Result: the nested Codex run successfully called `taskmaster-ai.get_tasks` and returned the task list for `/Users/subhajlimanond/dev/zrl`.

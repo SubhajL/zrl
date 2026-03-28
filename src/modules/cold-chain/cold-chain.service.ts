@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { NotificationService } from '../notifications/notification.service';
@@ -101,6 +102,8 @@ interface ExcursionAccumulator {
 
 @Injectable()
 export class ColdChainService {
+  private readonly logger = new Logger(ColdChainService.name);
+
   constructor(
     private readonly coldChainStore?: ColdChainStore,
     private readonly notificationService?: NotificationService,
@@ -230,21 +233,26 @@ export class ColdChainService {
       throw new Error('Cold-chain store is not configured.');
     }
 
+    const resolvedLaneId = context.laneId;
     const previousExcursions =
-      await this.coldChainStore.listLaneExcursions(laneId);
-    await this.coldChainStore.createTemperatureReadings(laneId, normalized);
-    const readings = await this.coldChainStore.listTemperatureReadings(laneId);
+      await this.coldChainStore.listLaneExcursions(resolvedLaneId);
+    await this.coldChainStore.createTemperatureReadings(
+      resolvedLaneId,
+      normalized,
+    );
+    const readings =
+      await this.coldChainStore.listTemperatureReadings(resolvedLaneId);
     const excursions = await this.detectExcursions(
       context.profile,
       readings,
       this.resolveCadenceMinutes(context),
     );
     const storedExcursions = await this.coldChainStore.replaceExcursions(
-      laneId,
+      resolvedLaneId,
       excursions,
     );
     await this.notifyAboutNewExcursions(
-      laneId,
+      resolvedLaneId,
       previousExcursions,
       storedExcursions,
     );
@@ -269,14 +277,21 @@ export class ColdChainService {
       throw new Error('Cold-chain store is not configured.');
     }
 
-    const readings = await this.coldChainStore.listTemperatureReadings(laneId, {
-      from: query.from,
-      to: query.to,
-    });
-    const excursions = await this.coldChainStore.listLaneExcursions(laneId, {
-      from: query.from,
-      to: query.to,
-    });
+    const resolvedLaneId = context.laneId;
+    const readings = await this.coldChainStore.listTemperatureReadings(
+      resolvedLaneId,
+      {
+        from: query.from,
+        to: query.to,
+      },
+    );
+    const excursions = await this.coldChainStore.listLaneExcursions(
+      resolvedLaneId,
+      {
+        from: query.from,
+        to: query.to,
+      },
+    );
 
     const resolution = query.resolution ?? 'raw';
 
@@ -520,15 +535,43 @@ export class ColdChainService {
       newExcursions[0].severity,
     );
 
-    await this.notificationService.notifyLaneOwner(laneId, {
-      type: 'EXCURSION_ALERT',
-      title: 'Temperature excursion detected',
-      message: `${newExcursions.length} new temperature excursion was detected for this lane.`,
-      data: {
+    this.logExcursionAlert(laneId, highestSeverity, newExcursions.length);
+
+    await this.notificationService.notifyLaneOwnerAboutTemperatureExcursions(
+      laneId,
+      {
         excursionCount: newExcursions.length,
         highestSeverity,
+        slaBreached: highestSeverity === 'CRITICAL',
+        excursions: newExcursions.map((excursion) => ({
+          severity: excursion.severity,
+          startedAt: excursion.startedAt,
+          endedAt: excursion.endedAt,
+          type: excursion.type,
+          direction: excursion.direction,
+          durationMinutes: excursion.durationMinutes,
+        })),
       },
-    });
+    );
+  }
+
+  private logExcursionAlert(
+    laneId: string,
+    severity: TemperatureExcursion['severity'],
+    excursionCount: number,
+  ): void {
+    const message = `Lane ${laneId} has ${excursionCount} new temperature excursion alert(s) at ${severity} severity.`;
+    if (severity === 'MINOR') {
+      this.logger.log(message);
+      return;
+    }
+
+    if (severity === 'CRITICAL') {
+      this.logger.error(message);
+      return;
+    }
+
+    this.logger.warn(message);
   }
 
   private compareSeverity(

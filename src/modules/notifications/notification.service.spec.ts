@@ -100,7 +100,10 @@ class MockNotificationStore implements NotificationServiceStore {
 
 describe('NotificationService', () => {
   let store: MockNotificationStore;
-  let fanout: { publishNotificationCreated: jest.Mock };
+  let fanout: {
+    publishNotificationCreated: jest.Mock;
+    publishTemperatureExcursion: jest.Mock;
+  };
   let channels: { dispatch: jest.Mock };
   let service: NotificationService;
 
@@ -118,7 +121,10 @@ describe('NotificationService', () => {
       lineUserId: null,
       pushEndpoint: null,
     });
-    fanout = { publishNotificationCreated: jest.fn().mockResolvedValue(true) };
+    fanout = {
+      publishNotificationCreated: jest.fn().mockResolvedValue(true),
+      publishTemperatureExcursion: jest.fn().mockResolvedValue(true),
+    };
     channels = { dispatch: jest.fn().mockResolvedValue(undefined) };
 
     service = new NotificationService(
@@ -207,6 +213,177 @@ describe('NotificationService', () => {
         email: 'exporter@example.com',
         lineUserId: 'line-user-1',
         pushEndpoint: 'https://push.example.com/device-1',
+      }),
+    );
+  });
+
+  it('escalates moderate excursion alerts to email and websocket delivery', async () => {
+    store.findLaneOwnerUserId.mockResolvedValue('user-1');
+    store.createNotifications.mockResolvedValue([
+      buildNotification({
+        type: 'EXCURSION_ALERT',
+        title: 'Temperature excursion detected',
+        message: '1 new temperature excursion was detected for this lane.',
+        data: {
+          excursionCount: 1,
+          highestSeverity: 'MODERATE',
+          slaBreached: false,
+        },
+      }),
+    ]);
+    store.listPreferences.mockResolvedValue([
+      buildPreference({
+        type: 'EXCURSION_ALERT',
+        inAppEnabled: false,
+        emailEnabled: false,
+        pushEnabled: false,
+        lineEnabled: false,
+      }),
+    ]);
+
+    await (
+      service as unknown as {
+        notifyLaneOwnerAboutTemperatureExcursions: (
+          laneId: string,
+          input: {
+            excursionCount: number;
+            highestSeverity: 'MODERATE';
+            slaBreached: boolean;
+            excursions: Array<{
+              severity: string;
+              startedAt: Date;
+              endedAt: Date | null;
+              type: string;
+              direction: string;
+              durationMinutes: number;
+            }>;
+          },
+        ) => Promise<unknown>;
+      }
+    ).notifyLaneOwnerAboutTemperatureExcursions('lane-1', {
+      excursionCount: 1,
+      highestSeverity: 'MODERATE',
+      slaBreached: false,
+      excursions: [
+        {
+          severity: 'MODERATE',
+          startedAt: new Date('2026-03-28T01:00:00.000Z'),
+          endedAt: new Date('2026-03-28T01:30:00.000Z'),
+          type: 'HEAT',
+          direction: 'HIGH',
+          durationMinutes: 30,
+        },
+      ],
+    });
+
+    expect(store.findLaneOwnerUserId).toHaveBeenCalledWith('lane-1');
+    expect(fanout.publishNotificationCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'EXCURSION_ALERT',
+      }),
+    );
+    expect(fanout.publishTemperatureExcursion).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        laneId: 'lane-1',
+        highestSeverity: 'MODERATE',
+        excursionCount: 1,
+        slaBreached: false,
+      }),
+    );
+    expect(channels.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'EXCURSION_ALERT',
+      }),
+      expect.objectContaining({
+        inAppEnabled: true,
+        emailEnabled: true,
+        pushEnabled: false,
+        lineEnabled: false,
+      }),
+      expect.objectContaining({
+        userId: 'user-1',
+      }),
+    );
+  });
+
+  it('escalates critical excursion alerts across all channels', async () => {
+    store.findLaneOwnerUserId.mockResolvedValue('user-1');
+    store.createNotifications.mockResolvedValue([
+      buildNotification({
+        type: 'EXCURSION_ALERT',
+        data: {
+          excursionCount: 2,
+          highestSeverity: 'CRITICAL',
+          slaBreached: true,
+        },
+      }),
+    ]);
+    store.listPreferences.mockResolvedValue([
+      buildPreference({
+        type: 'EXCURSION_ALERT',
+        inAppEnabled: false,
+        emailEnabled: false,
+        pushEnabled: false,
+        lineEnabled: false,
+      }),
+    ]);
+
+    await (
+      service as unknown as {
+        notifyLaneOwnerAboutTemperatureExcursions: (
+          laneId: string,
+          input: {
+            excursionCount: number;
+            highestSeverity: 'CRITICAL';
+            slaBreached: boolean;
+            excursions: Array<{
+              severity: string;
+              startedAt: Date;
+              endedAt: Date | null;
+              type: string;
+              direction: string;
+              durationMinutes: number;
+            }>;
+          },
+        ) => Promise<unknown>;
+      }
+    ).notifyLaneOwnerAboutTemperatureExcursions('lane-1', {
+      excursionCount: 2,
+      highestSeverity: 'CRITICAL',
+      slaBreached: true,
+      excursions: [
+        {
+          severity: 'CRITICAL',
+          startedAt: new Date('2026-03-28T01:00:00.000Z'),
+          endedAt: null,
+          type: 'CHILLING',
+          direction: 'LOW',
+          durationMinutes: 60,
+        },
+      ],
+    });
+
+    expect(channels.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'EXCURSION_ALERT',
+      }),
+      expect.objectContaining({
+        inAppEnabled: true,
+        emailEnabled: true,
+        pushEnabled: true,
+        lineEnabled: true,
+      }),
+      expect.objectContaining({
+        userId: 'user-1',
+      }),
+    );
+    expect(fanout.publishTemperatureExcursion).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        laneId: 'lane-1',
+        highestSeverity: 'CRITICAL',
+        slaBreached: true,
       }),
     );
   });

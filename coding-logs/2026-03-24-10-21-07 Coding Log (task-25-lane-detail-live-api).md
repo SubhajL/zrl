@@ -244,3 +244,59 @@ LOW
 ### Rollout Notes
 - The PR should contain only the Task 25 slice plus the frontend `typecheck` hardening in `frontend/package.json`.
 - Leave `.codex/coding-log.current`, unrelated AGENTS changes, older coding logs, and `frontend/design-references/` out of the commit.
+
+
+## 2026-03-25 06:35 ICT
+
+- Goal: Clean up repo ignore rules for local-only Codex artifacts and frontend design reference files without changing tracked project docs/history.
+- What changed:
+  - [.gitignore](/Users/subhajlimanond/dev/zrl/.gitignore): added ignore rules for `.codex/coding-log.current`, `__pycache__/`, `*.pyc`, and `frontend/design-references/`.
+  - Untracked from git index only: `.codex/coding-log.current` and `.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc` via `git rm --cached`, leaving the local files on disk.
+- TDD evidence:
+  - RED: not applicable; this was repo-hygiene/config cleanup rather than behavior code, so there was no meaningful failing test to add first.
+  - GREEN: `git check-ignore -v '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc' 'frontend/design-references/01-login.html'` showed all three paths are now covered by `.gitignore`.
+- Tests run and results:
+  - `git check-ignore -v '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc' 'frontend/design-references/01-login.html'` — passed
+  - `git status --short --branch` — confirmed staged index removals for the two local-only tracked files and no new tracked additions for `frontend/design-references/`
+- Wiring verification evidence:
+  - The active coding log pointer still resolves locally through `.codex/coding-log.current`; only git tracking was removed.
+  - Repo guidance files under `frontend/AGENTS.md`, `prisma/AGENTS.md`, `test/AGENTS.md` and versioned `coding-logs/` entries were intentionally left tracked.
+- Behavior changes and risk notes:
+  - Future local pointer changes, Python bytecode cache files, and frontend design reference artifacts will stop appearing as untracked/tracked git noise.
+  - Existing tracked project docs are unaffected.
+- Follow-ups / known gaps:
+  - The staged `.gitignore` update plus cached removals are not committed yet.
+  - Other unrelated local modifications remain in the working tree and should be reviewed separately before any commit.
+
+## Review (2026-03-25 06:42 ICT) - working-tree
+
+### Reviewed
+- Repo: /Users/subhajlimanond/dev/zrl
+- Branch: main
+- Scope: working-tree
+- Commands Run: `git diff -- .gitignore`; `git diff --cached -- .gitignore '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc'`; `git status --short -- '.gitignore' '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc'`; `git check-ignore -v '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc' 'frontend/design-references/01-login.html'`
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- This review covers only the ignore-policy cleanup slice, not the unrelated dirty files still present in the working tree.
+- I assume `frontend/design-references/` is intentionally local-only reference material, not product assets.
+
+### Recommended Tests / Validation
+- `git check-ignore -v '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc' 'frontend/design-references/01-login.html'`
+- `git status --short -- '.gitignore' '.codex/coding-log.current' '.codex/hooks/__pycache__/codex_hooks.cpython-313.pyc'`
+
+### Rollout Notes
+- This should be a tiny hygiene PR only: `.gitignore` plus untracking the local pointer and tracked `.pyc` file.
+- Keep `coding-logs/` and `AGENTS.md` files tracked.

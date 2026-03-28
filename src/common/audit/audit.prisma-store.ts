@@ -88,7 +88,7 @@ export class PrismaAuditStore implements AuditStore {
       case AuditEntityTypes.LANE:
         return await this.findSingleValue(
           executor,
-          'SELECT id FROM lanes WHERE id = $1 LIMIT 1',
+          'SELECT id FROM lanes WHERE id = $1 OR lane_id = $1 LIMIT 1',
           [entityId],
           'id',
         );
@@ -360,15 +360,20 @@ export class PrismaAuditStore implements AuditStore {
     filters?: AuditEntryFilters,
   ): { clause: string; values: unknown[] } {
     const values: unknown[] = [laneId];
+    const resolvedLaneId =
+      '(SELECT id FROM lanes WHERE id = $1 OR lane_id = $1 LIMIT 1)';
     const conditions = [
       `(
-        (entity_type = 'LANE' AND entity_id = $1)
+        (
+          entity_type = 'LANE'
+          AND (entity_id = $1 OR entity_id = ${resolvedLaneId})
+        )
         OR (
           entity_type = 'CHECKPOINT'
           AND EXISTS (
             SELECT 1 FROM checkpoints
             WHERE checkpoints.id = audit_entries.entity_id
-              AND checkpoints.lane_id = $1
+              AND checkpoints.lane_id = ${resolvedLaneId}
           )
         )
         OR (
@@ -376,7 +381,7 @@ export class PrismaAuditStore implements AuditStore {
           AND EXISTS (
             SELECT 1 FROM evidence_artifacts
             WHERE evidence_artifacts.id = audit_entries.entity_id
-              AND evidence_artifacts.lane_id = $1
+              AND evidence_artifacts.lane_id = ${resolvedLaneId}
           )
         )
         OR (
@@ -384,7 +389,7 @@ export class PrismaAuditStore implements AuditStore {
           AND EXISTS (
             SELECT 1 FROM proof_packs
             WHERE proof_packs.id = audit_entries.entity_id
-              AND proof_packs.lane_id = $1
+              AND proof_packs.lane_id = ${resolvedLaneId}
           )
         )
       )`,

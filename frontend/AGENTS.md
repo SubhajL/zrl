@@ -8,8 +8,8 @@
 ## Current State
 <!-- BEGIN AUTO-GENERATED:FRONTEND_CURRENT_STATE -->
 - Stack: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4.
-- Current app files: `src/app/favicon.ico`, `src/app/globals.css`, `src/app/layout.tsx`, `src/app/page.tsx`
-- There is no established component library, hook layer, API client, or route-handler structure yet. Add those deliberately, not by habit.
+- Current app files: `src/app/(app)/admin/rules/page.test.tsx`, `src/app/(app)/admin/rules/page.tsx`, `src/app/(app)/analytics/page.test.tsx`, `src/app/(app)/analytics/page.tsx`, `src/app/(app)/checkpoint/capture/page.test.tsx`, `src/app/(app)/checkpoint/capture/page.tsx`, `src/app/(app)/dashboard/page.test.tsx`, `src/app/(app)/dashboard/page.tsx`, `src/app/(app)/lanes/[laneId]/_components/lane-detail-tabs.tsx`, `src/app/(app)/lanes/[laneId]/_components/lane-header.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-audit-trail.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-checkpoints.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-dispute.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-evidence.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-proof-packs.tsx`, `src/app/(app)/lanes/[laneId]/_components/tab-temperature.tsx`, `src/app/(app)/lanes/[laneId]/page.test.tsx`, `src/app/(app)/lanes/[laneId]/page.tsx`, `src/app/(app)/lanes/new/page.test.tsx`, `src/app/(app)/lanes/new/page.tsx`, `src/app/(app)/lanes/page.tsx`, `src/app/(app)/layout.tsx`, `src/app/(app)/partner/page.tsx`, `src/app/(app)/settings/page.test.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(auth)/layout.tsx`, `src/app/(auth)/login/page.test.tsx`, `src/app/(auth)/login/page.tsx`, `src/app/favicon.ico`, `src/app/globals.css`, `src/app/layout.tsx`, `src/app/page.tsx`
+- Additional frontend source directories currently on disk: `components/`, `lib/`.
 <!-- END AUTO-GENERATED:FRONTEND_CURRENT_STATE -->
 
 ## Core Commands
