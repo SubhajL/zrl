@@ -45,6 +45,10 @@ export type ArtifactSource = 'UPLOAD' | 'PARTNER_API' | 'CAMERA';
 
 export type CheckpointStatus = 'COMPLETED' | 'PENDING' | 'OVERDUE';
 
+export type ProofPackType = 'REGULATOR' | 'BUYER' | 'DEFENSE';
+
+export type ProofPackStatus = 'GENERATING' | 'READY' | 'FAILED';
+
 export type ExcursionSeverity = 'MINOR' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
 
 export type ExcursionType = 'CHILLING_INJURY' | 'HEAT_DAMAGE';
@@ -262,6 +266,20 @@ export interface TemperatureSlaResult {
   readonly maxDeviationC: number;
   readonly remainingShelfLifeDays: number;
   readonly shelfLifeImpactPct: number;
+}
+
+export interface ProofPackSummary {
+  readonly id: string;
+  readonly laneId: string;
+  readonly packType: ProofPackType;
+  readonly version: number;
+  readonly status: ProofPackStatus;
+  readonly contentHash: string | null;
+  readonly filePath: string | null;
+  readonly errorMessage: string | null;
+  readonly generatedAt: string;
+  readonly generatedBy: string;
+  readonly recipient: string | null;
 }
 
 export interface MrlSubstance {

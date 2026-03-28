@@ -1,34 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { Search, Plus, Upload, Download } from 'lucide-react';
-
+import { Download, Plus, Search, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MrlSubstance, RiskLevel, DestinationMarket } from '@/lib/types';
+import type { DestinationMarket, MrlSubstance, RiskLevel } from '@/lib/types';
 import { MARKET_FLAGS, MARKET_LABELS } from '@/lib/types';
-import { MOCK_SUBSTANCES } from '@/lib/mock-data';
 import { DataTable, type Column } from '@/components/zrl/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { getErrorMessage } from '@/lib/app-api';
+import { loadRulesAdminData, type RulesAdminData } from '@/lib/rules-data';
 
-// ── Market metadata ──
-
-interface MarketInfo {
-  readonly key: DestinationMarket;
-  readonly substanceCount: string;
-  readonly version: string;
-}
-
-const MARKETS: readonly MarketInfo[] = [
-  { key: 'JAPAN', substanceCount: '423 substances', version: 'v3.2' },
-  { key: 'CHINA', substanceCount: '312 substances', version: 'v2.8' },
-  { key: 'KOREA', substanceCount: '387 substances', version: 'v2.5' },
-  { key: 'EU', substanceCount: '298 substances', version: 'v4.1' },
-];
-
-// ── Risk badge variant mapping ──
+type RiskFilter = 'All' | RiskLevel;
 
 const RISK_BADGE_VARIANT: Record<
   RiskLevel,
@@ -39,25 +24,6 @@ const RISK_BADGE_VARIANT: Record<
   MEDIUM: 'info',
   LOW: 'secondary',
 };
-
-// ── Ratio color mapping ──
-
-function ratioColorClass(risk: RiskLevel): string {
-  switch (risk) {
-    case 'CRITICAL':
-      return 'text-destructive';
-    case 'HIGH':
-      return 'text-amber-600';
-    case 'MEDIUM':
-      return 'text-blue-600';
-    case 'LOW':
-      return 'text-muted-foreground';
-  }
-}
-
-// ── Filter types ──
-
-type RiskFilter = 'All' | RiskLevel;
 
 const RISK_FILTERS: readonly RiskFilter[] = [
   'All',
@@ -75,38 +41,6 @@ const RISK_FILTER_LABELS: Record<RiskFilter, string> = {
   LOW: 'Low',
 };
 
-// ── Version history data ──
-
-interface VersionEntry {
-  readonly version: string;
-  readonly current: boolean;
-  readonly date: string;
-  readonly description: string;
-}
-
-const VERSION_HISTORY: readonly VersionEntry[] = [
-  {
-    version: 'v3.2',
-    current: true,
-    date: '2026-03-15',
-    description: 'Added 15 new substances',
-  },
-  {
-    version: 'v3.1',
-    current: false,
-    date: '2026-02-01',
-    description: 'Updated Chlorpyrifos limit',
-  },
-  {
-    version: 'v3.0',
-    current: false,
-    date: '2025-12-15',
-    description: 'Major revision: 50 substances',
-  },
-];
-
-// ── Table columns ──
-
 const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
   {
     key: 'name',
@@ -116,9 +50,7 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
   {
     key: 'casNumber',
     header: 'CAS Number',
-    sortable: false,
-    className: 'font-mono text-xs',
-    render: (value) => (value != null ? String(value) : '-'),
+    render: (value) => (value == null ? '-' : String(value)),
   },
   {
     key: 'thaiMrl',
@@ -129,7 +61,7 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
   },
   {
     key: 'destinationMrl',
-    header: 'Japan MRL',
+    header: 'Destination MRL',
     sortable: true,
     className: 'text-right font-mono tabular-nums',
     render: (value) => String(value),
@@ -139,11 +71,7 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
     header: 'Ratio',
     sortable: true,
     className: 'text-right font-bold tabular-nums',
-    render: (_value, row) => (
-      <span className={ratioColorClass(row.riskLevel)}>
-        {row.stringencyRatio}x
-      </span>
-    ),
+    render: (value) => `${value}x`,
   },
   {
     key: 'riskLevel',
@@ -157,83 +85,101 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
     key: 'updatedAt',
     header: 'Updated',
     sortable: true,
-    className: 'text-right font-mono text-xs text-muted-foreground',
-    render: (value) => {
-      if (value == null) return '-';
-      const date = new Date(String(value));
-      return date.toISOString().slice(0, 10);
-    },
+    render: (value) => new Date(String(value)).toISOString().slice(0, 10),
   },
 ];
 
-// ── Page Component ──
-
 export default function RulesAdminPage() {
+  const [data, setData] = React.useState<RulesAdminData | null>(null);
   const [selectedMarket, setSelectedMarket] =
     React.useState<DestinationMarket>('JAPAN');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeFilter, setActiveFilter] = React.useState<RiskFilter>('All');
+  const [error, setError] = React.useState<string | null>(null);
 
-  const selectedMarketInfo = MARKETS.find((m) => m.key === selectedMarket)!;
+  React.useEffect(() => {
+    let active = true;
 
-  // Filter substances by search and risk level
+    void loadRulesAdminData()
+      .then((result) => {
+        if (active) {
+          setData(result);
+          if (result.markets.length > 0) {
+            setSelectedMarket(result.markets[0]);
+          }
+        }
+      })
+      .catch((loadError) => {
+        if (active) {
+          setError(
+            getErrorMessage(loadError, 'Unable to load rules administration data.'),
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedVersions = (data?.versions ?? []).filter(
+    (version) => version.market === selectedMarket,
+  );
+  const latestVersion = selectedVersions[0]?.version ?? '--';
+
   const filteredSubstances = React.useMemo(() => {
-    let result = MOCK_SUBSTANCES;
+    let result = data?.substancesByMarket[selectedMarket] ?? [];
 
     if (activeFilter !== 'All') {
-      result = result.filter((s) => s.riskLevel === activeFilter);
+      result = result.filter((substance) => substance.riskLevel === activeFilter);
     }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query) ||
-          (s.casNumber && s.casNumber.toLowerCase().includes(query)),
+        (substance) =>
+          substance.name.toLowerCase().includes(query) ||
+          (substance.casNumber?.toLowerCase().includes(query) ?? false),
       );
     }
 
     return result;
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, data, searchQuery, selectedMarket]);
 
   return (
-    <div className="flex gap-0 -m-6 min-h-[calc(100vh-4rem)]">
-      {/* Market Selector Sidebar */}
+    <div className="flex min-h-[calc(100vh-4rem)] gap-0 -m-6">
       <aside className="w-72 shrink-0 border-r bg-muted/30 p-6">
         <h2 className="mb-4 text-lg font-semibold">Markets</h2>
         <div className="space-y-2">
-          {MARKETS.map((market) => {
-            const isSelected = market.key === selectedMarket;
+          {(data?.markets ?? ['JAPAN', 'CHINA', 'KOREA', 'EU']).map((market) => {
+            const isSelected = market === selectedMarket;
+            const marketVersion =
+              data?.versions.find((entry) => entry.market === market)?.version ??
+              '--';
+
             return (
               <button
-                key={market.key}
+                key={market}
                 type="button"
-                aria-label={`Select ${MARKET_LABELS[market.key]} market`}
+                aria-label={`Select ${MARKET_LABELS[market]} market`}
                 className={cn(
-                  'w-full rounded-xl p-4 text-left transition-all cursor-pointer',
+                  'w-full cursor-pointer rounded-xl p-4 text-left transition-all',
                   isSelected
-                    ? 'bg-primary/10 border-l-4 border-primary shadow-sm'
+                    ? 'border-l-4 border-primary bg-primary/10 shadow-sm'
                     : 'border-l-4 border-transparent hover:bg-muted/50',
                 )}
-                onClick={() => setSelectedMarket(market.key)}
+                onClick={() => setSelectedMarket(market)}
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span className="text-sm font-semibold">
-                    {MARKET_FLAGS[market.key]} {MARKET_LABELS[market.key]}
+                    {MARKET_FLAGS[market]} {MARKET_LABELS[market]}
                   </span>
-                  <span
-                    className={cn(
-                      'rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                      isSelected
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {market.version}
+                  <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    v{marketVersion}
                   </span>
                 </div>
                 <p className="text-[10px] font-medium uppercase tracking-tight text-muted-foreground">
-                  {market.substanceCount}
+                  {(data?.substancesByMarket[market]?.length ?? 0).toString()} substances
                 </p>
               </button>
             );
@@ -241,124 +187,110 @@ export default function RulesAdminPage() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-8">
-        {/* Header */}
+      <div className="flex-1 space-y-8 overflow-y-auto p-8">
         <header>
           <h1 className="text-3xl font-bold tracking-tight">
-            {MARKET_FLAGS[selectedMarket]} {MARKET_LABELS[selectedMarket]} — MRL
-            Rules {selectedMarketInfo.version}
+            {MARKET_FLAGS[selectedMarket]} {MARKET_LABELS[selectedMarket]} MRL Rules v
+            {latestVersion}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Last updated: 2026-03-20
+            Live rule inventory from the backend rule store
           </p>
         </header>
 
-        {/* Section 1: MRL Table */}
+        {error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </div>
+        )}
+
         <section className="space-y-6">
-          {/* Controls Row */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4 flex-1">
-              {/* Search */}
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search substances..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  aria-label="Search substances"
-                />
-              </div>
-
-              {/* Filter Chips */}
-              <div className="flex items-center gap-1 rounded-xl bg-muted/50 p-1">
-                {RISK_FILTERS.map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    className={cn(
-                      'rounded-lg px-4 py-1.5 text-xs font-semibold transition-all',
-                      activeFilter === filter
-                        ? 'bg-background text-primary shadow-sm'
-                        : 'text-muted-foreground hover:bg-background/50',
-                    )}
-                    aria-pressed={activeFilter === filter}
-                    onClick={() => setActiveFilter(filter)}
-                  >
-                    {RISK_FILTER_LABELS[filter]}
-                  </button>
-                ))}
-              </div>
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search substances..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="pl-9"
+              />
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm">
-                <Download />
-                Export
+            <div className="flex items-center gap-2">
+              <Button disabled variant="outline">
+                <Plus className="size-4" />
+                Add Substance
               </Button>
-              <Button variant="secondary" size="sm">
-                <Upload />
+              <Button disabled variant="outline">
+                <Upload className="size-4" />
                 Import CSV
               </Button>
-              <Button size="sm">
-                <Plus />
-                Add Substance
+              <Button variant="outline">
+                <Download className="size-4" />
+                Export
               </Button>
             </div>
           </div>
 
-          {/* Substance Table */}
-          <DataTable
-            columns={SUBSTANCE_COLUMNS}
-            data={filteredSubstances}
-            emptyMessage="No substances match your filters."
-          />
+          <div className="flex flex-wrap gap-2">
+            {RISK_FILTERS.map((filter) => (
+              <Button
+                key={filter}
+                type="button"
+                variant={activeFilter === filter ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter(filter)}
+              >
+                {RISK_FILTER_LABELS[filter]}
+              </Button>
+            ))}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Substances</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataTable
+                columns={[...SUBSTANCE_COLUMNS]}
+                data={filteredSubstances}
+                emptyMessage="No rule substances found for the selected market."
+              />
+            </CardContent>
+          </Card>
         </section>
 
-        {/* Section 2: Version History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Version History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative space-y-8 pl-6">
-              {/* Timeline line */}
-              <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-border" />
-
-              {VERSION_HISTORY.map((entry) => (
-                <div key={entry.version} className="relative">
-                  {/* Timeline dot */}
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Version History</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {selectedVersions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No version history available yet.
+                </p>
+              ) : (
+                selectedVersions.map((version, index) => (
                   <div
-                    className={cn(
-                      'absolute -left-[17px] top-1.5 size-3.5 rounded-full',
-                      entry.current
-                        ? 'bg-primary shadow-[0_0_8px_rgba(108,92,231,0.4)]'
-                        : 'bg-muted-foreground/30',
-                    )}
-                  />
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold flex items-center gap-2">
-                      {entry.version}
-                      {entry.current && (
-                        <Badge variant="info" className="text-[10px]">
-                          Current
-                        </Badge>
-                      )}
-                    </h3>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {entry.date}
-                    </span>
+                    key={`${version.market}-${version.version}-${version.changedAt}`}
+                    className="rounded-lg border border-border p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold">v{version.version}</p>
+                      {index === 0 && <Badge>Current</Badge>}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {version.changesSummary}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {entry.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </div>
   );

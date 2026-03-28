@@ -1,118 +1,105 @@
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPage from './page';
+import { loadSettingsPageData } from '@/lib/settings-data';
+
+jest.mock('@/lib/settings-data', () => ({
+  loadSettingsPageData: jest.fn(),
+}));
 
 describe('SettingsPage', () => {
-  it('renders the settings sidebar with all navigation items', () => {
-    render(<SettingsPage />);
-    expect(screen.getByText('Profile')).toBeInTheDocument();
-    expect(screen.getByText('Security')).toBeInTheDocument();
-    expect(screen.getByText('API Keys')).toBeInTheDocument();
-    expect(screen.getByText('Notifications')).toBeInTheDocument();
-    expect(screen.getByText('Preferences')).toBeInTheDocument();
-    expect(screen.getByText('Appearance')).toBeInTheDocument();
-    expect(screen.getByText('Data Export')).toBeInTheDocument();
-    expect(screen.getByText('Billing')).toBeInTheDocument();
-    expect(screen.getByText('Danger Zone')).toBeInTheDocument();
+  beforeEach(() => {
+    global.fetch = jest.fn();
   });
 
-  it('renders the profile form with page title', () => {
+  it('renders live account and privacy data', async () => {
+    (loadSettingsPageData as jest.Mock).mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'exporter@zrl-dev.test',
+        role: 'EXPORTER',
+        companyName: 'Chachoengsao Mango Export Co.',
+        mfaEnabled: false,
+        createdAt: '2026-03-28T00:00:00.000Z',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+      },
+      consent: {
+        type: 'MARKETING_COMMUNICATIONS',
+        granted: true,
+        source: 'seed',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+      },
+      requests: [],
+      preferences: [
+        {
+          type: 'PACK_GENERATED',
+          inAppEnabled: true,
+          emailEnabled: true,
+          pushEnabled: false,
+          lineEnabled: false,
+        },
+      ],
+      channelTargets: {
+        lineUserId: 'line-123',
+        pushEndpoint: null,
+      },
+    });
+
     render(<SettingsPage />);
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Profile Settings' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('Manage your company and contact information'),
-    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText('Settings')).toBeInTheDocument();
+      expect(screen.getByText('Chachoengsao Mango Export Co.')).toBeInTheDocument();
+      expect(screen.getByText('Granted')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('line-123')).toBeInTheDocument();
+    });
   });
 
-  it('renders company name input with default value', () => {
-    render(<SettingsPage />);
-    const companyInput = screen.getByLabelText('Company Name');
-    expect(companyInput).toBeInTheDocument();
-    expect(companyInput).toHaveValue('Thai Tropical Exports Co., Ltd.');
-  });
+  it('submits a PDPA export request through the API', async () => {
+    (loadSettingsPageData as jest.Mock).mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'exporter@zrl-dev.test',
+        role: 'EXPORTER',
+        companyName: 'Chachoengsao Mango Export Co.',
+        mfaEnabled: false,
+        createdAt: '2026-03-28T00:00:00.000Z',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+      },
+      consent: {
+        type: 'MARKETING_COMMUNICATIONS',
+        granted: true,
+        source: 'seed',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+      },
+      requests: [],
+      preferences: [],
+      channelTargets: {
+        lineUserId: null,
+        pushEndpoint: null,
+      },
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+      headers: { get: () => 'application/json' },
+    });
 
-  it('renders all three form cards', () => {
-    render(<SettingsPage />);
-    expect(screen.getByText('Company Information')).toBeInTheDocument();
-    expect(screen.getByText('Contact Information')).toBeInTheDocument();
-    expect(screen.getByText('Export Profile')).toBeInTheDocument();
-    expect(screen.getByText('PDPA Privacy Controls')).toBeInTheDocument();
-  });
-
-  it('renders contact information fields', () => {
-    render(<SettingsPage />);
-    expect(screen.getByLabelText('Full Name')).toHaveValue('Somchai Prasert');
-    expect(screen.getByLabelText('Email')).toHaveValue('somchai@tte.co.th');
-    expect(screen.getByLabelText('Phone')).toHaveValue('+66 81 234 5678');
-    expect(screen.getByLabelText('Language')).toHaveValue('English');
-  });
-
-  it('renders verified badge on email', () => {
-    render(<SettingsPage />);
-    expect(screen.getByText('Verified')).toBeInTheDocument();
-  });
-
-  it('renders export profile with product and market pills', () => {
-    render(<SettingsPage />);
-    expect(screen.getByText('Mango')).toBeInTheDocument();
-    expect(screen.getByText('Durian')).toBeInTheDocument();
-    expect(screen.getByText('Japan')).toBeInTheDocument();
-    expect(screen.getByText('China')).toBeInTheDocument();
-  });
-
-  it('removes a product pill when X is clicked', async () => {
     const user = userEvent.setup();
     render(<SettingsPage />);
 
-    await user.click(screen.getByLabelText('Remove Mango'));
+    await waitFor(() => {
+      expect(screen.getByText('Request PDPA Export')).toBeInTheDocument();
+    });
 
-    expect(screen.queryByText('Mango')).not.toBeInTheDocument();
-    expect(screen.getByText('Durian')).toBeInTheDocument();
-  });
+    await user.click(screen.getByRole('button', { name: 'Request PDPA Export' }));
 
-  it('renders save and discard buttons', () => {
-    render(<SettingsPage />);
-    expect(
-      screen.getByRole('button', { name: 'Save Changes' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument();
-  });
-
-  it('renders annual volume input with tons suffix', () => {
-    render(<SettingsPage />);
-    expect(screen.getByLabelText('Annual Volume')).toHaveValue('500');
-    expect(screen.getByText('tons')).toBeInTheDocument();
-  });
-
-  it('toggles marketing consent from opt-in to opt-out', async () => {
-    const user = userEvent.setup();
-    render(<SettingsPage />);
-
-    expect(screen.getByText('Marketing Opt-In')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Withdraw Consent' }));
-
-    expect(screen.getByText('Marketing Opt-Out')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Enable Marketing Updates' }),
-    ).toBeInTheDocument();
-  });
-
-  it('updates export status when the PDPA export button is clicked', async () => {
-    const user = userEvent.setup();
-    render(<SettingsPage />);
-
-    await user.click(
-      screen.getByRole('button', { name: 'Request PDPA Export' }),
-    );
-
-    expect(
-      screen.getByText(
-        'Export requested. JSON and CSV ZIP ready in ~2 minutes.',
-      ),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/zrl/users/me/data-export',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
   });
 });

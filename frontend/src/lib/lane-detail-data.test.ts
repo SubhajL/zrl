@@ -226,6 +226,39 @@ describe('loadLaneDetailPageData', () => {
         });
       }
 
+      if (url === 'http://backend.test/lanes/lane-db-1/packs') {
+        return jsonResponse({
+          packs: [
+            {
+              id: 'pack-1',
+              laneId: 'lane-db-1',
+              packType: 'REGULATOR',
+              version: 1,
+              status: 'READY',
+              contentHash: 'packhash-1',
+              filePath: 's3://bucket/pack-1.pdf',
+              errorMessage: null,
+              generatedAt: '2026-03-23T06:00:00.000Z',
+              generatedBy: 'user-1',
+              recipient: 'Tokyo Customs',
+            },
+            {
+              id: 'pack-2',
+              laneId: 'lane-db-1',
+              packType: 'REGULATOR',
+              version: 2,
+              status: 'GENERATING',
+              contentHash: null,
+              filePath: null,
+              errorMessage: null,
+              generatedAt: '2026-03-23T07:00:00.000Z',
+              generatedBy: 'user-1',
+              recipient: 'Tokyo Customs',
+            },
+          ],
+        });
+      }
+
       if (url === 'http://backend.test/cold-chain/profiles/MANGO') {
         return jsonResponse({
           profile: {
@@ -250,7 +283,7 @@ describe('loadLaneDetailPageData', () => {
       }),
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock).toHaveBeenCalledTimes(8);
     expect(data.lane.laneId).toBe('LN-2026-001');
     expect(data.lane.completenessScore).toBe(73);
     expect(data.lane.temperatureProfile).toEqual(
@@ -273,7 +306,14 @@ describe('loadLaneDetailPageData', () => {
       }),
     );
     expect(data.auditEntries[0]?.actor).toBe('system');
-    expect(data.proofPacks.backendAvailable).toBe(false);
+    expect(data.proofPacks.packs).toHaveLength(2);
+    expect(data.proofPacks.packs[0]).toEqual(
+      expect.objectContaining({
+        id: 'pack-2',
+        version: 2,
+        status: 'GENERATING',
+      }),
+    );
   });
 
   it('falls back to the server access token env var when no auth header is forwarded', async () => {

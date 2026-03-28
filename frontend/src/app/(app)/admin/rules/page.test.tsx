@@ -1,100 +1,90 @@
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RulesAdminPage from './page';
+import { loadRulesAdminData } from '@/lib/rules-data';
+
+jest.mock('@/lib/rules-data', () => ({
+  loadRulesAdminData: jest.fn(),
+}));
 
 describe('RulesAdminPage', () => {
-  it('renders the market selector with all 4 markets', () => {
-    render(<RulesAdminPage />);
-    expect(screen.getByText('Markets')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select Japan market')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select China market')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select Korea market')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select EU market')).toBeInTheDocument();
-  });
+  it('renders markets and live substances from the loader', async () => {
+    (loadRulesAdminData as jest.Mock).mockResolvedValue({
+      markets: ['JAPAN', 'CHINA'],
+      versions: [
+        {
+          market: 'JAPAN',
+          version: 3,
+          changesSummary: 'Updated Chlorpyrifos limit',
+          changedAt: '2026-03-28T00:00:00.000Z',
+        },
+      ],
+      substancesByMarket: {
+        JAPAN: [
+          {
+            id: 'sub-1',
+            name: 'Chlorpyrifos',
+            casNumber: '2921-88-2',
+            thaiMrl: 0.5,
+            destinationMrl: 0.01,
+            stringencyRatio: 50,
+            riskLevel: 'CRITICAL',
+            updatedAt: '2026-03-28T00:00:00.000Z',
+          },
+        ],
+        CHINA: [],
+      },
+    });
 
-  it('renders the substance table with mock data', () => {
-    render(<RulesAdminPage />);
-    expect(screen.getByText('Chlorpyrifos')).toBeInTheDocument();
-    expect(screen.getByText('Dithiocarbamates')).toBeInTheDocument();
-    expect(screen.getByText('Carbendazim')).toBeInTheDocument();
-    expect(screen.getByText('Cypermethrin')).toBeInTheDocument();
-    expect(screen.getByText('Imidacloprid')).toBeInTheDocument();
-    expect(screen.getByText('Metalaxyl')).toBeInTheDocument();
-  });
-
-  it('renders the search bar', () => {
-    render(<RulesAdminPage />);
-    expect(
-      screen.getByPlaceholderText('Search substances...'),
-    ).toBeInTheDocument();
-  });
-
-  it('renders filter chips for all risk levels', () => {
-    render(<RulesAdminPage />);
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Critical' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'High' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Medium' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Low' })).toBeInTheDocument();
-  });
-
-  it('filters substances when a risk level chip is clicked', async () => {
-    const user = userEvent.setup();
     render(<RulesAdminPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Critical' }));
-
-    // Critical substances should be visible
-    expect(screen.getByText('Chlorpyrifos')).toBeInTheDocument();
-    expect(screen.getByText('Dithiocarbamates')).toBeInTheDocument();
-
-    // Non-critical substances should be hidden
-    expect(screen.queryByText('Carbendazim')).not.toBeInTheDocument();
-    expect(screen.queryByText('Metalaxyl')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Markets')).toBeInTheDocument();
+      expect(screen.getByText('Chlorpyrifos')).toBeInTheDocument();
+      expect(screen.getByText('Version History')).toBeInTheDocument();
+    });
   });
 
   it('filters substances by search query', async () => {
+    (loadRulesAdminData as jest.Mock).mockResolvedValue({
+      markets: ['JAPAN'],
+      versions: [],
+      substancesByMarket: {
+        JAPAN: [
+          {
+            id: 'sub-1',
+            name: 'Chlorpyrifos',
+            casNumber: '2921-88-2',
+            thaiMrl: 0.5,
+            destinationMrl: 0.01,
+            stringencyRatio: 50,
+            riskLevel: 'CRITICAL',
+            updatedAt: '2026-03-28T00:00:00.000Z',
+          },
+          {
+            id: 'sub-2',
+            name: 'Metalaxyl',
+            casNumber: '57837-19-1',
+            thaiMrl: 1,
+            destinationMrl: 0.5,
+            stringencyRatio: 2,
+            riskLevel: 'LOW',
+            updatedAt: '2026-03-28T00:00:00.000Z',
+          },
+        ],
+      },
+    });
     const user = userEvent.setup();
     render(<RulesAdminPage />);
 
-    await user.type(
-      screen.getByPlaceholderText('Search substances...'),
-      'Chlor',
-    );
+    await waitFor(() => {
+      expect(screen.getByText('Chlorpyrifos')).toBeInTheDocument();
+    });
 
-    expect(screen.getByText('Chlorpyrifos')).toBeInTheDocument();
-    expect(screen.queryByText('Carbendazim')).not.toBeInTheDocument();
-  });
+    await user.type(screen.getByPlaceholderText('Search substances...'), 'Metal');
 
-  it('renders action buttons', () => {
-    render(<RulesAdminPage />);
-    expect(
-      screen.getByRole('button', { name: /Add Substance/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Import CSV/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Export/i })).toBeInTheDocument();
-  });
-
-  it('renders version history section', () => {
-    render(<RulesAdminPage />);
-    expect(screen.getByText('Version History')).toBeInTheDocument();
-    expect(screen.getByText('Added 15 new substances')).toBeInTheDocument();
-    expect(screen.getByText('Updated Chlorpyrifos limit')).toBeInTheDocument();
-    expect(
-      screen.getByText('Major revision: 50 substances'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Current')).toBeInTheDocument();
-  });
-
-  it('renders the page header with Japan selected by default', () => {
-    render(<RulesAdminPage />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /Japan.*MRL Rules v3\.2/,
-    );
+    expect(screen.getByText('Metalaxyl')).toBeInTheDocument();
+    expect(screen.queryByText('Chlorpyrifos')).not.toBeInTheDocument();
   });
 });

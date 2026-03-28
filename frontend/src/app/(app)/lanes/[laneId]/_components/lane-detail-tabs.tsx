@@ -91,7 +91,7 @@ export function LaneDetailTabs({ data }: LaneDetailTabsProps) {
           <TabProofPacks
             laneId={lane.laneId}
             completeness={lane.completenessScore}
-            backendAvailable={data.proofPacks.backendAvailable}
+            packs={data.proofPacks.packs}
           />
         )}
         {activeTab === 'audit' && (

@@ -3,12 +3,18 @@ import userEvent from '@testing-library/user-event';
 import LaneCreationWizard from './page';
 
 // Mock next/navigation (App Router)
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   usePathname: () => '/lanes/new',
 }));
 
 describe('LaneCreationWizard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn();
+  });
+
   it('renders the stepper with 4 steps', () => {
     render(<LaneCreationWizard />);
 
@@ -170,5 +176,39 @@ describe('LaneCreationWizard', () => {
     expect(
       screen.getByRole('button', { name: 'Telemetry' }),
     ).toBeInTheDocument();
+  });
+
+  it('submits a real lane creation request and redirects to the lane detail page', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        lane: {
+          id: 'lane-db-1',
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.type(screen.getByLabelText(/variety/i), 'Nam Doc Mai');
+    await user.type(screen.getByLabelText(/quantity/i), '5000');
+    await user.type(screen.getByLabelText(/harvest date/i), '2026-03-28');
+    await user.type(screen.getByLabelText(/origin province/i), 'Chachoengsao');
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+    await user.click(screen.getByRole('button', { name: /next: review/i }));
+    await user.click(screen.getByRole('button', { name: /create lane/i }));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/zrl/lanes',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-1');
   });
 });

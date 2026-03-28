@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getErrorMessage, requestAppJson } from '@/lib/app-api';
 import { cn } from '@/lib/utils';
 
 const LANGUAGES = ['EN', 'TH', 'JP', 'ZH'] as const;
@@ -62,24 +63,54 @@ export default function LoginPage() {
     setError(null);
 
     if (!validateForm()) return;
+    if (mfaRequired && mfaCode.some((digit) => digit.trim().length === 0)) {
+      setError('Enter the full 6-digit verification code.');
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      // Mock authentication -- replace with real API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (!mfaRequired) {
+        const result = await requestAppJson<{ requireMfa: boolean }>(
+          '/api/session/login',
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              email,
+              password,
+            }),
+          },
+        );
 
-      // Simulate MFA requirement for admin accounts
-      if (!mfaRequired && email.includes('admin')) {
-        setMfaRequired(true);
-        setIsLoading(false);
-        return;
+        if (result.requireMfa) {
+          setMfaRequired(true);
+          return;
+        }
+      } else {
+        await requestAppJson('/api/session/mfa', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: mfaCode.join(''),
+          }),
+        });
       }
 
-      // Mock successful login
       router.push('/dashboard');
-    } catch {
-      setError('Authentication failed. Please check your credentials.');
+      router.refresh();
+    } catch (submitError) {
+      setError(
+        getErrorMessage(
+          submitError,
+          'Authentication failed. Please check your credentials.',
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -359,7 +390,7 @@ export default function LoginPage() {
                   Signing in...
                 </>
               ) : (
-                'Sign In'
+                mfaRequired ? 'Verify Code' : 'Sign In'
               )}
             </Button>
           </form>
