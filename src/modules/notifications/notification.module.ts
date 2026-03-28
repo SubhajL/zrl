@@ -29,6 +29,6 @@ import { NOTIFICATION_FANOUT, NOTIFICATION_STORE } from './notification.types';
     RealtimeEventsService,
     NotificationService,
   ],
-  exports: [NotificationService, RealtimeEventsService],
+  exports: [NotificationChannels, NotificationService, RealtimeEventsService],
 })
 export class NotificationModule {}

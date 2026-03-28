@@ -106,7 +106,7 @@ describe('NotificationService', () => {
     publishNotificationCreated: jest.Mock;
     publishTemperatureExcursion: jest.Mock;
   };
-  let channels: { dispatch: jest.Mock };
+  let channels: { dispatch: jest.Mock; sendDirectEmail: jest.Mock };
   let realtimeEvents: Pick<
     RealtimeEventsService,
     | 'publishPackGenerated'
@@ -133,7 +133,10 @@ describe('NotificationService', () => {
       publishNotificationCreated: jest.fn().mockResolvedValue(true),
       publishTemperatureExcursion: jest.fn().mockResolvedValue(true),
     };
-    channels = { dispatch: jest.fn().mockResolvedValue(undefined) };
+    channels = {
+      dispatch: jest.fn().mockResolvedValue(undefined),
+      sendDirectEmail: jest.fn().mockResolvedValue(undefined),
+    };
     realtimeEvents = {
       publishPackGenerated: jest.fn().mockResolvedValue(undefined),
       publishRuleUpdated: jest.fn().mockResolvedValue(undefined),

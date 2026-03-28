@@ -108,6 +108,14 @@ export default function SettingsPage() {
   const [products, setProducts] = React.useState<string[]>(['Mango', 'Durian']);
   const [markets, setMarkets] = React.useState<string[]>(['Japan', 'China']);
   const [annualVolume, setAnnualVolume] = React.useState('500');
+  const [marketingConsent, setMarketingConsent] = React.useState(true);
+  const [lastExportStatus, setLastExportStatus] = React.useState(
+    'No portability export requested yet.',
+  );
+  const [privacyRequests, setPrivacyRequests] = React.useState<string[]>([
+    'Access request completed in 4 days',
+    'Deletion request queued for manual review',
+  ]);
 
   const removeProduct = (product: string) => {
     setProducts((prev) => prev.filter((p) => p !== product));
@@ -115,6 +123,24 @@ export default function SettingsPage() {
 
   const removeMarket = (market: string) => {
     setMarkets((prev) => prev.filter((m) => m !== market));
+  };
+
+  const toggleMarketingConsent = () => {
+    setMarketingConsent((prev) => !prev);
+  };
+
+  const requestDataExport = () => {
+    setActiveSection('data-export');
+    setLastExportStatus(
+      'Export requested. JSON and CSV ZIP ready in ~2 minutes.',
+    );
+  };
+
+  const queueDeletionRequest = () => {
+    setPrivacyRequests((prev) => [
+      'Deletion request submitted under 30-day PDPA SLA',
+      ...prev,
+    ]);
   };
 
   return (
@@ -314,6 +340,103 @@ export default function SettingsPage() {
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                   tons
                 </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="pdpa-card">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <CardTitle className="text-xl">PDPA Privacy Controls</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Manage marketing consent, portability exports, and data-subject
+                requests within the 30-day Thai PDPA response window.
+              </p>
+            </div>
+            <Badge variant={marketingConsent ? 'success' : 'warning'}>
+              {marketingConsent ? 'Marketing Opt-In' : 'Marketing Opt-Out'}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="rounded-2xl border border-border/70 bg-muted/30 p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">
+                    Marketing communications consent
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Current source: Settings Center. Withdraw any time without
+                    affecting export evidence operations.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={marketingConsent ? 'outline' : 'default'}
+                  onClick={toggleMarketingConsent}
+                >
+                  {marketingConsent
+                    ? 'Withdraw Consent'
+                    : 'Enable Marketing Updates'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-2xl border border-border/70 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      PDPA Data Portability
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Generate a ZIP with JSON and CSV exports of your profile,
+                      lanes, checkpoints, evidence metadata, notifications, and
+                      consent history.
+                    </p>
+                  </div>
+                  <Button type="button" onClick={requestDataExport}>
+                    Request PDPA Export
+                  </Button>
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  {lastExportStatus}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 p-5">
+                <p className="text-sm font-semibold">Rights Request Queue</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Access, correction, deletion, objection, and consent
+                  withdrawal requests are tracked against a 30-day deadline.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 w-full"
+                  onClick={queueDeletionRequest}
+                >
+                  Create Deletion Request
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Recent privacy actions</Label>
+                <Badge variant="outline">
+                  72-hour breach notice runbook ready
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {privacyRequests.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-xl border border-border/60 bg-background px-4 py-3 text-sm"
+                  >
+                    {item}
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
