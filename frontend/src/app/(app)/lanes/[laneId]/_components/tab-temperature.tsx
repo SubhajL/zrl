@@ -1,6 +1,6 @@
 'use client';
 
-import { Thermometer, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Thermometer } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +110,40 @@ const excursionColumns: readonly Column<Excursion>[] = [
   },
 ] as const;
 
+const readingColumns: readonly Column<TemperatureReading>[] = [
+  {
+    key: 'timestamp',
+    header: 'Timestamp',
+    sortable: true,
+    render: (value: unknown) => (
+      <span className="text-sm">{formatTimestamp(String(value))}</span>
+    ),
+  },
+  {
+    key: 'valueC',
+    header: 'Reading',
+    sortable: true,
+    render: (value: unknown) => (
+      <span className="font-mono tabular-nums text-sm">{String(value)}°C</span>
+    ),
+  },
+  {
+    key: 'source',
+    header: 'Source',
+    sortable: true,
+  },
+  {
+    key: 'deviceId',
+    header: 'Device',
+    sortable: true,
+    render: (value: unknown) => (
+      <span className="text-sm text-muted-foreground">
+        {typeof value === 'string' && value.length > 0 ? value : 'Manual'}
+      </span>
+    ),
+  },
+] as const;
+
 export function TabTemperature({
   readings,
   excursions,
@@ -117,45 +151,81 @@ export function TabTemperature({
   profile,
 }: TabTemperatureProps) {
   const latestReading = readings.at(-1) ?? null;
+  const values = readings.map((reading) => reading.valueC);
+  const minObserved = values.length > 0 ? Math.min(...values) : null;
+  const maxObserved = values.length > 0 ? Math.max(...values) : null;
+  const outOfRangeCount = readings.filter(
+    (reading) =>
+      reading.valueC < profile.optimalMinC || reading.valueC > profile.optimalMaxC,
+  ).length;
+  const windowStart = readings[0]?.timestamp ?? null;
+  const windowEnd = latestReading?.timestamp ?? null;
 
   return (
     <div className="space-y-6">
-      {/* Section 1 — Chart Placeholder */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 aspect-video">
-            <Thermometer className="size-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-medium text-muted-foreground">
-              Temperature curve chart coming soon — requires Recharts
-              integration
-            </p>
+          <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+            <div className="rounded-full bg-info/10 p-2">
+              <Thermometer className="size-5 text-info" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Telemetry Window</p>
+              <p className="text-sm text-muted-foreground">
+                {windowStart && windowEnd
+                  ? `${formatTimestamp(windowStart)} to ${formatTimestamp(windowEnd)}`
+                  : 'No readings have been ingested for this lane yet.'}
+              </p>
+            </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground text-center">
-            Optimal range: {profile.optimalMinC}&ndash;{profile.optimalMaxC}°C
-            for {profile.fruit}
-          </p>
-          <div className="mt-4 grid grid-cols-1 gap-3 text-center sm:grid-cols-2">
+
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Target Range
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums">
+                {profile.optimalMinC}-{profile.optimalMaxC}°C
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Latest
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums">
+                {latestReading === null ? '--' : `${latestReading.valueC}°C`}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Observed Range
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums">
+                {minObserved === null || maxObserved === null
+                  ? '--'
+                  : `${minObserved}-${maxObserved}°C`}
+              </p>
+            </div>
             <div className="rounded-lg border border-border/60 bg-background p-3">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Samples Loaded
               </p>
-              <p className="mt-1 text-xl font-bold font-mono tabular-nums">
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums">
                 {readings.length}
               </p>
             </div>
             <div className="rounded-lg border border-border/60 bg-background p-3">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Latest Reading
+                Out of Range
               </p>
-              <p className="mt-1 text-xl font-bold font-mono tabular-nums">
-                {latestReading === null ? 'No data' : `${latestReading.valueC}°C`}
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums">
+                {outOfRangeCount}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Section 2 — SLA Summary */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-bold">SLA Summary</CardTitle>
@@ -198,7 +268,19 @@ export function TabTemperature({
         </CardContent>
       </Card>
 
-      {/* Section 3 — Excursion Log */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-bold">Recent Readings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable<TemperatureReading>
+            columns={readingColumns}
+            data={[...readings].reverse().slice(0, 10)}
+            emptyMessage="No temperature readings recorded yet."
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

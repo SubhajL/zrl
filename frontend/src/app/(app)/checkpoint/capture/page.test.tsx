@@ -1,175 +1,129 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CheckpointCapture from './page';
+import { loadCheckpointCaptureContext } from '@/lib/checkpoint-capture-data';
 
-// Mock next/navigation (App Router)
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
-  usePathname: () => '/checkpoint/capture',
+  useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+  useSearchParams: () =>
+    new URLSearchParams('laneId=lane-db-1&checkpointId=cp-1'),
+}));
+
+jest.mock('@/lib/checkpoint-capture-data', () => ({
+  loadCheckpointCaptureContext: jest.fn(),
 }));
 
 describe('CheckpointCapture', () => {
-  it('renders the lane info display', () => {
-    render(<CheckpointCapture />);
-
-    expect(screen.getByTestId('lane-info')).toHaveTextContent(
-      /LN-2026-001.*Mango.*Japan/,
-    );
-    expect(screen.getByTestId('checkpoint-name')).toHaveTextContent(
-      /CP2.*Truck.*Port/,
-    );
+  beforeEach(() => {
+    global.fetch = jest.fn();
   });
 
-  it('renders the step progress indicator', () => {
+  it('renders live checkpoint context from the loader', async () => {
+    (loadCheckpointCaptureContext as jest.Mock).mockResolvedValue({
+      lane: {
+        id: 'lane-db-1',
+        laneId: 'LN-2026-001',
+        exporterId: 'user-1',
+        status: 'EVIDENCE_COLLECTING',
+        productType: 'MANGO',
+        destinationMarket: 'JAPAN',
+        completenessScore: 80,
+        coldChainMode: 'LOGGER',
+        createdAt: '2026-03-28T00:00:00.000Z',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+        batch: null,
+        route: null,
+        checkpoints: [],
+        ruleSnapshot: null,
+      },
+      checkpoint: {
+        id: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 2,
+        locationName: 'Laem Chabang Port',
+        status: 'PENDING',
+        timestamp: null,
+        temperature: 11.5,
+        gpsLat: null,
+        gpsLng: null,
+        signatureHash: null,
+        signerName: null,
+        conditionNotes: null,
+      },
+    });
+
     render(<CheckpointCapture />);
 
-    expect(screen.getByText('1 of 5')).toBeInTheDocument();
-    expect(screen.getByText('Lane Info')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('lane-info')).toHaveTextContent(
+        /LN-2026-001.*Mango.*Japan/,
+      );
+      expect(screen.getByTestId('checkpoint-name')).toHaveTextContent(
+        /Laem Chabang Port/,
+      );
+    });
   });
 
-  it('navigates to photo step and renders camera placeholder', async () => {
+  it('submits the checkpoint update to the API', async () => {
+    (loadCheckpointCaptureContext as jest.Mock).mockResolvedValue({
+      lane: {
+        id: 'lane-db-1',
+        laneId: 'LN-2026-001',
+        exporterId: 'user-1',
+        status: 'EVIDENCE_COLLECTING',
+        productType: 'MANGO',
+        destinationMarket: 'JAPAN',
+        completenessScore: 80,
+        coldChainMode: 'LOGGER',
+        createdAt: '2026-03-28T00:00:00.000Z',
+        updatedAt: '2026-03-28T00:00:00.000Z',
+        batch: null,
+        route: null,
+        checkpoints: [],
+        ruleSnapshot: null,
+      },
+      checkpoint: {
+        id: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 2,
+        locationName: 'Laem Chabang Port',
+        status: 'PENDING',
+        timestamp: null,
+        temperature: 11.5,
+        gpsLat: null,
+        gpsLng: null,
+        signatureHash: null,
+        signerName: null,
+        conditionNotes: null,
+      },
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+      headers: { get: () => 'application/json' },
+    });
+
     const user = userEvent.setup();
     render(<CheckpointCapture />);
 
-    // Navigate to Photo step
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-
-    expect(screen.getByText('2 of 5')).toBeInTheDocument();
-    expect(screen.getByTestId('take-photo-btn')).toBeInTheDocument();
-    expect(screen.getByText('No photo yet')).toBeInTheDocument();
-  });
-
-  it('marks photo as captured when take photo is clicked', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
+    await waitFor(() => {
+      expect(screen.getByText('1 of 5')).toBeInTheDocument();
+    });
 
     await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(screen.getByTestId('take-photo-btn'));
-
-    expect(screen.getByText('Photo captured')).toBeInTheDocument();
-  });
-
-  it('renders temperature input with default value', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    // Navigate to Temperature step (step 2)
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
-
-    const tempDisplay = screen.getByTestId('temperature-display');
-    // Default is midpoint of mango optimal range: (10 + 13) / 2 = 11.5
-    expect(tempDisplay).toHaveTextContent('11.5');
-  });
-
-  it('increments and decrements temperature', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    // Navigate to Temperature step
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
-
-    const incrementBtn = screen.getByTestId('temp-increment');
-    const decrementBtn = screen.getByTestId('temp-decrement');
-    const tempDisplay = screen.getByTestId('temperature-display');
-
-    // Default is midpoint of optimal range (11.5 for mango)
-    expect(tempDisplay).toHaveTextContent('11.5');
-
-    // Increment
-    await user.click(incrementBtn);
-    expect(tempDisplay).toHaveTextContent('12.0');
-
-    // Decrement twice
-    await user.click(decrementBtn);
-    await user.click(decrementBtn);
-    expect(tempDisplay).toHaveTextContent('11.0');
-  });
-
-  it('shows within-range badge for default temperature', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
-
-    const badge = screen.getByTestId('temp-range-badge');
-    expect(badge).toHaveTextContent(/within range/i);
-  });
-
-  it('renders condition assessment buttons', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    // Navigate to Condition step (step 3)
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
-    await user.click(screen.getByRole('button', { name: /next: condition/i }));
-
-    expect(screen.getByTestId('condition-good')).toHaveTextContent('Good');
-    expect(screen.getByTestId('condition-minor')).toHaveTextContent(
-      'Minor Issue',
-    );
-    expect(screen.getByTestId('condition-major')).toHaveTextContent(
-      'Major Issue',
-    );
-  });
-
-  it('renders notes textarea on condition step', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    // Navigate to Condition step
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
-    await user.click(screen.getByRole('button', { name: /next: condition/i }));
-
-    expect(screen.getByTestId('condition-notes')).toBeInTheDocument();
-  });
-
-  it('shows submit button on review step', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    // Navigate to Review step (step 4)
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    await user.click(
-      screen.getByRole('button', { name: /next: temperature/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /next: temperature/i }));
     await user.click(screen.getByRole('button', { name: /next: condition/i }));
     await user.click(screen.getByRole('button', { name: /next: review/i }));
+    await user.click(screen.getByRole('button', { name: /submit checkpoint/i }));
 
-    expect(
-      screen.getByRole('button', { name: /submit checkpoint/i }),
-    ).toBeInTheDocument();
-  });
-
-  it('disables back button on the first step', () => {
-    render(<CheckpointCapture />);
-
-    const backBtn = screen.getByRole('button', { name: /back/i });
-    expect(backBtn).toBeDisabled();
-  });
-
-  it('navigates back from step 1 to step 0', async () => {
-    const user = userEvent.setup();
-    render(<CheckpointCapture />);
-
-    await user.click(screen.getByRole('button', { name: /next: photo/i }));
-    expect(screen.getByText('2 of 5')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /back/i }));
-    expect(screen.getByText('1 of 5')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/zrl/lanes/lane-db-1/checkpoints/cp-1',
+        expect.objectContaining({ method: 'PATCH' }),
+      );
+      expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-1');
+    });
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, ArrowLeft, Save, Check } from 'lucide-react';
 import { Stepper } from '@/components/zrl/stepper';
 import {
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { getErrorMessage, requestAppJson } from '@/lib/app-api';
 import { cn } from '@/lib/utils';
 import {
   type ProductType,
@@ -100,6 +102,7 @@ const DEFAULT_CHECKPOINTS = [
 // ── Component ──
 
 export default function LaneCreationWizard() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = React.useState(0);
 
   // Step 0 state
@@ -122,6 +125,8 @@ export default function LaneCreationWizard() {
   const [carrier, setCarrier] = React.useState('');
   const [coldChainMode, setColdChainMode] =
     React.useState<ColdChainMode>('Manual');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
   const productPrefix = selectedProduct
@@ -137,6 +142,56 @@ export default function LaneCreationWizard() {
     currentStep < WIZARD_STEPS.length - 1
       ? WIZARD_STEPS[currentStep + 1].label
       : null;
+
+  async function handleCreateLane() {
+    if (selectedProduct === null || selectedMarket === null) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await requestAppJson<{ lane: { id: string } }>(
+        '/api/zrl/lanes',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            product: selectedProduct,
+            batch: {
+              variety: variety.trim().length > 0 ? variety.trim() : undefined,
+              quantityKg: Number.parseFloat(quantity),
+              originProvince: originProvince.trim(),
+              harvestDate: harvestDate,
+              grade,
+            },
+            destination: {
+              market: selectedMarket,
+            },
+            route: {
+              transportMode: transportMode.toUpperCase(),
+              carrier: carrier.trim().length > 0 ? carrier.trim() : undefined,
+            },
+            coldChainMode: coldChainMode.toUpperCase(),
+            coldChainConfig: {
+              mode: coldChainMode.toUpperCase(),
+            },
+          }),
+        },
+      );
+
+      router.push(`/lanes/${response.lane.id}`);
+    } catch (error) {
+      setSubmitError(
+        getErrorMessage(error, 'Unable to create lane with the provided data.'),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[800px] space-y-8">
@@ -199,6 +254,15 @@ export default function LaneCreationWizard() {
         />
       )}
 
+      {submitError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {submitError}
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="flex items-center justify-between pb-8">
         {currentStep > 0 ? (
@@ -227,15 +291,18 @@ export default function LaneCreationWizard() {
           </Button>
         ) : (
           <div className="flex items-center gap-3">
-            <Button variant="ghost">
+            <Button variant="ghost" disabled>
               <Save />
-              Save as Draft
+              Drafts unavailable
             </Button>
             <Button
+              onClick={() => {
+                void handleCreateLane();
+              }}
               disabled={!selectedProduct || !selectedMarket}
             >
-              Create Lane
-              <Check />
+              {isSubmitting ? 'Creating...' : 'Create Lane'}
+              {!isSubmitting && <Check />}
             </Button>
           </div>
         )}

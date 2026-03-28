@@ -7,6 +7,7 @@ import {
   type EvidenceGraph,
   type Excursion,
   type LaneDetail,
+  type ProofPackSummary,
   type TemperatureProfile,
   type TemperatureReading,
   type TemperatureSlaResult,
@@ -20,6 +21,7 @@ type AuthHeaderSource = {
 };
 
 interface LoadLaneDetailPageDataOptions {
+  readonly accessToken?: string | null;
   readonly requestHeaders?: AuthHeaderSource;
 }
 
@@ -82,6 +84,10 @@ interface BackendAuditResponse {
   readonly entries: AuditEntry[];
 }
 
+interface BackendProofPackResponse {
+  readonly packs: ProofPackSummary[];
+}
+
 interface BackendProfileResponse {
   readonly profile: {
     readonly productType: LaneDetail['productType'];
@@ -106,7 +112,7 @@ export interface LaneDetailPageData {
   };
   readonly auditEntries: AuditEntry[];
   readonly proofPacks: {
-    readonly backendAvailable: boolean;
+    readonly packs: ProofPackSummary[];
   };
   readonly auditExportUrl: string;
 }
@@ -215,11 +221,23 @@ function mapTemperatureSla(
   };
 }
 
-function buildRequestHeaders(source?: AuthHeaderSource): Headers {
+function mapProofPacks(
+  packs: BackendProofPackResponse['packs'],
+): ProofPackSummary[] {
+  return [...packs].sort((left, right) =>
+    right.generatedAt.localeCompare(left.generatedAt),
+  );
+}
+
+function buildRequestHeaders(
+  accessToken?: string | null,
+  source?: AuthHeaderSource,
+): Headers {
   const headers = new Headers({
     accept: 'application/json',
   });
   const authorization =
+    normalizeAccessToken(accessToken ?? undefined) ??
     source?.get('authorization') ??
     normalizeAccessToken(process.env[SERVER_ACCESS_TOKEN_ENV]);
 
@@ -267,7 +285,10 @@ export async function loadLaneDetailPageData(
   laneId: string,
   options: LoadLaneDetailPageDataOptions = {},
 ): Promise<LaneDetailPageData> {
-  const requestHeaders = buildRequestHeaders(options.requestHeaders);
+  const requestHeaders = buildRequestHeaders(
+    options.accessToken,
+    options.requestHeaders,
+  );
   const { lane } = await fetchBackendJson<BackendLaneResponse>(
     `/lanes/${encodeURIComponent(laneId)}`,
     {
@@ -275,7 +296,7 @@ export async function loadLaneDetailPageData(
     },
   );
 
-  const [completeness, evidenceResponse, evidenceGraph, temperatureResponse, auditResponse, profileResponse] =
+  const [completeness, evidenceResponse, evidenceGraph, temperatureResponse, auditResponse, proofPackResponse, profileResponse] =
     await Promise.all([
       fetchBackendJson<CompletenessResult>(
         `/lanes/${encodeURIComponent(laneId)}/completeness`,
@@ -303,6 +324,12 @@ export async function loadLaneDetailPageData(
       ),
       fetchBackendJson<BackendAuditResponse>(
         `/lanes/${encodeURIComponent(laneId)}/audit`,
+        {
+          headers: requestHeaders,
+        },
+      ),
+      fetchBackendJson<BackendProofPackResponse>(
+        `/lanes/${encodeURIComponent(laneId)}/packs`,
         {
           headers: requestHeaders,
         },
@@ -335,7 +362,7 @@ export async function loadLaneDetailPageData(
     },
     auditEntries: auditResponse.entries,
     proofPacks: {
-      backendAvailable: false,
+      packs: mapProofPacks(proofPackResponse.packs),
     },
     auditExportUrl: `${resolveBackendBaseUrl()}/audit/export/${encodeURIComponent(laneId)}`,
   };

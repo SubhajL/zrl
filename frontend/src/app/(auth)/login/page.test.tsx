@@ -18,6 +18,7 @@ jest.mock('next/navigation', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn();
   });
 
   it('renders email and password inputs', () => {
@@ -105,6 +106,18 @@ describe('LoginPage', () => {
   });
 
   it('shows loading state on submit', async () => {
+    let resolveFetch:
+      | ((value: {
+          ok: boolean;
+          json: () => Promise<{ requireMfa: false }>;
+          headers: { get: () => string };
+        }) => void)
+      | undefined;
+    (global.fetch as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
     const user = userEvent.setup();
     render(<LoginPage />);
 
@@ -120,7 +133,12 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText(/signing in/i)).toBeInTheDocument();
 
-    // Wait for the mock auth to complete
+    resolveFetch?.({
+      ok: true,
+      json: async () => ({ requireMfa: false }),
+      headers: { get: () => 'application/json' },
+    });
+
     await waitFor(
       () => {
         expect(mockPush).toHaveBeenCalledWith('/dashboard');
@@ -129,17 +147,22 @@ describe('LoginPage', () => {
     );
   });
 
-  it('renders MFA input section when triggered', async () => {
+  it('renders MFA input section when backend requires MFA', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ requireMfa: true }),
+      headers: { get: () => 'application/json' },
+    });
     const user = userEvent.setup();
     render(<LoginPage />);
 
     // MFA section should not be visible initially
     expect(screen.queryByTestId('mfa-section')).not.toBeInTheDocument();
 
-    // Submit with admin email to trigger MFA
+    // Submit credentials and wait for backend-driven MFA state
     await user.type(
       screen.getByLabelText(/email address/i),
-      'admin@example.com',
+      'admin@zrl.test',
     );
     await user.type(
       screen.getByLabelText(/password/i, { selector: 'input' }),
@@ -147,7 +170,6 @@ describe('LoginPage', () => {
     );
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
-    // Wait for MFA section to appear
     await waitFor(
       () => {
         expect(screen.getByTestId('mfa-section')).toBeInTheDocument();
@@ -163,6 +185,35 @@ describe('LoginPage', () => {
     // Should have 6 digit inputs
     const digitInputs = screen.getAllByRole('textbox', { name: /digit/i });
     expect(digitInputs).toHaveLength(6);
+  });
+
+  it('submits credentials to the real session endpoint', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ requireMfa: false }),
+      headers: { get: () => 'application/json' },
+    });
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.type(
+      screen.getByLabelText(/email address/i),
+      'exporter@zrl-dev.test',
+    );
+    await user.type(
+      screen.getByLabelText(/password/i, { selector: 'input' }),
+      'ZrlDev2026!',
+    );
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/session/login',
+        expect.objectContaining({
+          method: 'POST',
+        }),
+      );
+    });
   });
 
   it('renders language switcher', () => {

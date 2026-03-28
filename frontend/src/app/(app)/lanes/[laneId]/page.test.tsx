@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import LaneDetailPage from './page';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import {
   loadLaneDetailPageData,
   type LaneDetailPageData,
@@ -10,6 +10,7 @@ import {
 
 jest.mock('next/headers', () => ({
   headers: jest.fn(),
+  cookies: jest.fn(),
 }));
 
 jest.mock('@/lib/lane-detail-data', () => ({
@@ -17,6 +18,7 @@ jest.mock('@/lib/lane-detail-data', () => ({
 }));
 
 const headersMock = jest.mocked(headers);
+const cookiesMock = jest.mocked(cookies);
 const loadLaneDetailPageDataMock = jest.mocked(loadLaneDetailPageData);
 
 function buildPageData(): LaneDetailPageData {
@@ -103,6 +105,14 @@ function buildPageData(): LaneDetailPageData {
           source: 'TELEMETRY',
           checkpointId: null,
         },
+        {
+          id: 'reading-2',
+          timestamp: '2026-03-20T11:00:00Z',
+          valueC: 12.1,
+          deviceId: 'telemetry-1',
+          source: 'TELEMETRY',
+          checkpointId: null,
+        },
       ],
       excursions: [],
       sla: {
@@ -129,7 +139,34 @@ function buildPageData(): LaneDetailPageData {
       },
     ],
     proofPacks: {
-      backendAvailable: false,
+      packs: [
+        {
+          id: 'pack-2',
+          laneId: 'lane-db-1',
+          packType: 'REGULATOR',
+          version: 2,
+          status: 'READY',
+          contentHash: 'abcdef1234567890fedcba',
+          filePath: 's3://bucket/pack-2.pdf',
+          errorMessage: null,
+          generatedAt: '2026-03-22T09:00:00Z',
+          generatedBy: 'user-1',
+          recipient: 'Tokyo Customs',
+        },
+        {
+          id: 'pack-3',
+          laneId: 'lane-db-1',
+          packType: 'BUYER',
+          version: 1,
+          status: 'GENERATING',
+          contentHash: null,
+          filePath: null,
+          errorMessage: null,
+          generatedAt: '2026-03-22T09:15:00Z',
+          generatedBy: 'user-1',
+          recipient: 'Buyer',
+        },
+      ],
     },
     auditExportUrl: 'http://backend.test/audit/export/lane-db-1',
   };
@@ -148,6 +185,9 @@ async function renderPage() {
 describe('LaneDetailPage', () => {
   beforeEach(() => {
     headersMock.mockResolvedValue(new Headers());
+    cookiesMock.mockResolvedValue({
+      get: jest.fn().mockReturnValue(undefined),
+    } as never);
     loadLaneDetailPageDataMock.mockResolvedValue(buildPageData());
   });
 
@@ -180,6 +220,7 @@ describe('LaneDetailPage', () => {
   it('loads live data for the requested lane id', async () => {
     await renderPage();
     expect(loadLaneDetailPageDataMock).toHaveBeenCalledWith('lane-db-1', {
+      accessToken: null,
       requestHeaders: expect.any(Headers),
     });
   });
@@ -220,13 +261,32 @@ describe('LaneDetailPage', () => {
     expect(screen.getByText(/Japan/)).toBeInTheDocument();
   });
 
-  it('shows proof packs as unavailable on current backend', async () => {
+  it('renders live proof-pack actions and history', async () => {
     const user = userEvent.setup();
     await renderPage();
 
     await user.click(screen.getByRole('tab', { name: 'Proof Packs' }));
 
-    expect(screen.getAllByText(/Unavailable on main/)).toHaveLength(3);
-    expect(screen.getAllByText(/GET \/lanes\/:id\/packs/)).toHaveLength(3);
+    expect(screen.getByText('Version 2')).toBeInTheDocument();
+    expect(screen.getByText('Generating')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Download' }),
+    ).toHaveAttribute('href', '/api/zrl/packs/pack-2/download');
+    expect(screen.getByRole('link', { name: 'Verify' })).toHaveAttribute(
+      'href',
+      '/api/zrl/packs/pack-2/verify',
+    );
+  });
+
+  it('renders live temperature summaries instead of a placeholder chart', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'Temperature' }));
+
+    expect(screen.getByText('Telemetry Window')).toBeInTheDocument();
+    expect(screen.getByText('Observed Range')).toBeInTheDocument();
+    expect(screen.getByText('Recent Readings')).toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
 });
