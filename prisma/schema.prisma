@@ -202,6 +202,40 @@ enum NotificationType {
   @@map("notification_type")
 }
 
+enum PrivacyConsentType {
+  MARKETING_COMMUNICATIONS
+
+  @@map("privacy_consent_type")
+}
+
+enum PrivacyRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+  OBJECTION
+  PORTABILITY
+  WITHDRAW_CONSENT
+
+  @@map("privacy_request_type")
+}
+
+enum PrivacyRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+
+  @@map("privacy_request_status")
+}
+
+enum DataExportStatus {
+  READY
+  FAILED
+  EXPIRED
+
+  @@map("data_export_status")
+}
+
 // ─── Models ─────────────────────────────────────────────────────────
 
 model User {
@@ -225,6 +259,11 @@ model User {
   notifications             Notification[]
   notificationPreferences   NotificationPreference[]
   notificationChannelTarget NotificationChannelTarget?
+  privacyConsentEvents      PrivacyConsentEvent[]
+  privacyRequests           PrivacyRequest[]           @relation("PrivacyRequestRequester")
+  processedPrivacyRequests  PrivacyRequest[]           @relation("PrivacyRequestProcessedBy")
+  dataExportRequests        DataExportRequest[]
+  reportedPrivacyBreaches   PrivacyBreachIncident[]    @relation("PrivacyBreachReportedBy")
 
   @@map("users")
 }
@@ -279,6 +318,79 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+model PrivacyConsentEvent {
+  id          String             @id @default(uuid())
+  userId      String             @map("user_id")
+  consentType PrivacyConsentType @map("consent_type")
+  granted     Boolean
+  source      String
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consentType, createdAt])
+  @@map("privacy_consent_events")
+}
+
+model PrivacyRequest {
+  id                String               @id @default(uuid())
+  userId            String               @map("user_id")
+  requestType       PrivacyRequestType   @map("request_type")
+  status            PrivacyRequestStatus @default(PENDING)
+  reason            String?
+  details           Json?
+  dueAt             DateTime             @map("due_at")
+  completedAt       DateTime?            @map("completed_at")
+  processedByUserId String?              @map("processed_by_user_id")
+  resolution        Json?
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  user        User  @relation("PrivacyRequestRequester", fields: [userId], references: [id], onDelete: Cascade)
+  processedBy User? @relation("PrivacyRequestProcessedBy", fields: [processedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status, dueAt])
+  @@index([processedByUserId])
+  @@map("privacy_requests")
+}
+
+model PrivacyBreachIncident {
+  id                     String    @id @default(uuid())
+  reportedByUserId       String    @map("reported_by_user_id")
+  summary                String
+  description            String
+  affectedUserIds        String[]  @map("affected_user_ids")
+  detectedAt             DateTime  @map("detected_at")
+  occurredAt             DateTime? @map("occurred_at")
+  pdpaOfficeNotifiedAt   DateTime? @map("pdpa_office_notified_at")
+  dataSubjectsNotifiedAt DateTime? @map("data_subjects_notified_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  reportedBy User @relation("PrivacyBreachReportedBy", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([reportedByUserId, createdAt])
+  @@index([createdAt])
+  @@map("privacy_breach_incidents")
+}
+
+model DataExportRequest {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  status      DataExportStatus @default(READY)
+  fileName    String           @map("file_name")
+  contentType String           @map("content_type")
+  zipData     Bytes            @map("zip_data")
+  exportedAt  DateTime         @default(now()) @map("exported_at")
+  expiresAt   DateTime?        @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, exportedAt])
+  @@map("data_export_requests")
 }
 
 model NotificationPreference {

@@ -101,4 +101,26 @@ describe('NotificationChannels', () => {
       expect.anything(),
     );
   });
+
+  it('sends direct mandatory emails through SES', async () => {
+    process.env['AWS_SES_REGION'] = 'ap-southeast-1';
+    process.env['AWS_SES_FROM_EMAIL'] = 'no-reply@example.com';
+    const channels = new NotificationChannels();
+    const sesClient = {
+      send: jest.fn<Promise<void>, [unknown]>().mockResolvedValue(undefined),
+    };
+    Object.defineProperty(channels, 'sesClient', {
+      value: sesClient,
+    });
+
+    await channels.sendDirectEmail({
+      to: 'pdpa-office@example.go.th',
+      subject: 'PDPA breach notice',
+      message: 'Incident summary',
+    });
+
+    expect(sesClient.send).toHaveBeenCalledTimes(1);
+    delete process.env['AWS_SES_REGION'];
+    delete process.env['AWS_SES_FROM_EMAIL'];
+  });
 });

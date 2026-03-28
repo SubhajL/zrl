@@ -39,6 +39,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Company Information')).toBeInTheDocument();
     expect(screen.getByText('Contact Information')).toBeInTheDocument();
     expect(screen.getByText('Export Profile')).toBeInTheDocument();
+    expect(screen.getByText('PDPA Privacy Controls')).toBeInTheDocument();
   });
 
   it('renders contact information fields', () => {
@@ -84,5 +85,34 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
     expect(screen.getByLabelText('Annual Volume')).toHaveValue('500');
     expect(screen.getByText('tons')).toBeInTheDocument();
+  });
+
+  it('toggles marketing consent from opt-in to opt-out', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    expect(screen.getByText('Marketing Opt-In')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Withdraw Consent' }));
+
+    expect(screen.getByText('Marketing Opt-Out')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Enable Marketing Updates' }),
+    ).toBeInTheDocument();
+  });
+
+  it('updates export status when the PDPA export button is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    await user.click(
+      screen.getByRole('button', { name: 'Request PDPA Export' }),
+    );
+
+    expect(
+      screen.getByText(
+        'Export requested. JSON and CSV ZIP ready in ~2 minutes.',
+      ),
+    ).toBeInTheDocument();
   });
 });

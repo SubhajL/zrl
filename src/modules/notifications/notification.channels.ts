@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import type {
+  DirectEmailInput,
   NotificationChannelDispatcher,
   NotificationChannelPreference,
   NotificationDeliveryTarget,
@@ -61,42 +62,32 @@ export class NotificationChannels implements NotificationChannelDispatcher {
     await Promise.all(tasks);
   }
 
+  async sendDirectEmail(input: DirectEmailInput): Promise<void> {
+    const recipient = input.to.trim();
+    if (recipient.length === 0) {
+      throw new Error('Recipient email is required.');
+    }
+
+    await this.deliverEmail({
+      to: recipient,
+      subject: input.subject,
+      message: input.message,
+      context: 'mandatory privacy email',
+      required: true,
+    });
+  }
+
   private async sendEmail(
     notification: NotificationRecord,
     target: NotificationDeliveryTarget | null,
   ): Promise<void> {
-    if (this.sesClient === null || this.sesFromAddress === null) {
-      this.logger.warn(
-        `Skipping notification email for ${notification.id}: SES is not configured.`,
-      );
-      return;
-    }
-
-    if (target?.email === null || target?.email === undefined) {
-      this.logger.warn(
-        `Skipping notification email for ${notification.id}: recipient email unavailable.`,
-      );
-      return;
-    }
-
-    await this.sesClient.send(
-      new SendEmailCommand({
-        Source: this.sesFromAddress,
-        Destination: {
-          ToAddresses: [target.email],
-        },
-        Message: {
-          Subject: {
-            Data: notification.title,
-          },
-          Body: {
-            Text: {
-              Data: `${notification.message}\n\nNotification ID: ${notification.id}`,
-            },
-          },
-        },
-      }),
-    );
+    await this.deliverEmail({
+      to: target?.email ?? null,
+      subject: notification.title,
+      message: `${notification.message}\n\nNotification ID: ${notification.id}`,
+      context: `notification email for ${notification.id}`,
+      required: false,
+    });
   }
 
   private async sendPush(
@@ -187,5 +178,52 @@ export class NotificationChannels implements NotificationChannelDispatcher {
         `Notification channel request failed with ${response.status}.`,
       );
     }
+  }
+
+  private async deliverEmail(input: {
+    to: string | null;
+    subject: string;
+    message: string;
+    context: string;
+    required: boolean;
+  }): Promise<void> {
+    if (this.sesClient === null || this.sesFromAddress === null) {
+      if (input.required) {
+        throw new Error('SES is not configured.');
+      }
+
+      this.logger.warn(`Skipping ${input.context}: SES is not configured.`);
+      return;
+    }
+
+    if (input.to === null || input.to.trim().length === 0) {
+      if (input.required) {
+        throw new Error('Recipient email is unavailable.');
+      }
+
+      this.logger.warn(
+        `Skipping ${input.context}: recipient email unavailable.`,
+      );
+      return;
+    }
+
+    await this.sesClient.send(
+      new SendEmailCommand({
+        Source: this.sesFromAddress,
+        Destination: {
+          ToAddresses: [input.to],
+        },
+        Message: {
+          Subject: {
+            Data: input.subject,
+          },
+          Body: {
+            Text: {
+              Data: input.message,
+            },
+          },
+        },
+      }),
+    );
   }
 }

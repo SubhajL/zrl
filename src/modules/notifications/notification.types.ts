@@ -63,6 +63,12 @@ export interface NotificationDeliveryTarget {
   readonly pushEndpoint: string | null;
 }
 
+export interface DirectEmailInput {
+  readonly to: string;
+  readonly subject: string;
+  readonly message: string;
+}
+
 export interface NotificationChannelTargets {
   readonly lineUserId: string | null;
   readonly pushEndpoint: string | null;
@@ -226,6 +232,7 @@ export interface NotificationChannelDispatcher {
     preference: NotificationChannelPreference,
     target: NotificationDeliveryTarget | null,
   ): Promise<void>;
+  sendDirectEmail(input: DirectEmailInput): Promise<void>;
 }
 
 export interface NotificationRealtimeGateway {

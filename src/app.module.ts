@@ -9,8 +9,10 @@ import { DisputeModule } from './modules/dispute/dispute.module';
 import { MrvLiteModule } from './modules/mrv-lite/mrv-lite.module';
 import { AuthModule } from './common/auth/auth.module';
 import { HashingModule } from './common/hashing/hashing.module';
+import { LoggingModule } from './common/logging/logging.module';
 import { AuditModule } from './common/audit/audit.module';
 import { NotificationModule } from './modules/notifications/notification.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 
 @Module({
   imports: [
@@ -22,9 +24,11 @@ import { NotificationModule } from './modules/notifications/notification.module'
     DisputeModule,
     MrvLiteModule,
     NotificationModule,
+    PrivacyModule,
     // Common services
     AuthModule,
     HashingModule,
+    LoggingModule,
     AuditModule,
   ],
   controllers: [AppController],
