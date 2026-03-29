@@ -233,9 +233,73 @@ async function seedFruitProfiles() {
 }
 
 async function seedSampleLane(exporterId: string) {
+  const publicLaneId = 'LN-2026-001';
+  const existingLane = await prisma.lane.findUnique({
+    where: { laneId: publicLaneId },
+    select: { id: true },
+  });
+
+  if (existingLane) {
+    const proofPacks = await prisma.proofPack.findMany({
+      where: { laneId: existingLane.id },
+      select: { id: true },
+    });
+    const artifacts = await prisma.evidenceArtifact.findMany({
+      where: { laneId: existingLane.id },
+      select: { id: true },
+    });
+    const auditEntries = await prisma.auditEntry.findMany({
+      where: { entityId: existingLane.id },
+      select: { id: true },
+    });
+    const proofPackIds = proofPacks.map((proofPack) => proofPack.id);
+    const artifactIds = artifacts.map((artifact) => artifact.id);
+    const auditEntryIds = auditEntries.map((entry) => entry.id);
+
+    await prisma.$transaction(async (tx) => {
+      if (auditEntryIds.length > 0) {
+        await tx.auditEntrySnapshot.deleteMany({
+          where: { auditEntryId: { in: auditEntryIds } },
+        });
+      }
+      if (proofPackIds.length > 0) {
+        await tx.proofPackJob.deleteMany({
+          where: { proofPackId: { in: proofPackIds } },
+        });
+      }
+      if (artifactIds.length > 0) {
+        await tx.artifactLink.deleteMany({
+          where: {
+            OR: [
+              { sourceArtifactId: { in: artifactIds } },
+              { targetArtifactId: { in: artifactIds } },
+            ],
+          },
+        });
+      }
+
+      await tx.notification.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.certificationAlertDelivery.deleteMany({
+        where: { laneId: existingLane.id },
+      });
+      await tx.proofPack.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.evidenceArtifact.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.temperatureReading.deleteMany({
+        where: { laneId: existingLane.id },
+      });
+      await tx.excursion.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.checkpoint.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.ruleSnapshot.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.route.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.batch.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.auditEntry.deleteMany({ where: { entityId: existingLane.id } });
+      await tx.lane.delete({ where: { id: existingLane.id } });
+    });
+  }
+
   const lane = await prisma.lane.create({
     data: {
-      laneId: 'LN-2026-001',
+      laneId: publicLaneId,
       exporterId,
       status: 'EVIDENCE_COLLECTING',
       productType: 'MANGO',

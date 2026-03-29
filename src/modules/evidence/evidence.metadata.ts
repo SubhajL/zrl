@@ -52,12 +52,18 @@ export class ExifPhotoMetadataExtractor implements EvidencePhotoMetadataExtracto
     ) => Promise<ExifMetadata | null> = async (filePath) =>
       (await exifr.parse(filePath, {
         gps: true,
-        pick: ['latitude', 'longitude', 'DateTimeOriginal', 'Model', 'Make'],
       })) as ExifMetadata | null,
   ) {}
 
   async extract(filePath: string): Promise<ExtractedPhotoMetadata | null> {
-    const metadata = await this.parseExif(filePath);
+    let metadata: ExifMetadata | null;
+    try {
+      metadata = await this.parseExif(filePath);
+    } catch {
+      throw new BadRequestException(
+        'Checkpoint photo file is not a valid image with readable EXIF metadata.',
+      );
+    }
     if (metadata === null) {
       return null;
     }
