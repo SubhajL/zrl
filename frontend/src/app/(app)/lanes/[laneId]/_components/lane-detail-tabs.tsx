@@ -9,6 +9,8 @@ import { TabDispute } from './tab-dispute';
 import { TabEvidence } from './tab-evidence';
 import { TabProofPacks } from './tab-proof-packs';
 import { TabTemperature } from './tab-temperature';
+import { useSocketContext } from '@/components/zrl/socket-provider';
+import { useLaneEvents } from '@/hooks/use-lane-events';
 import type { LaneDetailPageData } from '@/lib/lane-detail-data';
 
 type TabId =
@@ -39,11 +41,34 @@ export interface LaneDetailTabsProps {
 
 export function LaneDetailTabs({ data }: LaneDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('evidence');
+  const [stale, setStale] = useState(false);
+  const { socket, connected } = useSocketContext();
   const lane = data.lane;
+
+  useLaneEvents(socket, connected, lane.id, {
+    onStatusChanged: () => setStale(true),
+    onEvidenceUploaded: () => setStale(true),
+    onCheckpointRecorded: () => setStale(true),
+    onTemperatureExcursion: () => setStale(true),
+    onPackGenerated: () => setStale(true),
+  });
 
   return (
     <div className="space-y-6">
       <LaneHeader lane={lane} />
+
+      {stale && (
+        <div className="rounded-lg border border-info/30 bg-info/10 px-4 py-2 text-sm text-info">
+          This lane has been updated.{' '}
+          <button
+            onClick={() => window.location.reload()}
+            className="font-medium underline"
+          >
+            Refresh
+          </button>{' '}
+          to see changes.
+        </div>
+      )}
 
       <div role="tablist" className="flex gap-1 border-b border-border">
         {TABS.map((tab) => (

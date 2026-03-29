@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardSkeleton } from '@/components/zrl/skeletons';
+import { useSocketContext } from '@/components/zrl/socket-provider';
 import { loadDashboardPageData, type DashboardPageData } from '@/lib/dashboard-data';
 import { getErrorMessage } from '@/lib/app-api';
 import {
@@ -91,6 +92,7 @@ const LANE_COLUMNS: Column<Lane>[] = [
 export default function DashboardPage() {
   const [data, setData] = React.useState<DashboardPageData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const { socket } = useSocketContext();
 
   React.useEffect(() => {
     let active = true;
@@ -111,6 +113,39 @@ export default function DashboardPage() {
       active = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (socket === null) return;
+
+    function handleNotification(payload: {
+      notification: {
+        id: string;
+        title: string;
+        message: string;
+        createdAt: string;
+      };
+    }) {
+      setData((prev) => {
+        if (prev === null) return prev;
+        return {
+          ...prev,
+          recentNotifications: [
+            payload.notification,
+            ...prev.recentNotifications,
+          ].slice(0, 5),
+          kpis: {
+            ...prev.kpis,
+            unreadAlerts: prev.kpis.unreadAlerts + 1,
+          },
+        };
+      });
+    }
+
+    socket.on('notification.new', handleNotification);
+    return () => {
+      socket.off('notification.new', handleNotification);
+    };
+  }, [socket]);
 
   return (
     <div className="space-y-8">
