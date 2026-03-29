@@ -4,6 +4,8 @@ import * as React from 'react';
 import { BentoGrid, BentoGridItem } from '@/components/zrl/bento-grid';
 import { DataTable, type Column } from '@/components/zrl/data-table';
 import { KpiTile } from '@/components/zrl/kpi-tile';
+import { Skeleton } from '@/components/ui/skeleton';
+import { KpiTileSkeleton, DataTableSkeleton } from '@/components/zrl/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   loadAnalyticsPageData,
@@ -73,63 +75,89 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <BentoGrid>
-        {(data?.metrics ?? []).map((metric) => (
-          <BentoGridItem key={metric.label} colSpan={2}>
-            <KpiTile
-              title={metric.label}
-              value={metric.value}
-              tint="blue"
-              delta={{ value: metric.hint, trend: 'neutral' }}
-            />
-          </BentoGridItem>
-        ))}
-      </BentoGrid>
+      {data === null && !error ? (
+        <div className="space-y-8">
+          <BentoGrid>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <BentoGridItem key={i} colSpan={2}>
+                <KpiTileSkeleton />
+              </BentoGridItem>
+            ))}
+          </BentoGrid>
+          <BentoGrid>
+            {[1, 2, 3].map((i) => (
+              <BentoGridItem key={i} colSpan={4}>
+                <Card>
+                  <CardContent className="p-6">
+                    <Skeleton className="mb-4 h-6 w-40" />
+                    <DataTableSkeleton rows={4} columns={3} />
+                  </CardContent>
+                </Card>
+              </BentoGridItem>
+            ))}
+          </BentoGrid>
+        </div>
+      ) : data !== null ? (
+        <>
+          <BentoGrid>
+            {data.metrics.map((metric) => (
+              <BentoGridItem key={metric.label} colSpan={2}>
+                <KpiTile
+                  title={metric.label}
+                  value={metric.value}
+                  tint="blue"
+                  delta={{ value: metric.hint, trend: 'neutral' }}
+                />
+              </BentoGridItem>
+            ))}
+          </BentoGrid>
 
-      <BentoGrid>
-        <BentoGridItem colSpan={4}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                columns={BREAKDOWN_COLUMNS}
-                data={data?.statusBreakdown ?? []}
-                emptyMessage="No status data available."
-              />
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-        <BentoGridItem colSpan={4}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Destination Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                columns={BREAKDOWN_COLUMNS}
-                data={data?.marketBreakdown ?? []}
-                emptyMessage="No destination data available."
-              />
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-        <BentoGridItem colSpan={4}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                columns={BREAKDOWN_COLUMNS}
-                data={data?.productBreakdown ?? []}
-                emptyMessage="No product data available."
-              />
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-      </BentoGrid>
+          <BentoGrid>
+            <BentoGridItem colSpan={4}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Status Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DataTable
+                    columns={BREAKDOWN_COLUMNS}
+                    data={data.statusBreakdown}
+                    emptyMessage="No status data available."
+                  />
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+            <BentoGridItem colSpan={4}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Destination Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DataTable
+                    columns={BREAKDOWN_COLUMNS}
+                    data={data.marketBreakdown}
+                    emptyMessage="No destination data available."
+                  />
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+            <BentoGridItem colSpan={4}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DataTable
+                    columns={BREAKDOWN_COLUMNS}
+                    data={data.productBreakdown}
+                    emptyMessage="No product data available."
+                  />
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+          </BentoGrid>
+        </>
+      ) : null}
     </div>
   );
 }
