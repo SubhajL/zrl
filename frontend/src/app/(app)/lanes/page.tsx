@@ -142,7 +142,9 @@ export default function LanesListPage() {
         </CardHeader>
         <CardContent>
           {loading && !error ? (
-            <DataTableSkeleton rows={5} columns={5} />
+            <div aria-busy="true" role="status" aria-label="Loading lanes">
+              <DataTableSkeleton rows={5} columns={5} />
+            </div>
           ) : (
             <DataTable
               columns={columns}

@@ -131,7 +131,9 @@ export default function DashboardPage() {
       )}
 
       {data === null && !error ? (
-        <DashboardSkeleton />
+        <div aria-busy="true" role="status" aria-label="Loading dashboard">
+          <DashboardSkeleton />
+        </div>
       ) : data !== null ? (
         <>
           <BentoGrid>
