@@ -50,7 +50,7 @@ type NotificationSocket = Socket<
 @WebSocketGateway({
   namespace: '/ws',
   cors: {
-    origin: true,
+    origin: process.env['WEBSOCKET_CORS_ORIGIN'] ?? true,
     credentials: true,
   },
 })
@@ -65,15 +65,20 @@ export class NotificationGateway implements OnGatewayConnection {
   ) {}
 
   async handleConnection(client: NotificationSocket): Promise<void> {
-    const authToken = this.resolveToken(client);
-    if (authToken === null) {
-      throw new UnauthorizedException('Missing websocket bearer token.');
-    }
+    try {
+      const authToken = this.resolveToken(client);
+      if (authToken === null) {
+        client.disconnect(true);
+        return;
+      }
 
-    const verified = await this.authService.verifyAccessToken(authToken);
-    client.data['userId'] = verified.user.id;
-    client.data['role'] = verified.user.role;
-    await client.join(this.roomName(verified.user.id));
+      const verified = await this.authService.verifyAccessToken(authToken);
+      client.data['userId'] = verified.user.id;
+      client.data['role'] = verified.user.role;
+      await client.join(this.roomName(verified.user.id));
+    } catch {
+      client.disconnect(true);
+    }
   }
 
   @SubscribeMessage('lane.subscribe')
@@ -118,10 +123,7 @@ export class NotificationGateway implements OnGatewayConnection {
     this.server.to(this.roomName(userId)).emit(eventName, payload);
   }
 
-  emitTemperatureExcursion(
-    _userId: string,
-    event: TemperatureExcursionRealtimeEvent,
-  ): void {
+  emitTemperatureExcursion(event: TemperatureExcursionRealtimeEvent): void {
     this.emitLaneEvent('temperature.excursion', event.laneId, event);
   }
 

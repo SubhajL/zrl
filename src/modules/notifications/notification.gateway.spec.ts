@@ -1,4 +1,4 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { NotificationGateway } from './notification.gateway';
 
 describe('NotificationGateway', () => {
@@ -49,12 +49,33 @@ describe('NotificationGateway', () => {
     } as never;
   });
 
-  it('rejects websocket connections without a bearer token', async () => {
-    await expect(
-      gateway.handleConnection({
-        handshake: { auth: {}, headers: {} },
-      } as never),
-    ).rejects.toThrow(UnauthorizedException);
+  it('disconnects the client when no bearer token is provided', async () => {
+    const disconnect = jest.fn();
+    const client = {
+      handshake: { auth: {}, headers: {} },
+      disconnect,
+      data: {},
+    };
+
+    await gateway.handleConnection(client as never);
+
+    expect(disconnect).toHaveBeenCalledWith(true);
+    expect(client.data['userId']).toBeUndefined();
+  });
+
+  it('disconnects the client when token verification fails', async () => {
+    authService.verifyAccessToken.mockRejectedValue(new Error('Invalid token'));
+    const disconnect = jest.fn();
+    const client = {
+      handshake: { auth: { token: 'bad-token' }, headers: {} },
+      disconnect,
+      data: {},
+    };
+
+    await gateway.handleConnection(client as never);
+
+    expect(disconnect).toHaveBeenCalledWith(true);
+    expect(client.data['userId']).toBeUndefined();
   });
 
   it('joins the user room after jwt verification', async () => {

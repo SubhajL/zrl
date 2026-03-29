@@ -270,10 +270,8 @@ export class NotificationPubSub implements NotificationFanoutPublisher {
   }
 
   async publishTemperatureExcursion(
-    userId: string,
     event: TemperatureExcursionRealtimeEvent,
   ): Promise<boolean> {
-    void userId;
     return await this.publishLaneEvent(
       'temperature.excursion',
       event.laneId,

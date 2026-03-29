@@ -247,10 +247,7 @@ export interface NotificationRealtimeGateway {
     userId: string,
     payload: UserRealtimeEventPayloadMap[TEventName],
   ): void;
-  emitTemperatureExcursion(
-    userId: string,
-    event: TemperatureExcursionRealtimeEvent,
-  ): void;
+  emitTemperatureExcursion(event: TemperatureExcursionRealtimeEvent): void;
 }
 
 export interface NotificationFanoutPublisher {
@@ -268,7 +265,6 @@ export interface NotificationFanoutPublisher {
     payload: UserRealtimeEventPayloadMap[TEventName],
   ): Promise<boolean>;
   publishTemperatureExcursion(
-    userId: string,
     event: TemperatureExcursionRealtimeEvent,
   ): Promise<boolean>;
 }
