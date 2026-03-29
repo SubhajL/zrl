@@ -16,6 +16,7 @@ import { ProgressBar } from '@/components/zrl/progress-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DashboardSkeleton } from '@/components/zrl/skeletons';
 import { loadDashboardPageData, type DashboardPageData } from '@/lib/dashboard-data';
 import { getErrorMessage } from '@/lib/app-api';
 import {
@@ -129,120 +130,126 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <BentoGrid>
-        <BentoGridItem colSpan={3}>
-          <KpiTile
-            title="Active Lanes"
-            value={data ? `${data.kpis.totalLanes}` : '--'}
-            icon={<Truck className="size-5" />}
-            tint="blue"
-            delta={{ value: 'Real backend data', trend: 'up' }}
-          />
-        </BentoGridItem>
-        <BentoGridItem colSpan={3}>
-          <KpiTile
-            title="Avg Completeness"
-            value={data ? `${data.kpis.avgCompleteness}%` : '--'}
-            icon={<CheckCircle className="size-5" />}
-            tint="emerald"
-            delta={{ value: 'Across visible lanes', trend: 'up' }}
-          />
-        </BentoGridItem>
-        <BentoGridItem colSpan={3}>
-          <KpiTile
-            title="Ready to Ship"
-            value={data ? `${data.kpis.readyToShip}` : '--'}
-            icon={<PackageCheck className="size-5" />}
-            tint="emerald"
-            delta={{ value: 'Validated or packed', trend: 'up' }}
-          />
-        </BentoGridItem>
-        <BentoGridItem colSpan={3}>
-          <KpiTile
-            title="Unread Alerts"
-            value={data ? `${data.kpis.unreadAlerts}` : '--'}
-            icon={<AlertTriangle className="size-5" />}
-            tint="amber"
-            delta={{ value: 'Notification inbox', trend: 'down' }}
-          />
-        </BentoGridItem>
-      </BentoGrid>
-
-      <BentoGrid>
-        <BentoGridItem colSpan={8}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Active Export Lanes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable<Lane>
-                columns={LANE_COLUMNS}
-                data={data?.lanes ?? []}
-                emptyMessage="No lanes yet. Create your first export lane."
+      {data === null && !error ? (
+        <DashboardSkeleton />
+      ) : data !== null ? (
+        <>
+          <BentoGrid>
+            <BentoGridItem colSpan={3}>
+              <KpiTile
+                title="Active Lanes"
+                value={`${data.kpis.totalLanes}`}
+                icon={<Truck className="size-5" />}
+                tint="blue"
+                delta={{ value: 'Real backend data', trend: 'up' }}
               />
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-        <BentoGridItem colSpan={4}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button asChild className="w-full justify-start">
-                <Link href="/lanes/new">
-                  <Plus className="size-4" />
-                  Create New Lane
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="/settings">Review Privacy & Notifications</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-      </BentoGrid>
+            </BentoGridItem>
+            <BentoGridItem colSpan={3}>
+              <KpiTile
+                title="Avg Completeness"
+                value={`${data.kpis.avgCompleteness}%`}
+                icon={<CheckCircle className="size-5" />}
+                tint="emerald"
+                delta={{ value: 'Across visible lanes', trend: 'up' }}
+              />
+            </BentoGridItem>
+            <BentoGridItem colSpan={3}>
+              <KpiTile
+                title="Ready to Ship"
+                value={`${data.kpis.readyToShip}`}
+                icon={<PackageCheck className="size-5" />}
+                tint="emerald"
+                delta={{ value: 'Validated or packed', trend: 'up' }}
+              />
+            </BentoGridItem>
+            <BentoGridItem colSpan={3}>
+              <KpiTile
+                title="Unread Alerts"
+                value={`${data.kpis.unreadAlerts}`}
+                icon={<AlertTriangle className="size-5" />}
+                tint="amber"
+                delta={{ value: 'Notification inbox', trend: 'down' }}
+              />
+            </BentoGridItem>
+          </BentoGrid>
 
-      <BentoGrid>
-        <BentoGridItem colSpan={6}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {(data?.recentNotifications ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No notifications yet.
-                </p>
-              ) : (
-                data?.recentNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className="rounded-lg border border-border p-3"
-                  >
-                    <p className="text-sm font-semibold">{notification.title}</p>
+          <BentoGrid>
+            <BentoGridItem colSpan={8}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Active Export Lanes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DataTable<Lane>
+                    columns={LANE_COLUMNS}
+                    data={data.lanes}
+                    emptyMessage="No lanes yet. Create your first export lane."
+                  />
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+            <BentoGridItem colSpan={4}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button asChild className="w-full justify-start">
+                    <Link href="/lanes/new">
+                      <Plus className="size-4" />
+                      Create New Lane
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/settings">Review Privacy & Notifications</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+          </BentoGrid>
+
+          <BentoGrid>
+            <BentoGridItem colSpan={6}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {data.recentNotifications.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      {notification.message}
+                      No notifications yet.
                     </p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-        <BentoGridItem colSpan={6}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Cold-Chain Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Live cold-chain telemetry appears inside each lane detail tab.
-              </p>
-            </CardContent>
-          </Card>
-        </BentoGridItem>
-      </BentoGrid>
+                  ) : (
+                    data.recentNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="rounded-lg border border-border p-3"
+                      >
+                        <p className="text-sm font-semibold">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {notification.message}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+            <BentoGridItem colSpan={6}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Cold-Chain Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Live cold-chain telemetry appears inside each lane detail tab.
+                  </p>
+                </CardContent>
+              </Card>
+            </BentoGridItem>
+          </BentoGrid>
+        </>
+      ) : null}
     </div>
   );
 }
