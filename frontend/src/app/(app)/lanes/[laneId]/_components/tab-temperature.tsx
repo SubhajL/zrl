@@ -1,6 +1,17 @@
 'use client';
 
 import { AlertTriangle, Thermometer } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceArea,
+  ReferenceLine,
+} from 'recharts';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -144,6 +155,12 @@ const readingColumns: readonly Column<TemperatureReading>[] = [
   },
 ] as const;
 
+interface ChartDataPoint {
+  readonly time: string;
+  readonly temp: number;
+  readonly timestamp: string;
+}
+
 export function TabTemperature({
   readings,
   excursions,
@@ -160,6 +177,14 @@ export function TabTemperature({
   ).length;
   const windowStart = readings[0]?.timestamp ?? null;
   const windowEnd = latestReading?.timestamp ?? null;
+
+  const chartData: ChartDataPoint[] = [...readings]
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((r) => ({
+      time: formatTimestamp(r.timestamp),
+      temp: r.valueC,
+      timestamp: r.timestamp,
+    }));
 
   return (
     <div className="space-y-6">
@@ -178,8 +203,74 @@ export function TabTemperature({
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-bold">Temperature Curve</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No temperature readings available
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis
+                  dataKey="time"
+                  fontSize={11}
+                  tick={chartData.length > 20 ? false : undefined}
+                />
+                <YAxis
+                  domain={['auto', 'auto']}
+                  fontSize={11}
+                  unit="°C"
+                />
+                <Tooltip
+                  formatter={(value) => [`${Number(value).toFixed(1)}°C`, 'Temperature']}
+                  labelFormatter={(label) => `at ${String(label)}`}
+                />
+                <ReferenceArea
+                  y1={profile.optimalMinC}
+                  y2={profile.optimalMaxC}
+                  fill="#22C55E"
+                  fillOpacity={0.1}
+                  label="Optimal"
+                />
+                <ReferenceLine
+                  y={profile.heatThresholdC}
+                  stroke="#EF4444"
+                  strokeDasharray="4 4"
+                  label="Heat"
+                />
+                {profile.chillingThresholdC !== null && (
+                  <ReferenceLine
+                    y={profile.chillingThresholdC}
+                    stroke="#3B82F6"
+                    strokeDasharray="4 4"
+                    label="Chill"
+                  />
+                )}
+                <Line
+                  type="monotone"
+                  dataKey="temp"
+                  stroke="#6C5CE7"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <div className="rounded-lg border border-border/60 bg-background p-3">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Target Range
