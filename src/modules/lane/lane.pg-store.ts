@@ -142,6 +142,7 @@ export class PrismaLaneStore implements LaneStore {
   }
 
   async findLatestLaneIdByYear(year: number): Promise<string | null> {
+    await this.acquireSequenceLock(`lane-sequence-${year}`);
     const result = await this.requireExecutor().query<{ lane_id: string }>(
       `
         SELECT lane_id
@@ -157,6 +158,7 @@ export class PrismaLaneStore implements LaneStore {
   }
 
   async findLatestBatchIdByPrefix(prefix: string): Promise<string | null> {
+    await this.acquireSequenceLock(`batch-sequence-${prefix}`);
     const result = await this.requireExecutor().query<{ batch_id: string }>(
       `
         SELECT batch_id
@@ -169,6 +171,15 @@ export class PrismaLaneStore implements LaneStore {
     );
 
     return result.rowCount === 0 ? null : result.rows[0].batch_id;
+  }
+
+  private async acquireSequenceLock(key: string): Promise<void> {
+    await this.requireExecutor().query(
+      `
+        SELECT pg_advisory_xact_lock(hashtext($1))
+      `,
+      [key],
+    );
   }
 
   async createLaneBundle(input: {

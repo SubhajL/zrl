@@ -22,8 +22,20 @@ export interface MutableCookieStore {
   delete(name: string): void;
 }
 
+function readExplicitSecureCookieOverride(): boolean | null {
+  const configuredValue = process.env['AUTH_COOKIE_SECURE']?.trim().toLowerCase();
+  if (configuredValue === 'true') {
+    return true;
+  }
+  if (configuredValue === 'false') {
+    return false;
+  }
+
+  return null;
+}
+
 function isSecureCookieEnvironment(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return readExplicitSecureCookieOverride() ?? process.env.NODE_ENV === 'production';
 }
 
 function buildCookieOptions(maxAge: number) {

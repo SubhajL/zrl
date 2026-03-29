@@ -344,7 +344,7 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
         WITH RECURSIVE reachable(artifact_id) AS (
           SELECT target_ea.id
           FROM evidence_artifacts target_ea
-          WHERE target_ea.id = $1::uuid
+          WHERE target_ea.id = $1
             AND target_ea.deleted_at IS NULL
           UNION
           SELECT al.target_artifact_id
@@ -358,7 +358,7 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
         SELECT EXISTS(
           SELECT 1
           FROM reachable
-          WHERE artifact_id = $2::uuid
+          WHERE artifact_id = $2
         ) AS creates_cycle
       `,
       [targetArtifactId, sourceArtifactId],
