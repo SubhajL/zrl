@@ -20,10 +20,10 @@
 - TDD evidence:
   - RED: 3 test suites failed with "Cannot find module" before implementation
   - GREEN: All 14 new tests pass after implementation
-  - 3x flakiness: 153 frontend tests consistent across 3 runs
+  - 3x flakiness: 156 frontend tests consistent across 3 runs
 
 - Tests run and results:
-  - Frontend: 33 suites, 153 passed
+  - Frontend: 34 suites, 156 passed (17 new: 6 useSocket, 8 useLaneEvents, 1 SocketProvider, 2 ws-token)
   - Backend: 33 suites, 264 passed (no breakage)
   - Frontend typecheck: 0 errors
   - Frontend lint: 0 errors
@@ -44,7 +44,18 @@
   - Dashboard: notification.new events prepend to recent activity and increment unread count in real-time
   - Lane detail: shows "data updated" banner with refresh button when any lane event fires (safe, non-disruptive)
 
+- g-check findings and fixes:
+  - HIGH: Changed ws-token route from GET to POST for CSRF protection, added security trade-off documentation comment
+  - MEDIUM: Refactored `useLaneEvents` to take explicit `connected` boolean param (React state) instead of reading `socket?.connected` (mutable property) — reliable dependency array
+  - MEDIUM: Replaced hardcoded `border-blue-200 bg-blue-50` with design token classes `border-info/30 bg-info/10 text-info`
+  - LOW: Added ws-token route test (2 tests: token present → 200, absent → 401)
+  - LOW: Added `connect_error` listener in `useSocket` that re-fetches token and updates `s.auth` for reconnection with fresh credentials
+
+- CI failure fix:
+  - `socket.io-client` was only in root `package.json` (backend devDependency), not in `frontend/package.json`. Turbopack build in CI failed with "Module not found: Can't resolve 'socket.io-client'". Fixed by running `npm install socket.io-client` inside `frontend/`.
+
 - Follow-ups / known gaps:
   - Lane detail could do client-side refetch instead of showing a stale banner (would need a client-side data loader)
   - No toast/notification UI for real-time events yet
   - No offline/reconnection indicator in the UI
+  - Future: exchange access token for a short-lived WS-specific token with narrower scope to reduce XSS surface
