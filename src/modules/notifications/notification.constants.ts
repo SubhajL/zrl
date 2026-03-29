@@ -4,10 +4,6 @@ import {
 } from './notification.types';
 
 export const DEFAULT_NOTIFICATION_PAGE_SIZE = 20;
-export const NOTIFICATION_CREATED_CHANNEL = 'notification.created';
-export const TEMPERATURE_EXCURSION_CHANNEL = 'temperature.excursion';
-export const LANE_REALTIME_CHANNEL = 'realtime.lane';
-export const USER_REALTIME_CHANNEL = 'realtime.user';
 
 export function buildDefaultNotificationPreferences(): NotificationChannelPreference[] {
   return Object.values(NotificationType).map((type) => ({

@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { NotificationGateway } from './notification.gateway';
 
 describe('NotificationGateway', () => {
@@ -247,5 +247,82 @@ describe('NotificationGateway', () => {
       marketId: 'JAPAN',
       changedSubstances: ['Carbendazim'],
     });
+  });
+
+  it('rejects lane subscribe with non-object body', async () => {
+    const client = {
+      data: { userId: 'user-1', role: 'EXPORTER' },
+    };
+    await expect(
+      gateway.handleSubscribeLane(client as never, null as never),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects lane subscribe with non-string laneId', async () => {
+    const client = {
+      data: { userId: 'user-1', role: 'EXPORTER' },
+    };
+    await expect(
+      gateway.handleSubscribeLane(client as never, { laneId: 123 } as never),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('logs structured event on successful connection', async () => {
+    const logSpy = jest.spyOn(gateway['logger'], 'log');
+    const join = jest.fn();
+    const client = {
+      handshake: { auth: { token: 'jwt-token' }, headers: {} },
+      join,
+      data: {},
+    };
+    await gateway.handleConnection(client as never);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'ws.connected', userId: 'user-1' }),
+    );
+  });
+
+  it('logs warning on failed connection', async () => {
+    authService.verifyAccessToken.mockRejectedValue(new Error('bad'));
+    const warnSpy = jest.spyOn(gateway['logger'], 'warn');
+    const disconnect = jest.fn();
+    const client = {
+      handshake: { auth: { token: 'bad-token' }, headers: {} },
+      disconnect,
+      data: {},
+    };
+    await gateway.handleConnection(client as never);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'ws.auth_failed' }),
+    );
+  });
+
+  it('decrements activeConnections on disconnect', async () => {
+    const join = jest.fn();
+    const client = {
+      handshake: { auth: { token: 'jwt-token' }, headers: {} },
+      join,
+      data: {},
+    };
+    await gateway.handleConnection(client as never);
+    expect(gateway.getMetrics().activeConnections).toBe(1);
+    gateway.handleDisconnect(client as never);
+    expect(gateway.getMetrics().activeConnections).toBe(0);
+  });
+
+  it('tracks lane subscription count', async () => {
+    const join = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      join,
+      data: { userId: 'user-1', role: 'EXPORTER' },
+    };
+    store.findLaneRealtimeAccess.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'user-1',
+    });
+    await gateway.handleSubscribeLane(client as never, {
+      laneId: 'LN-2026-001',
+    });
+    expect(gateway.getMetrics().laneSubscriptions).toBe(1);
   });
 });
