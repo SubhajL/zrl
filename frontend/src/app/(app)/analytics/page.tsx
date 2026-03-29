@@ -76,7 +76,7 @@ export default function AnalyticsPage() {
       )}
 
       {data === null && !error ? (
-        <div className="space-y-8">
+        <div className="space-y-8" aria-busy="true" role="status" aria-label="Loading analytics">
           <BentoGrid>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <BentoGridItem key={i} colSpan={2}>

@@ -81,6 +81,27 @@ export function DashboardSkeleton() {
           </Card>
         </BentoGridItem>
       </BentoGrid>
+
+      {/* Row 3: Recent Activity + Cold-Chain Status */}
+      <BentoGrid>
+        <BentoGridItem colSpan={6}>
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </CardContent>
+          </Card>
+        </BentoGridItem>
+        <BentoGridItem colSpan={6}>
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-full" />
+            </CardContent>
+          </Card>
+        </BentoGridItem>
+      </BentoGrid>
     </div>
   );
 }
