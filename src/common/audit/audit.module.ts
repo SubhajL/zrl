@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuthModule } from '../auth/auth.module';
 import { DatabaseModule } from '../database/database.module';
 import { HashingModule } from '../hashing/hashing.module';
 import { AUDIT_ENTRY_STORE } from './audit.constants';
@@ -9,7 +10,7 @@ import { PrismaAuditStore } from './audit.prisma-store';
 import { AuditService } from './audit.service';
 
 @Module({
-  imports: [HashingModule, DatabaseModule],
+  imports: [AuthModule, HashingModule, DatabaseModule],
   controllers: [AuditController],
   providers: [
     {

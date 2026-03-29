@@ -1,5 +1,14 @@
-import { Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
+import { JwtAuthGuard, LaneOwnerGuard } from '../auth/auth.guards';
 import { Audited } from './audit.decorator';
 import { AuditService } from './audit.service';
 import {
@@ -14,6 +23,7 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get('lanes/:id/audit')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async getLaneAudit(
     @Param('id') laneId: string,
     @Query() query: Record<string, string | undefined>,
@@ -25,12 +35,14 @@ export class AuditController {
   }
 
   @Post('lanes/:id/audit/verify')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   @Audited(AuditAction.VERIFY, AuditEntityType.LANE)
   async verifyLaneAudit(@Param('id') laneId: string) {
     return await this.auditService.verifyChainForLane(laneId);
   }
 
   @Get('audit/export/:laneId')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
   async exportLaneAudit(
     @Param('laneId') laneId: string,
     @Res({ passthrough: true }) response: Response,

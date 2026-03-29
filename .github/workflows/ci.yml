@@ -204,6 +204,31 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: zrl
+          POSTGRES_PASSWORD: zrl_dev_password
+          POSTGRES_DB: zrl_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zrl -d zrl_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -215,6 +240,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Run migrations and seed
+        run: |
+          npx prisma migrate deploy
+          npm run db:seed
 
       - name: Run npm audit
         continue-on-error: true
@@ -228,6 +261,85 @@ jobs:
         continue-on-error: true
         working-directory: frontend
         run: npm audit --audit-level=high
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          ZRL_API_BASE_URL: http://127.0.0.1:3001
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:3001
+        run: npm run build
+
+      - name: Prepare security scan workspace
+        run: mkdir -p zap
+
+      - name: Start backend
+        run: |
+          PROOF_PACK_WORKER_ENABLED=false \
+          CERTIFICATION_EXPIRY_WORKER_ENABLED=false \
+          PORT=3001 \
+          npm run start:prod > zap/backend.log 2>&1 &
+          echo $! > zap/backend.pid
+
+      - name: Wait for backend
+        run: |
+          for attempt in $(seq 1 60); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/cold-chain/profiles || true)
+            if [ "$status" != "000" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat zap/backend.log
+          exit 1
+
+      - name: Start frontend
+        working-directory: frontend
+        env:
+          PORT: '3000'
+          ZRL_API_BASE_URL: http://127.0.0.1:3001
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:3001
+        run: |
+          npm run start > ../zap/frontend.log 2>&1 &
+          echo $! > ../zap/frontend.pid
+
+      - name: Wait for frontend
+        run: |
+          for attempt in $(seq 1 60); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/ || true)
+            if [ "$status" != "000" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat zap/frontend.log
+          exit 1
+
+      - name: Run OWASP ZAP baseline scans
+        run: |
+          FRONTEND_TARGET_URL=http://host.docker.internal:3000/ \
+          BACKEND_TARGET_URL=http://host.docker.internal:3001/cold-chain/profiles \
+          npm run security:zap
+
+      - name: Upload security scan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-artifacts
+          path: |
+            zap/
+
+      - name: Stop frontend and backend
+        if: always()
+        run: |
+          if [ -f zap/frontend.pid ]; then
+            kill "$(cat zap/frontend.pid)" || true
+          fi
+          if [ -f zap/backend.pid ]; then
+            kill "$(cat zap/backend.pid)" || true
+          fi
 
   # Build
   build:
