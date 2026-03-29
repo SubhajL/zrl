@@ -13,6 +13,7 @@ import { LoggingModule } from './common/logging/logging.module';
 import { AuditModule } from './common/audit/audit.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
     MrvLiteModule,
     NotificationModule,
     PrivacyModule,
+    AnalyticsModule,
     // Common services
     AuthModule,
     HashingModule,
