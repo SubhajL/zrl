@@ -1,6 +1,8 @@
 import { AddressInfo } from 'node:net';
 import { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
+import request from 'supertest';
+import { App } from 'supertest/types';
 import { io, type Socket } from 'socket.io-client';
 import { AuthService } from '../src/common/auth/auth.service';
 import { NotificationModule } from '../src/modules/notifications/notification.module';
@@ -120,6 +122,18 @@ describe('Notifications realtime gateway (e2e)', () => {
             },
             claims: {},
           };
+        case 'admin-token':
+          return {
+            user: {
+              id: 'admin-1',
+              email: 'admin@example.com',
+              role: 'ADMIN',
+              companyName: 'Admin Co',
+              mfaEnabled: true,
+              sessionVersion: 0,
+            },
+            claims: {},
+          };
         default:
           throw new Error('invalid token');
       }
@@ -211,5 +225,15 @@ describe('Notifications realtime gateway (e2e)', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 150));
     expect(idleReceived).toBe(false);
+  });
+
+  it('GET /notifications/ws/metrics returns metrics for admin', async () => {
+    const res = await request(app.getHttpServer() as App)
+      .get('/notifications/ws/metrics')
+      .set('Authorization', 'Bearer admin-token')
+      .expect(200);
+    expect(res.body).toHaveProperty('scope', 'instance');
+    expect(res.body).toHaveProperty('activeConnections');
+    expect(res.body).toHaveProperty('laneSubscriptions');
   });
 });
