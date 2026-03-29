@@ -17,6 +17,7 @@ describe('ColdChainController live DB (e2e)', () => {
   let exporterId: string;
   let laneId: string;
   let publicLaneId: string;
+  let checkpointId: string;
 
   const envSnapshot = { ...process.env };
   const authServiceMock = {
@@ -142,6 +143,40 @@ describe('ColdChainController live DB (e2e)', () => {
       `,
       [laneId, publicLaneId, exporterId],
     );
+
+    await pool.query(
+      `
+        INSERT INTO checkpoints (
+          id,
+          lane_id,
+          sequence,
+          location_name,
+          gps_lat,
+          gps_lng,
+          timestamp,
+          temperature,
+          signature_hash,
+          signer_name,
+          condition_notes,
+          status
+        )
+        VALUES (
+          $1,
+          $2,
+          1,
+          'Packing House',
+          NULL,
+          NULL,
+          $3,
+          12.00,
+          NULL,
+          NULL,
+          NULL,
+          'COMPLETED'
+        )
+      `,
+      [checkpointId, laneId, new Date('2026-03-28T00:03:00.000Z')],
+    );
   }
 
   function ingestCriticalBatch() {
@@ -175,6 +210,7 @@ describe('ColdChainController live DB (e2e)', () => {
     exporterId = `user-${randomUUID()}`;
     laneId = `lane-${randomUUID()}`;
     publicLaneId = `LN-LIVE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    checkpointId = `cp-${randomUUID()}`;
 
     authServiceMock.verifyAccessToken.mockResolvedValue({
       user: {
@@ -221,6 +257,7 @@ describe('ColdChainController live DB (e2e)', () => {
     await pool.query('DELETE FROM temperature_readings WHERE lane_id = $1', [
       laneId,
     ]);
+    await pool.query('DELETE FROM checkpoints WHERE id = $1', [checkpointId]);
     await pool.query('DELETE FROM lanes WHERE id = $1', [laneId]);
     await pool.query('DELETE FROM users WHERE id = $1', [exporterId]);
   });
@@ -452,6 +489,98 @@ describe('ColdChainController live DB (e2e)', () => {
           resolution: 'raw',
           from: '2026-03-28T00:00:00.000Z',
           to: '2026-03-28T01:00:00.000Z',
+          totalReadings: 2,
+        });
+      });
+  });
+
+  it('GET /lanes/:id/temperature/sla returns chart-ready SLA reporting data', async () => {
+    await ingestCriticalBatch().expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/lanes/${publicLaneId}/temperature/sla`)
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          status: string;
+          defensibilityScore: number;
+          shelfLifeImpactPercent: number;
+          remainingShelfLifeDays: number;
+          excursionCount: number;
+          totalExcursionMinutes: number;
+          maxDeviationC: number;
+          excursions: Array<{
+            laneId: string;
+            severity: string;
+          }>;
+          chartData: {
+            readings: Array<{
+              timestamp: string;
+              temperatureC: number;
+            }>;
+            optimalBand: {
+              minC: number;
+              maxC: number;
+            };
+            checkpoints: Array<{
+              checkpointId: string;
+              sequence: number;
+              label: string;
+              timestamp: string;
+            }>;
+            excursionZones: Array<{
+              excursionId: string;
+              severity: string;
+              start: string;
+              end: string;
+              color: string;
+            }>;
+          };
+          meta: {
+            resolution: string;
+            totalReadings: number;
+          };
+        };
+
+        expect(body.status).toBe('FAIL');
+        expect(body.defensibilityScore).toBe(0);
+        expect(body.shelfLifeImpactPercent).toBe(100);
+        expect(body.remainingShelfLifeDays).toBe(0);
+        expect(body.excursionCount).toBe(1);
+        expect(body.totalExcursionMinutes).toBe(10);
+        expect(body.maxDeviationC).toBe(1);
+        expect(body.excursions).toEqual([
+          expect.objectContaining({
+            laneId,
+            severity: 'CRITICAL',
+          }),
+        ]);
+        expect(body.chartData.readings).toHaveLength(2);
+        expect(body.chartData.optimalBand).toEqual({
+          minC: 10,
+          maxC: 13,
+        });
+        expect(body.chartData.checkpoints).toEqual([
+          expect.objectContaining({
+            checkpointId,
+            sequence: 1,
+            label: 'CP1 • Packing House',
+            timestamp: '2026-03-28T00:03:00.000Z',
+          }),
+        ]);
+        expect(body.chartData.excursionZones).toEqual([
+          expect.objectContaining({
+            severity: 'CRITICAL',
+            start: '2026-03-28T00:00:00.000Z',
+            end: '2026-03-28T00:05:00.000Z',
+            color: '#dc2626',
+          }),
+        ]);
+        expect(body.meta).toEqual({
+          resolution: 'raw',
+          from: null,
+          to: null,
           totalReadings: 2,
         });
       });

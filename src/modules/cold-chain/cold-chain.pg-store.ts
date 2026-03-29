@@ -8,6 +8,7 @@ import type {
   FruitProfile,
   LaneTemperatureContext,
   NewTemperatureExcursion,
+  TemperatureCheckpointMarker,
   TemperatureExcursion,
   TemperatureReading,
   TemperatureReadingInput,
@@ -54,6 +55,15 @@ interface TemperatureExcursionRow extends QueryResultRow {
   max_observed_c: string | number;
   max_deviation_c: string | number;
   shelf_life_impact_percent: number;
+}
+
+interface TemperatureCheckpointMarkerRow extends QueryResultRow {
+  id: string;
+  lane_id: string;
+  sequence: number;
+  location_name: string;
+  timestamp: Date | null;
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
 }
 
 @Injectable()
@@ -361,6 +371,36 @@ export class PrismaColdChainStore implements ColdChainStore {
     );
 
     return result.rows.map((row) => this.mapExcursion(row));
+  }
+
+  async listLaneCheckpointMarkers(
+    laneId: string,
+  ): Promise<TemperatureCheckpointMarker[]> {
+    const result =
+      await this.requirePool().query<TemperatureCheckpointMarkerRow>(
+        `
+        SELECT
+          id,
+          lane_id,
+          sequence,
+          location_name,
+          timestamp,
+          status
+        FROM checkpoints
+        WHERE lane_id = $1
+        ORDER BY sequence ASC
+      `,
+        [laneId],
+      );
+
+    return result.rows.map((row) => ({
+      checkpointId: row.id,
+      laneId: row.lane_id,
+      sequence: row.sequence,
+      locationName: row.location_name,
+      timestamp: row.timestamp === null ? null : new Date(row.timestamp),
+      status: row.status,
+    }));
   }
 
   private requirePool(): Pool {

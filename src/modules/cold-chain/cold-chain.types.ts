@@ -87,6 +87,44 @@ export interface TemperatureSlaReport {
   maxDeviationC: number;
 }
 
+export interface TemperatureCheckpointMarker {
+  checkpointId: string;
+  laneId: string;
+  sequence: number;
+  locationName: string;
+  timestamp: Date | null;
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+}
+
+export interface TemperatureChartCheckpointMarker extends TemperatureCheckpointMarker {
+  label: string;
+}
+
+export interface TemperatureChartReadingPoint {
+  timestamp: Date;
+  temperatureC: number;
+}
+
+export interface TemperatureExcursionZone {
+  excursionId: string;
+  severity: ExcursionSeverity;
+  type: ExcursionType;
+  direction: ExcursionDirection;
+  start: Date;
+  end: Date;
+  color: string;
+}
+
+export interface TemperatureChartData {
+  readings: TemperatureChartReadingPoint[];
+  optimalBand: {
+    minC: number;
+    maxC: number;
+  };
+  checkpoints: TemperatureChartCheckpointMarker[];
+  excursionZones: TemperatureExcursionZone[];
+}
+
 export interface LaneTemperatureContext {
   laneId: string;
   productType: LaneProduct;
@@ -124,6 +162,17 @@ export interface LaneTemperatureDataResult {
   };
 }
 
+export interface TemperatureSlaReportResult extends TemperatureSlaReport {
+  excursions: TemperatureExcursion[];
+  chartData: TemperatureChartData;
+  meta: {
+    resolution: TemperatureResolution;
+    from: Date | null;
+    to: Date | null;
+    totalReadings: number;
+  };
+}
+
 export interface ColdChainStore {
   listProfiles(): Promise<FruitProfile[]>;
   findProfileByProduct(productType: LaneProduct): Promise<FruitProfile | null>;
@@ -146,4 +195,7 @@ export interface ColdChainStore {
     laneId: string,
     query?: { from?: Date; to?: Date },
   ): Promise<TemperatureExcursion[]>;
+  listLaneCheckpointMarkers(
+    laneId: string,
+  ): Promise<TemperatureCheckpointMarker[]>;
 }

@@ -237,4 +237,20 @@ export class ColdChainController {
       resolution: parseResolution(query['resolution']),
     });
   }
+
+  @Get('lanes/:id/temperature/sla')
+  @UseGuards(JwtAuthGuard, LaneOwnerGuard)
+  async getLaneTemperatureSlaReport(
+    @Param('id') laneId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return await this.coldChainService.getLaneTemperatureSlaReport(laneId, {
+      from:
+        query['from'] === undefined
+          ? undefined
+          : parseDate(query['from'], 'from'),
+      to: query['to'] === undefined ? undefined : parseDate(query['to'], 'to'),
+      resolution: parseResolution(query['resolution']),
+    });
+  }
 }
