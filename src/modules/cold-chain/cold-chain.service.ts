@@ -15,11 +15,16 @@ import type {
   LaneTemperatureDataResult,
   LaneTemperatureQuery,
   NewTemperatureExcursion,
+  TemperatureChartCheckpointMarker,
+  TemperatureChartData,
+  TemperatureCheckpointMarker,
   TemperatureClassification,
   TemperatureExcursion,
+  TemperatureExcursionZone,
   TemperatureReading,
   TemperatureReadingInput,
   TemperatureSlaReport,
+  TemperatureSlaReportResult,
 } from './cold-chain.types';
 import type { LaneColdChainConfigInput, LaneProduct } from '../lane/lane.types';
 
@@ -74,6 +79,16 @@ const SHELF_LIFE_IMPACT_BY_SEVERITY: Record<
   MODERATE: 12,
   SEVERE: 25,
   CRITICAL: 100,
+};
+
+const EXCURSION_ZONE_COLOR_BY_SEVERITY: Record<
+  TemperatureExcursion['severity'],
+  string
+> = {
+  MINOR: '#38bdf8',
+  MODERATE: '#f59e0b',
+  SEVERE: '#f97316',
+  CRITICAL: '#dc2626',
 };
 
 interface ClassifiedReading {
@@ -299,6 +314,58 @@ export class ColdChainService {
       readings: this.downsampleReadings(readings, resolution),
       excursions,
       sla: await this.calculateShelfLifeImpact(context.profile, excursions),
+      meta: {
+        resolution,
+        from: query.from ?? null,
+        to: query.to ?? null,
+        totalReadings: readings.length,
+      },
+    };
+  }
+
+  async getLaneTemperatureSlaReport(
+    laneId: string,
+    query: LaneTemperatureQuery,
+  ): Promise<TemperatureSlaReportResult> {
+    const context = await this.requireLaneTemperatureContext(laneId);
+    if (this.coldChainStore === undefined) {
+      throw new Error('Cold-chain store is not configured.');
+    }
+
+    const resolvedLaneId = context.laneId;
+    const readings = await this.coldChainStore.listTemperatureReadings(
+      resolvedLaneId,
+      {
+        from: query.from,
+        to: query.to,
+      },
+    );
+    const excursions = await this.coldChainStore.listLaneExcursions(
+      resolvedLaneId,
+      {
+        from: query.from,
+        to: query.to,
+      },
+    );
+    const checkpoints =
+      await this.coldChainStore.listLaneCheckpointMarkers(resolvedLaneId);
+    const resolution = this.resolveSlaResolution(query, readings);
+    const sla = await this.calculateShelfLifeImpact(
+      context.profile,
+      excursions,
+    );
+
+    return {
+      ...sla,
+      excursions,
+      chartData: this.buildTemperatureChartData(
+        context.profile,
+        readings,
+        checkpoints,
+        excursions,
+        resolution,
+        query,
+      ),
       meta: {
         resolution,
         from: query.from ?? null,
@@ -874,6 +941,97 @@ export class ColdChainService {
         temperatureC: Number((bucket.sum / bucket.count).toFixed(2)),
         deviceId: bucket.deviceIds.size === 1 ? [...bucket.deviceIds][0] : null,
       }));
+  }
+
+  private resolveSlaResolution(
+    query: LaneTemperatureQuery,
+    readings: TemperatureReading[],
+  ): LaneTemperatureDataResult['meta']['resolution'] {
+    if (query.resolution !== undefined) {
+      return query.resolution;
+    }
+
+    if (readings.length < 2) {
+      return 'raw';
+    }
+
+    const startedAt = readings[0]?.timestamp;
+    const endedAt = readings.at(-1)?.timestamp;
+    if (startedAt === undefined || endedAt === undefined) {
+      return 'raw';
+    }
+
+    return endedAt.getTime() - startedAt.getTime() > 24 * 60 * 60 * 1000
+      ? '1h'
+      : 'raw';
+  }
+
+  private buildTemperatureChartData(
+    profile: FruitProfile,
+    readings: TemperatureReading[],
+    checkpoints: TemperatureCheckpointMarker[],
+    excursions: TemperatureExcursion[],
+    resolution: LaneTemperatureDataResult['meta']['resolution'],
+    query: LaneTemperatureQuery,
+  ): TemperatureChartData {
+    const chartReadings = this.downsampleReadings(readings, resolution).map(
+      (reading) => ({
+        timestamp: reading.timestamp,
+        temperatureC: reading.temperatureC,
+      }),
+    );
+
+    return {
+      readings: chartReadings,
+      optimalBand: {
+        minC: profile.optimalMinC,
+        maxC: profile.optimalMaxC,
+      },
+      checkpoints: this.filterCheckpointMarkers(checkpoints, query),
+      excursionZones: this.buildExcursionZones(excursions, readings, query),
+    };
+  }
+
+  private filterCheckpointMarkers(
+    checkpoints: TemperatureCheckpointMarker[],
+    query: LaneTemperatureQuery,
+  ): TemperatureChartCheckpointMarker[] {
+    return checkpoints
+      .filter(
+        (checkpoint) =>
+          checkpoint.timestamp !== null &&
+          (query.from === undefined ||
+            checkpoint.timestamp.getTime() >= query.from.getTime()) &&
+          (query.to === undefined ||
+            checkpoint.timestamp.getTime() <= query.to.getTime()),
+      )
+      .map((checkpoint) => ({
+        ...checkpoint,
+        timestamp: checkpoint.timestamp as Date,
+        label: `CP${checkpoint.sequence} • ${checkpoint.locationName}`,
+      }));
+  }
+
+  private buildExcursionZones(
+    excursions: TemperatureExcursion[],
+    readings: TemperatureReading[],
+    query: LaneTemperatureQuery,
+  ): TemperatureExcursionZone[] {
+    const latestReadingTimestamp = readings.at(-1)?.timestamp ?? null;
+
+    return excursions.map((excursion) => ({
+      excursionId: excursion.id,
+      severity: excursion.severity,
+      type: excursion.type,
+      direction: excursion.direction,
+      start: excursion.startedAt,
+      end:
+        excursion.endedAt ??
+        latestReadingTimestamp ??
+        query.to ??
+        excursion.startedAt,
+      color: EXCURSION_ZONE_COLOR_BY_SEVERITY[excursion.severity],
+    }));
   }
 
   private getResolutionMinutes(

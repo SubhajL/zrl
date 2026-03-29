@@ -499,3 +499,95 @@ LOW
     - `POST /api/session/login` returned `200` and set `zrl_access_token` / `zrl_refresh_token` without the `Secure` flag.
     - Follow-up `GET /api/zrl/lanes/LN-2026-001/checkpoints` with the same cookie jar returned `200`.
   - `cd frontend && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3310 npm run test:e2e`
+
+## 2026-03-29 14:09 ICT
+
+### Task
+- Reconcile stale Task Master status and implement Task `15` `M3: Cold-Chain SLA Evaluation & Reporting`.
+
+### What Changed
+- Reconciled Task Master state:
+  - Marked Task `12` done because the repo already had proof-pack generation, owner-scoped pack routes, and proof-pack e2e coverage on `main`.
+  - Pulled Task `15` into active execution and closed subtasks `15.1`, `15.2`, and `15.3` after validation.
+- Added the Task `15` cold-chain reporting surface:
+  - `src/modules/cold-chain/cold-chain.controller.ts`
+    - added authenticated `GET /lanes/:id/temperature/sla`.
+  - `src/modules/cold-chain/cold-chain.service.ts`
+    - added `getLaneTemperatureSlaReport()` returning the SLA summary plus chart-ready payloads.
+    - added chart helpers for resolution selection, checkpoint filtering, and excursion-zone generation.
+  - `src/modules/cold-chain/cold-chain.types.ts`
+    - added chart/report DTOs for checkpoint markers, chart readings, excursion zones, and the full SLA report response.
+  - `src/modules/cold-chain/cold-chain.pg-store.ts`
+    - added `listLaneCheckpointMarkers()` backed by the existing `checkpoints` table.
+- Added coverage for the new route and payload:
+  - `src/modules/cold-chain/cold-chain.service.spec.ts`
+    - new unit coverage for chart-ready SLA output with checkpoint markers.
+  - `test/cold-chain.e2e-spec.ts`
+    - mocked controller e2e for `GET /lanes/:id/temperature/sla`.
+    - disabled background workers in the mocked harness so `AppModule` boots cleanly.
+  - `test/cold-chain-live.e2e-spec.ts`
+    - live Postgres-backed e2e proving the real SLA route shape through `AppModule`.
+
+### TDD Evidence
+- RED
+  - `npm test -- --runInBand src/modules/cold-chain/cold-chain.service.spec.ts`
+    - failed with `TypeError: service.getLaneTemperatureSlaReport is not a function`.
+  - `DATABASE_URL=$(sed -n 's/^DATABASE_URL=\"\\(.*\\)\"/\\1/p' .env) npm run test:e2e -- --runInBand test/cold-chain-live.e2e-spec.ts`
+    - first GREEN-candidate run failed because the new live assertion expected only partial `meta`; the real route correctly returned `{ resolution, from, to, totalReadings }`.
+- GREEN
+  - `npm test -- --runInBand src/modules/cold-chain/cold-chain.service.spec.ts`
+  - `npm run test:e2e -- --runInBand test/cold-chain.e2e-spec.ts`
+  - `DATABASE_URL=$(sed -n 's/^DATABASE_URL=\"\\(.*\\)\"/\\1/p' .env) npm run test:e2e -- --runInBand test/cold-chain-live.e2e-spec.ts`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+
+### Outcome
+- Task `15` is fully done in Task Master.
+- The backend now exposes the full SLA reporting contract described in FR-M3-004:
+  - Pass/Conditional/Fail summary fields
+  - excursion list
+  - chart-ready temperature series
+  - optimal range band
+  - checkpoint markers
+  - excursion highlight zones
+- The route is proven in both mocked fast e2e and live DB-backed e2e paths.
+
+
+## Review (2026-03-29 16:37:49 +07) - working-tree
+
+### Reviewed
+- Repo: /Users/subhajlimanond/dev/zrl
+- Branch: main
+- Scope: working-tree
+- Commit(s): working tree
+- Commands Run: git status --porcelain=v1; git diff --name-only; git diff --stat; git diff -- src/modules/cold-chain/cold-chain.controller.ts src/modules/cold-chain/cold-chain.service.ts src/modules/cold-chain/cold-chain.pg-store.ts src/modules/cold-chain/cold-chain.types.ts src/modules/cold-chain/cold-chain.service.spec.ts test/cold-chain.e2e-spec.ts test/cold-chain-live.e2e-spec.ts docs/PROGRESS.md coding-log; DATABASE_URL=$(sed -n 's/^DATABASE_URL="\(.*\)"/\1/p' .env) npm run test:e2e -- --runInBand test/cold-chain-live.e2e-spec.ts; npm run lint -- test/cold-chain-live.e2e-spec.ts
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- Assumed the backend-only Task 15 contract is the intended scope for this branch, with the frontend chart consumption deferred to a later UI slice.
+- Assumed the shared local Postgres on `.env` matches the migration state already required by the existing cold-chain live e2e harness.
+
+### Recommended Tests / Validation
+- `npm test -- --runInBand src/modules/cold-chain/cold-chain.service.spec.ts`
+- `npm run test:e2e -- --runInBand test/cold-chain.e2e-spec.ts`
+- `DATABASE_URL=$(sed -n 's/^DATABASE_URL="\(.*\)"/\1/p' .env) npm run test:e2e -- --runInBand test/cold-chain-live.e2e-spec.ts`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+
+### Rollout Notes
+- The live cold-chain SLA e2e now seeds a real `checkpoints` row, so the DB-backed non-empty checkpoint-marker path is covered before merge.
+- The mocked cold-chain e2e disables background workers explicitly, matching the existing repo convention for AppModule controller harnesses without DB-backed worker dependencies.

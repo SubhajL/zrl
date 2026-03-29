@@ -8,6 +8,7 @@ import { ColdChainService } from '../src/modules/cold-chain/cold-chain.service';
 
 describe('ColdChainController (e2e)', () => {
   let app: INestApplication<App>;
+  const envSnapshot = { ...process.env };
   const authServiceMock = {
     verifyAccessToken: jest.fn().mockResolvedValue({
       user: {
@@ -124,10 +125,78 @@ describe('ColdChainController (e2e)', () => {
         resolution: '15m',
       },
     }),
+    getLaneTemperatureSlaReport: jest.fn().mockResolvedValue({
+      status: 'CONDITIONAL',
+      defensibilityScore: 88,
+      shelfLifeImpactPercent: 12,
+      remainingShelfLifeDays: 18,
+      excursionCount: 1,
+      totalExcursionMinutes: 42,
+      maxDeviationC: 2,
+      excursions: [
+        {
+          id: 'exc-1',
+          laneId: 'lane-db-1',
+          startedAt: new Date('2026-03-24T00:10:00.000Z'),
+          endedAt: new Date('2026-03-24T00:52:00.000Z'),
+          ongoing: false,
+          durationMinutes: 42,
+          severity: 'MODERATE',
+          direction: 'HIGH',
+          type: 'HEAT',
+          thresholdC: 13,
+          minObservedC: 14,
+          maxObservedC: 15,
+          maxDeviationC: 2,
+          shelfLifeImpactPercent: 12,
+        },
+      ],
+      chartData: {
+        readings: [
+          {
+            timestamp: new Date('2026-03-24T00:00:00.000Z'),
+            temperatureC: 11,
+          },
+        ],
+        optimalBand: {
+          minC: 10,
+          maxC: 13,
+        },
+        checkpoints: [
+          {
+            checkpointId: 'cp-1',
+            sequence: 1,
+            label: 'CP1 • Packing House',
+            locationName: 'Packing House',
+            timestamp: new Date('2026-03-24T00:15:00.000Z'),
+            status: 'COMPLETED',
+          },
+        ],
+        excursionZones: [
+          {
+            excursionId: 'exc-1',
+            severity: 'MODERATE',
+            type: 'HEAT',
+            direction: 'HIGH',
+            start: new Date('2026-03-24T00:10:00.000Z'),
+            end: new Date('2026-03-24T00:52:00.000Z'),
+            color: '#f59e0b',
+          },
+        ],
+      },
+      meta: {
+        resolution: 'raw',
+        from: null,
+        to: null,
+        totalReadings: 1,
+      },
+    }),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    process.env['PROOF_PACK_WORKER_ENABLED'] = 'false';
+    process.env['CERTIFICATION_EXPIRY_WORKER_ENABLED'] = 'false';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -146,6 +215,10 @@ describe('ColdChainController (e2e)', () => {
     if (app !== undefined) {
       await app.close();
     }
+  });
+
+  afterAll(() => {
+    process.env = envSnapshot;
   });
 
   it('GET /cold-chain/profiles returns the canonical profile list', async () => {
@@ -255,6 +328,43 @@ describe('ColdChainController (e2e)', () => {
         expect(payload.readings[0]?.timestamp).toBeInstanceOf(Date);
         expect(payload.readings[0]?.temperatureC).toBe(10.5);
         expect(payload.readings[0]?.deviceId).toBe('logger-1');
+      });
+  });
+
+  it('GET /lanes/:id/temperature/sla returns the SLA report payload', async () => {
+    await request(app.getHttpServer())
+      .get('/lanes/lane-db-1/temperature/sla')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          status: string;
+          defensibilityScore: number;
+          chartData: {
+            checkpoints: Array<{ checkpointId: string }>;
+            excursionZones: Array<{ excursionId: string }>;
+          };
+        };
+
+        expect(body.status).toBe('CONDITIONAL');
+        expect(body.defensibilityScore).toBe(88);
+        expect(body.chartData.checkpoints).toEqual([
+          expect.objectContaining({
+            checkpointId: 'cp-1',
+          }),
+        ]);
+        expect(body.chartData.excursionZones).toEqual([
+          expect.objectContaining({
+            excursionId: 'exc-1',
+          }),
+        ]);
+        expect(
+          coldChainServiceMock.getLaneTemperatureSlaReport,
+        ).toHaveBeenCalledWith('lane-db-1', {
+          from: undefined,
+          to: undefined,
+          resolution: undefined,
+        });
       });
   });
 

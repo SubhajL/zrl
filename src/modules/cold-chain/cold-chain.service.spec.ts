@@ -24,6 +24,7 @@ describe('ColdChainService', () => {
   let listTemperatureReadingsMock: jest.Mock;
   let replaceExcursionsMock: jest.Mock;
   let listLaneExcursionsMock: jest.Mock;
+  let listLaneCheckpointMarkersMock: jest.Mock;
   let notificationService: {
     notifyLaneOwner: jest.Mock;
     notifyLaneOwnerAboutTemperatureExcursions: jest.Mock;
@@ -77,6 +78,7 @@ describe('ColdChainService', () => {
     listTemperatureReadingsMock = jest.fn().mockResolvedValue([]);
     replaceExcursionsMock = jest.fn().mockResolvedValue([]);
     listLaneExcursionsMock = jest.fn().mockResolvedValue([]);
+    listLaneCheckpointMarkersMock = jest.fn().mockResolvedValue([]);
     notificationService = {
       notifyLaneOwner: jest.fn().mockResolvedValue([]),
       notifyLaneOwnerAboutTemperatureExcursions: jest
@@ -92,6 +94,7 @@ describe('ColdChainService', () => {
       listTemperatureReadings: listTemperatureReadingsMock,
       replaceExcursions: replaceExcursionsMock,
       listLaneExcursions: listLaneExcursionsMock,
+      listLaneCheckpointMarkers: listLaneCheckpointMarkersMock,
     } as unknown as ColdChainStore;
 
     findProfileByProductMock.mockImplementation((productType: string) => {
@@ -539,6 +542,117 @@ describe('ColdChainService', () => {
       from: undefined,
       to: undefined,
     });
+  });
+
+  it('getLaneTemperatureSlaReport returns chart-ready SLA data with checkpoint markers', async () => {
+    listTemperatureReadingsMock.mockResolvedValue([
+      {
+        id: 'reading-1',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:00:00.000Z'),
+        temperatureC: 11,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-2',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:10:00.000Z'),
+        temperatureC: 16,
+        deviceId: 'logger-1',
+      },
+      {
+        id: 'reading-3',
+        laneId: 'lane-db-1',
+        timestamp: new Date('2026-03-24T00:20:00.000Z'),
+        temperatureC: 12,
+        deviceId: 'logger-1',
+      },
+    ]);
+    listLaneExcursionsMock.mockResolvedValue([
+      {
+        id: 'exc-1',
+        laneId: 'lane-db-1',
+        startedAt: new Date('2026-03-24T00:10:00.000Z'),
+        endedAt: new Date('2026-03-24T00:20:00.000Z'),
+        ongoing: false,
+        durationMinutes: 10,
+        severity: 'MODERATE',
+        direction: 'HIGH',
+        type: 'HEAT',
+        thresholdC: 13,
+        minObservedC: 16,
+        maxObservedC: 16,
+        maxDeviationC: 3,
+        shelfLifeImpactPercent: 12,
+      },
+    ]);
+    listLaneCheckpointMarkersMock.mockResolvedValue([
+      {
+        checkpointId: 'cp-1',
+        laneId: 'lane-db-1',
+        sequence: 1,
+        locationName: 'Packing House',
+        timestamp: new Date('2026-03-24T00:15:00.000Z'),
+        status: 'COMPLETED',
+      },
+      {
+        checkpointId: 'cp-2',
+        laneId: 'lane-db-1',
+        sequence: 2,
+        locationName: 'Airport',
+        timestamp: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    await expect(
+      service.getLaneTemperatureSlaReport('LN-2026-001', {}),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: 'CONDITIONAL',
+        totalExcursionMinutes: 10,
+        maxDeviationC: 3,
+        chartData: {
+          readings: [
+            expect.objectContaining({
+              timestamp: new Date('2026-03-24T00:00:00.000Z'),
+              temperatureC: 11,
+            }),
+            expect.objectContaining({
+              timestamp: new Date('2026-03-24T00:10:00.000Z'),
+              temperatureC: 16,
+            }),
+            expect.objectContaining({
+              timestamp: new Date('2026-03-24T00:20:00.000Z'),
+              temperatureC: 12,
+            }),
+          ],
+          optimalBand: {
+            minC: 10,
+            maxC: 13,
+          },
+          checkpoints: [
+            expect.objectContaining({
+              checkpointId: 'cp-1',
+              sequence: 1,
+              label: 'CP1 • Packing House',
+              timestamp: new Date('2026-03-24T00:15:00.000Z'),
+            }),
+          ],
+          excursionZones: [
+            expect.objectContaining({
+              start: new Date('2026-03-24T00:10:00.000Z'),
+              end: new Date('2026-03-24T00:20:00.000Z'),
+              severity: 'MODERATE',
+              color: '#f59e0b',
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(findLaneTemperatureContextMock).toHaveBeenCalledWith('LN-2026-001');
+    expect(listLaneCheckpointMarkersMock).toHaveBeenCalledWith('lane-db-1');
   });
 
   it('calculateShelfLifeImpact caps cumulative reduction at one hundred percent', async () => {
