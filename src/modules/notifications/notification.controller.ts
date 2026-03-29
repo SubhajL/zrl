@@ -10,8 +10,10 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/auth/auth.guards';
+import { JwtAuthGuard, RolesGuard } from '../../common/auth/auth.guards';
+import { Roles } from '../../common/auth/auth.decorators';
 import type { AuthPrincipalRequest } from '../../common/auth/auth.types';
+import { NotificationGateway } from './notification.gateway';
 import { NotificationService } from './notification.service';
 import {
   NotificationType,
@@ -148,7 +150,17 @@ function requireUserId(request: AuthPrincipalRequest): string {
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly gateway: NotificationGateway,
+  ) {}
+
+  @Get('ws/metrics')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  getWsMetrics() {
+    return this.gateway.getMetrics();
+  }
 
   @Get()
   async listNotifications(

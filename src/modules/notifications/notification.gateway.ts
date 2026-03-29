@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Inject,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -54,9 +56,15 @@ type NotificationSocket = Socket<
     credentials: true,
   },
 })
-export class NotificationGateway implements OnGatewayConnection {
+export class NotificationGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
+
+  private readonly logger = new Logger(NotificationGateway.name);
+  private activeConnections = 0;
+  private laneSubscriptionCount = 0;
 
   constructor(
     private readonly authService: AuthService,
@@ -76,8 +84,23 @@ export class NotificationGateway implements OnGatewayConnection {
       client.data['userId'] = verified.user.id;
       client.data['role'] = verified.user.role;
       await client.join(this.roomName(verified.user.id));
+      this.activeConnections++;
+      this.logger.log({
+        event: 'ws.connected',
+        userId: verified.user.id,
+        role: verified.user.role,
+      });
     } catch {
+      this.logger.warn({ event: 'ws.auth_failed' });
       client.disconnect(true);
+    }
+  }
+
+  handleDisconnect(client: NotificationSocket): void {
+    const userId = client.data['userId'];
+    if (userId !== undefined) {
+      this.activeConnections = Math.max(0, this.activeConnections - 1);
+      this.logger.log({ event: 'ws.disconnected', userId });
     }
   }
 
@@ -88,6 +111,12 @@ export class NotificationGateway implements OnGatewayConnection {
   ): Promise<{ laneId: string }> {
     const access = await this.requireLaneAccess(client, body);
     await client.join(this.laneRoomName(access.id));
+    this.laneSubscriptionCount++;
+    this.logger.log({
+      event: 'ws.lane.subscribed',
+      userId: client.data['userId'],
+      laneId: access.id,
+    });
     return { laneId: access.id };
   }
 
@@ -98,6 +127,12 @@ export class NotificationGateway implements OnGatewayConnection {
   ): Promise<{ laneId: string }> {
     const access = await this.requireLaneAccess(client, body);
     await client.leave(this.laneRoomName(access.id));
+    this.laneSubscriptionCount = Math.max(0, this.laneSubscriptionCount - 1);
+    this.logger.log({
+      event: 'ws.lane.unsubscribed',
+      userId: client.data['userId'],
+      laneId: access.id,
+    });
     return { laneId: access.id };
   }
 
@@ -125,6 +160,18 @@ export class NotificationGateway implements OnGatewayConnection {
 
   emitTemperatureExcursion(event: TemperatureExcursionRealtimeEvent): void {
     this.emitLaneEvent('temperature.excursion', event.laneId, event);
+  }
+
+  getMetrics(): {
+    scope: 'instance';
+    activeConnections: number;
+    laneSubscriptions: number;
+  } {
+    return {
+      scope: 'instance',
+      activeConnections: this.activeConnections,
+      laneSubscriptions: this.laneSubscriptionCount,
+    };
   }
 
   private resolveToken(client: NotificationSocket): string | null {
@@ -165,7 +212,10 @@ export class NotificationGateway implements OnGatewayConnection {
       throw new UnauthorizedException('Authentication required.');
     }
 
-    const laneId = body?.laneId?.trim() ?? '';
+    if (body === null || body === undefined || typeof body !== 'object') {
+      throw new BadRequestException('Invalid subscription payload.');
+    }
+    const laneId = typeof body.laneId === 'string' ? body.laneId.trim() : '';
     if (laneId.length === 0) {
       throw new BadRequestException('laneId is required.');
     }
