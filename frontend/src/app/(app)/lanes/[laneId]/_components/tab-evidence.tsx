@@ -1,3 +1,6 @@
+'use client';
+
+import { useCallback, useRef, useState } from 'react';
 import {
   CheckCircle,
   AlertTriangle,
@@ -21,6 +24,10 @@ import type {
   EvidenceGraph,
   ArtifactType,
 } from '@/lib/types';
+
+/* ── Constants ── */
+
+const ACCEPTED_FILE_TYPES = '.pdf,.jpg,.jpeg,.png,.csv,.json';
 
 /* ── Category definitions ── */
 
@@ -99,12 +106,53 @@ function GraphStatusDot({
 export interface TabEvidenceProps {
   readonly evidence: EvidenceArtifact[];
   readonly graph?: EvidenceGraph;
+  readonly onUpload?: (artifactType: string, file: File) => Promise<void>;
 }
 
-export function TabEvidence({ evidence, graph }: TabEvidenceProps) {
+export function TabEvidence({ evidence, graph, onUpload }: TabEvidenceProps) {
   const evidenceByType = new Map<ArtifactType, EvidenceArtifact>();
   for (const artifact of evidence) {
     evidenceByType.set(artifact.artifactType, artifact);
+  }
+
+  const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<{
+    type: string;
+    message: string;
+  } | null>(null);
+
+  const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
+  const setFileInputRef = useCallback(
+    (artifactType: string) => (el: HTMLInputElement | null) => {
+      if (el) {
+        fileInputRefs.current.set(artifactType, el);
+      } else {
+        fileInputRefs.current.delete(artifactType);
+      }
+    },
+    [],
+  );
+
+  function handleUploadZoneClick(artifactType: string) {
+    if (!onUpload) return;
+    const input = fileInputRefs.current.get(artifactType);
+    input?.click();
+  }
+
+  async function handleFileSelected(artifactType: string, file: File) {
+    setUploadingType(artifactType);
+    setUploadError(null);
+    try {
+      await onUpload?.(artifactType, file);
+    } catch (err) {
+      setUploadError({
+        type: artifactType,
+        message: err instanceof Error ? err.message : 'Upload failed',
+      });
+    } finally {
+      setUploadingType(null);
+    }
   }
 
   return (
@@ -123,15 +171,75 @@ export function TabEvidence({ evidence, graph }: TabEvidenceProps) {
                 const artifact = evidenceByType.get(artifactType);
 
                 if (!artifact) {
+                  const isUploading = uploadingType === artifactType;
+                  const isInteractive = !!onUpload;
+
                   return (
-                    <div
-                      key={artifactType}
-                      className="flex items-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/20 p-4 text-muted-foreground"
-                    >
-                      <Upload className="size-5" />
-                      <span className="text-sm font-medium">
-                        Upload {ARTIFACT_TYPE_LABELS[artifactType]}
-                      </span>
+                    <div key={artifactType}>
+                      <div
+                        role={isInteractive ? 'button' : undefined}
+                        tabIndex={isInteractive ? 0 : undefined}
+                        onClick={
+                          isInteractive
+                            ? () => handleUploadZoneClick(artifactType)
+                            : undefined
+                        }
+                        onKeyDown={
+                          isInteractive
+                            ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleUploadZoneClick(artifactType);
+                                }
+                              }
+                            : undefined
+                        }
+                        className={[
+                          'flex items-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/20 p-4 text-muted-foreground',
+                          isInteractive
+                            ? 'cursor-pointer hover:border-primary/50 hover:bg-primary/5'
+                            : '',
+                        ].join(' ')}
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="size-5 animate-spin" />
+                            <span className="text-sm font-medium">
+                              Uploading...
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="size-5" />
+                            <span className="text-sm font-medium">
+                              Upload{' '}
+                              {ARTIFACT_TYPE_LABELS[artifactType]}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {onUpload && (
+                        <input
+                          type="file"
+                          ref={setFileInputRef(artifactType)}
+                          data-artifact-type={artifactType}
+                          accept={ACCEPTED_FILE_TYPES}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleFileSelected(artifactType, file);
+                            }
+                            // Reset value so re-selecting the same file triggers onChange
+                            e.target.value = '';
+                          }}
+                        />
+                      )}
+                      {uploadError?.type === artifactType && !isUploading && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {uploadError.message}
+                        </p>
+                      )}
                     </div>
                   );
                 }
