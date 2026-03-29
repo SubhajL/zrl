@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/zrl/app-shell';
+import { AppProviders } from './app-providers';
 import {
   AUTH_ACCESS_COOKIE,
   AUTH_REFRESH_COOKIE,
@@ -19,5 +20,9 @@ export default async function AppLayout({
     redirect('/login');
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppProviders>
+      <AppShell>{children}</AppShell>
+    </AppProviders>
+  );
 }
