@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DisputeService } from './dispute.service';
 import type { DisputeStore, DisputeRecord } from './dispute.types';
 
@@ -73,7 +73,8 @@ describe('DisputeService', () => {
   };
 
   function createStoreMock(): jest.Mocked<DisputeStore> {
-    return {
+    const store: jest.Mocked<DisputeStore> = {
+      runInTransaction: jest.fn(),
       createDispute: jest.fn().mockResolvedValue(baseDispute),
       findDisputeById: jest.fn().mockResolvedValue(baseDispute),
       findDisputesForLane: jest.fn().mockResolvedValue([baseDispute]),
@@ -82,6 +83,9 @@ describe('DisputeService', () => {
       countDisputesForLane: jest.fn().mockResolvedValue(1),
       countExcursionsForLane: jest.fn().mockResolvedValue(0),
     };
+    // runInTransaction delegates to the callback with the store itself
+    store.runInTransaction.mockImplementation(async (fn) => await fn(store));
+    return store;
   }
 
   function createLaneServiceMock() {
@@ -281,13 +285,132 @@ describe('DisputeService', () => {
     });
   });
 
-  it('throws NotFoundException when updating non-existent dispute', async () => {
+  it('throws NotFoundException when dispute not found during access check', async () => {
     const store = createStoreMock();
+    store.findDisputeById.mockResolvedValue(null);
+    const service = buildService({ store });
+
+    await expect(
+      service.updateDispute('non-existent', { status: 'INVESTIGATING' }, actor),
+    ).rejects.toThrow(NotFoundException);
+    expect(store.updateDispute).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when dispute disappears between check and update', async () => {
+    const store = createStoreMock();
+    // findDisputeById returns the dispute (access check passes)
+    // but updateDispute returns null (gone by the time we update)
     store.updateDispute.mockResolvedValue(null);
     const service = buildService({ store });
 
     await expect(
-      service.updateDispute('non-existent', { status: 'INVESTIGATING' }),
+      service.updateDispute('dispute-1', { status: 'INVESTIGATING' }, actor),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  describe('auth hardening', () => {
+    const otherExporter = { id: 'other-user', role: 'EXPORTER' };
+    const admin = { id: 'admin-1', role: 'ADMIN' };
+    const partner = { id: 'partner-1', role: 'PARTNER' };
+
+    it('generateDefensePack rejects exporter who does not own the lane', async () => {
+      const store = createStoreMock();
+      const laneService = createLaneServiceMock();
+      const service = buildService({ store, laneService });
+
+      await expect(
+        service.generateDefensePack('dispute-1', otherExporter),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('generateDefensePack allows admin on any dispute', async () => {
+      const store = createStoreMock();
+      const laneService = createLaneServiceMock();
+      const proofPackService = createProofPackServiceMock();
+      const auditService = createAuditServiceMock();
+      const service = buildService({
+        store,
+        laneService,
+        proofPackService,
+        auditService,
+      });
+
+      const result = await service.generateDefensePack('dispute-1', admin);
+      expect(result).toBeDefined();
+    });
+
+    it('updateDispute rejects exporter who does not own the lane', async () => {
+      const store = createStoreMock();
+      const laneService = createLaneServiceMock();
+      const service = buildService({ store, laneService });
+
+      await expect(
+        service.updateDispute(
+          'dispute-1',
+          { status: 'INVESTIGATING' },
+          otherExporter,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('updateDispute allows admin on any dispute', async () => {
+      const store = createStoreMock();
+      const laneService = createLaneServiceMock();
+      const auditService = createAuditServiceMock();
+      const updatedDispute = {
+        ...baseDispute,
+        status: 'INVESTIGATING' as const,
+      };
+      store.updateDispute.mockResolvedValue(updatedDispute);
+      const service = buildService({ store, laneService, auditService });
+
+      const result = await service.updateDispute(
+        'dispute-1',
+        { status: 'INVESTIGATING' },
+        admin,
+      );
+      expect(result.status).toBe('INVESTIGATING');
+    });
+
+    it('updateDispute allows the lane owner', async () => {
+      const store = createStoreMock();
+      const laneService = createLaneServiceMock();
+      const auditService = createAuditServiceMock();
+      const updatedDispute = {
+        ...baseDispute,
+        status: 'INVESTIGATING' as const,
+      };
+      store.updateDispute.mockResolvedValue(updatedDispute);
+      const service = buildService({ store, laneService, auditService });
+
+      const result = await service.updateDispute(
+        'dispute-1',
+        { status: 'INVESTIGATING' },
+        actor,
+      );
+      expect(result.status).toBe('INVESTIGATING');
+    });
+
+    it('updateDispute rejects PARTNER role', async () => {
+      const store = createStoreMock();
+      const service = buildService({ store });
+
+      await expect(
+        service.updateDispute(
+          'dispute-1',
+          { status: 'INVESTIGATING' },
+          partner,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('generateDefensePack rejects PARTNER role', async () => {
+      const store = createStoreMock();
+      const service = buildService({ store });
+
+      await expect(
+        service.generateDefensePack('dispute-1', partner),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 });

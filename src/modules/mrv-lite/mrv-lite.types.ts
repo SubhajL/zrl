@@ -64,31 +64,25 @@ export interface PlatformEsgReport {
   };
 }
 
+export interface LaneCarbonRow {
+  readonly productType: string;
+  readonly destinationMarket: string;
+  readonly transportMode: string | null;
+  readonly quantityKg: number;
+  readonly completenessScore: number;
+  readonly originProvince: string;
+  readonly evidenceCount: number;
+  readonly auditEntryCount: number;
+  readonly exporterId?: string;
+}
+
 export interface MrvLiteStore {
-  getExporterEsgData(
+  getExporterLaneCarbonRows(
     exporterId: string,
     quarter: number,
     year: number,
-  ): Promise<{
-    totalCo2eKg: number;
-    avgCo2ePerKg: number;
-    laneCount: number;
-    avgCompleteness: number;
-    totalEvidenceCount: number;
-    distinctProvinces: number;
-    distinctProducts: number;
-  }>;
-  getPlatformEsgData(year: number): Promise<{
-    totalCo2eKg: number;
-    avgCo2ePerKg: number;
-    laneCount: number;
-    avgCompleteness: number;
-    totalEvidenceCount: number;
-    totalAuditEntries: number;
-    distinctExporters: number;
-    distinctProvinces: number;
-    distinctProducts: number;
-  }>;
+  ): Promise<LaneCarbonRow[]>;
+  getPlatformLaneCarbonRows(year: number): Promise<LaneCarbonRow[]>;
   getLaneEsgData(laneId: string): Promise<{
     productType: string;
     destinationMarket: string;

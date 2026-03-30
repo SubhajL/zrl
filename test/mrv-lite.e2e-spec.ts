@@ -193,6 +193,70 @@ describe('MrvLiteController (e2e)', () => {
       });
   });
 
+  it('GET /esg/exporter/:id returns 403 for exporter accessing another exporter', async () => {
+    authServiceMock.verifyAccessToken.mockResolvedValueOnce({
+      user: {
+        id: 'exporter-2',
+        email: 'exporter2@example.com',
+        role: 'EXPORTER',
+        companyName: 'Other Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+      claims: {
+        iss: 'zrl-auth',
+        aud: 'zrl',
+        sub: 'exporter-2',
+        type: 'access',
+        role: 'EXPORTER',
+        sv: 0,
+        mfa: false,
+        email: 'exporter2@example.com',
+        companyName: 'Other Co',
+        iat: 1,
+        exp: 2,
+        jti: 'jti',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get('/esg/exporter/exporter-1?quarter=1&year=2026')
+      .set('Authorization', 'Bearer test-token')
+      .expect(403);
+  });
+
+  it('GET /esg/exporter/:id returns 200 for exporter accessing own data', async () => {
+    authServiceMock.verifyAccessToken.mockResolvedValueOnce({
+      user: {
+        id: 'exporter-1',
+        email: 'exporter1@example.com',
+        role: 'EXPORTER',
+        companyName: 'My Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+      claims: {
+        iss: 'zrl-auth',
+        aud: 'zrl',
+        sub: 'exporter-1',
+        type: 'access',
+        role: 'EXPORTER',
+        sv: 0,
+        mfa: false,
+        email: 'exporter1@example.com',
+        companyName: 'My Co',
+        iat: 1,
+        exp: 2,
+        jti: 'jti',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get('/esg/exporter/exporter-1?quarter=1&year=2026')
+      .set('Authorization', 'Bearer test-token')
+      .expect(200);
+  });
+
   it('returns 401 without auth', async () => {
     await request(app.getHttpServer()).get('/lanes/lane-1/esg').expect(401);
 

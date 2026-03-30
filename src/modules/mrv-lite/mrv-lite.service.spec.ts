@@ -1,6 +1,46 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { MRV_LITE_STORE, EMISSION_FACTORS } from './mrv-lite.constants';
-import type { MrvLiteStore } from './mrv-lite.types';
+import type { LaneCarbonRow, MrvLiteStore } from './mrv-lite.types';
 import { MrvLiteService } from './mrv-lite.service';
+
+// Two sample lanes: MANGO/JAPAN/AIR (factor=2.3) and MANGO/JAPAN/SEA (factor=1.1)
+const exporterLaneRows: LaneCarbonRow[] = [
+  {
+    productType: 'MANGO',
+    destinationMarket: 'JAPAN',
+    transportMode: 'AIR',
+    quantityKg: 1000,
+    completenessScore: 85,
+    originProvince: 'Chanthaburi',
+    evidenceCount: 12,
+    auditEntryCount: 5,
+  },
+  {
+    productType: 'MANGO',
+    destinationMarket: 'JAPAN',
+    transportMode: 'SEA',
+    quantityKg: 1000,
+    completenessScore: 75,
+    originProvince: 'Rayong',
+    evidenceCount: 12,
+    auditEntryCount: 5,
+  },
+];
+
+const platformLaneRows: LaneCarbonRow[] = [
+  ...exporterLaneRows.map((r) => ({ ...r, exporterId: 'exporter-1' })),
+  {
+    productType: 'DURIAN',
+    destinationMarket: 'CHINA',
+    transportMode: 'TRUCK',
+    quantityKg: 500,
+    completenessScore: 65,
+    originProvince: 'Chumphon',
+    evidenceCount: 6,
+    auditEntryCount: 3,
+    exporterId: 'exporter-2',
+  },
+];
 
 function createMockStore(): jest.Mocked<MrvLiteStore> {
   return {
@@ -15,26 +55,8 @@ function createMockStore(): jest.Mocked<MrvLiteStore> {
       evidenceCount: 12,
       auditEntryCount: 5,
     }),
-    getExporterEsgData: jest.fn().mockResolvedValue({
-      totalCo2eKg: 4600,
-      avgCo2ePerKg: 2.3,
-      laneCount: 2,
-      avgCompleteness: 80,
-      totalEvidenceCount: 24,
-      distinctProvinces: 2,
-      distinctProducts: 1,
-    }),
-    getPlatformEsgData: jest.fn().mockResolvedValue({
-      totalCo2eKg: 50000,
-      avgCo2ePerKg: 1.8,
-      laneCount: 100,
-      avgCompleteness: 75,
-      totalEvidenceCount: 1200,
-      totalAuditEntries: 600,
-      distinctExporters: 15,
-      distinctProvinces: 8,
-      distinctProducts: 4,
-    }),
+    getExporterLaneCarbonRows: jest.fn().mockResolvedValue(exporterLaneRows),
+    getPlatformLaneCarbonRows: jest.fn().mockResolvedValue(platformLaneRows),
   };
 }
 
@@ -155,41 +177,98 @@ describe('MrvLiteService', () => {
   });
 
   describe('getExporterReport', () => {
-    it('returns structured quarterly report', async () => {
+    it('computes CO2e using per-lane emission factors (not hardcoded 1.5)', async () => {
       const report = await service.getExporterReport('exporter-1', 1, 2026);
 
-      expect(store.getExporterEsgData.mock.calls[0]).toEqual([
+      expect(store.getExporterLaneCarbonRows).toHaveBeenCalledWith(
         'exporter-1',
         1,
         2026,
-      ]);
+      );
       expect(report.exporterId).toBe('exporter-1');
       expect(report.period).toEqual({ quarter: 1, year: 2026 });
-      expect(report.environmental.totalCo2eKg).toBe(4600);
-      expect(report.environmental.avgCo2ePerKg).toBe(2.3);
+      // Lane 1: MANGO/JAPAN/AIR = 2.3 * 1000 = 2300
+      // Lane 2: MANGO/JAPAN/SEA = 1.1 * 1000 = 1100
+      // Total: 3400, avg: 3400/2000 = 1.7
+      expect(report.environmental.totalCo2eKg).toBe(3400);
+      expect(report.environmental.avgCo2ePerKg).toBe(1.7);
       expect(report.environmental.laneCount).toBe(2);
       expect(report.social.distinctProvinces).toBe(2);
       expect(report.social.distinctProducts).toBe(1);
       expect(report.governance.avgCompleteness).toBe(80);
       expect(report.governance.totalEvidenceCount).toBe(24);
     });
+
+    it('returns zeros for empty lane set', async () => {
+      store.getExporterLaneCarbonRows.mockResolvedValue([]);
+
+      const report = await service.getExporterReport('exporter-1', 1, 2026);
+
+      expect(report.environmental.totalCo2eKg).toBe(0);
+      expect(report.environmental.avgCo2ePerKg).toBe(0);
+      expect(report.environmental.laneCount).toBe(0);
+    });
+
+    it('excludes empty-string provinces from distinct count', async () => {
+      store.getExporterLaneCarbonRows.mockResolvedValue([
+        {
+          productType: 'MANGO',
+          destinationMarket: 'JAPAN',
+          transportMode: 'AIR',
+          quantityKg: 100,
+          completenessScore: 50,
+          originProvince: '',
+          evidenceCount: 1,
+          auditEntryCount: 0,
+        },
+        {
+          productType: 'MANGO',
+          destinationMarket: 'JAPAN',
+          transportMode: 'AIR',
+          quantityKg: 100,
+          completenessScore: 50,
+          originProvince: 'Chanthaburi',
+          evidenceCount: 1,
+          auditEntryCount: 0,
+        },
+      ]);
+
+      const report = await service.getExporterReport('exporter-1', 1, 2026);
+
+      // Empty string province should not be counted
+      expect(report.social.distinctProvinces).toBe(1);
+    });
   });
 
   describe('getPlatformReport', () => {
-    it('returns structured annual report', async () => {
+    it('computes CO2e using per-lane emission factors (not hardcoded 1.5)', async () => {
       const report = await service.getPlatformReport(2026);
 
-      expect(store.getPlatformEsgData.mock.calls[0][0]).toBe(2026);
+      expect(store.getPlatformLaneCarbonRows).toHaveBeenCalledWith(2026);
       expect(report.year).toBe(2026);
-      expect(report.environmental.totalCo2eKg).toBe(50000);
-      expect(report.environmental.avgCo2ePerKg).toBe(1.8);
-      expect(report.environmental.laneCount).toBe(100);
-      expect(report.social.distinctExporters).toBe(15);
-      expect(report.social.distinctProvinces).toBe(8);
-      expect(report.social.distinctProducts).toBe(4);
+      // Lane 1: MANGO/JAPAN/AIR = 2.3 * 1000 = 2300
+      // Lane 2: MANGO/JAPAN/SEA = 1.1 * 1000 = 1100
+      // Lane 3: DURIAN/CHINA/TRUCK = 0.8 * 500 = 400
+      // Total: 3800, totalQty: 2500, avg: 3800/2500 = 1.52
+      expect(report.environmental.totalCo2eKg).toBe(3800);
+      expect(report.environmental.avgCo2ePerKg).toBe(1.52);
+      expect(report.environmental.laneCount).toBe(3);
+      expect(report.social.distinctExporters).toBe(2);
+      expect(report.social.distinctProvinces).toBe(3);
+      expect(report.social.distinctProducts).toBe(2);
       expect(report.governance.avgCompleteness).toBe(75);
-      expect(report.governance.totalEvidenceCount).toBe(1200);
-      expect(report.governance.totalAuditEntries).toBe(600);
+      expect(report.governance.totalEvidenceCount).toBe(30);
+      expect(report.governance.totalAuditEntries).toBe(13);
+    });
+
+    it('returns zeros for empty lane set', async () => {
+      store.getPlatformLaneCarbonRows.mockResolvedValue([]);
+
+      const report = await service.getPlatformReport(2026);
+
+      expect(report.environmental.totalCo2eKg).toBe(0);
+      expect(report.environmental.avgCo2ePerKg).toBe(0);
+      expect(report.environmental.laneCount).toBe(0);
     });
   });
 
