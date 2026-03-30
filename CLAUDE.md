@@ -108,6 +108,20 @@ Any session that produces implementation or debugging work **MUST** append an en
 - This is intentional: raw SQL gives full control over query optimization, transaction-bound clones, and aggregation queries (analytics, cold-chain range queries)
 - **MUST** follow when adding new modules: define models in `schema.prisma`, implement queries in `*.pg-store.ts`
 
+### pg-store Conventions (follow when creating new stores)
+
+- **File name:** `<module>.pg-store.ts` with `Prisma<Module>Store` class
+- **Constructor:** `@Inject(DATABASE_POOL) pool: Pool | undefined` from `../../common/database/database.constants`
+- **Pool helper:** Private `requirePool()` that throws if pool is undefined
+- **Row interfaces:** `interface <Name>Row extends QueryResultRow { ... }` with snake_case DB columns
+- **Row mapping:** Private `mapRow(row: <Name>Row): <Record>` converting snake_case → camelCase
+- **Parameterized SQL:** Always use `$1, $2` placeholders, never string interpolation
+- **Transactions:** `runInTransaction<T>(fn: (store) => Promise<T>)` with `PoolClient` clone
+- **Counts:** Use `COUNT(*)::int AS count` (returns JS number directly)
+- **Pagination:** `LIMIT $N OFFSET $M` with `page` and `limit` parameters
+- **Store interface:** Define in `<module>.types.ts`, implement in `*.pg-store.ts`
+- **DI token:** Symbol in `<module>.constants.ts`, register with `useExisting` in module
+
 ### Quality Gates (run before PR)
 
 ```bash

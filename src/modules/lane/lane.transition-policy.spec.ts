@@ -1,28 +1,31 @@
-import { ConflictException } from '@nestjs/common';
 import {
-  assertTransitionGraph,
-  assertTransitionGuards,
+  validateTransitionGraph,
+  validateTransitionGuards,
   getAutomaticTransitionTarget,
 } from './lane.transition-policy';
 
 describe('LaneTransitionPolicy', () => {
-  describe('assertTransitionGraph', () => {
-    it('allows valid transitions', () => {
-      expect(() =>
-        assertTransitionGraph('EVIDENCE_COLLECTING', 'VALIDATED'),
-      ).not.toThrow();
+  describe('validateTransitionGraph', () => {
+    it('returns null for valid transitions', () => {
+      expect(
+        validateTransitionGraph('EVIDENCE_COLLECTING', 'VALIDATED'),
+      ).toBeNull();
     });
 
-    it('rejects invalid transitions with ConflictException', () => {
-      expect(() =>
-        assertTransitionGraph('EVIDENCE_COLLECTING', 'PACKED'),
-      ).toThrow(ConflictException);
-    });
-
-    it('rejects transitions from terminal states', () => {
-      expect(() => assertTransitionGraph('ARCHIVED', 'CREATED')).toThrow(
-        ConflictException,
+    it('returns INVALID_TRANSITION violation for invalid transitions', () => {
+      const violation = validateTransitionGraph(
+        'EVIDENCE_COLLECTING',
+        'PACKED',
       );
+      expect(violation).not.toBeNull();
+      expect(violation!.code).toBe('INVALID_TRANSITION');
+      expect(violation!.message).toContain('EVIDENCE_COLLECTING');
+    });
+
+    it('returns violation for transitions from terminal states', () => {
+      const violation = validateTransitionGraph('ARCHIVED', 'CREATED');
+      expect(violation).not.toBeNull();
+      expect(violation!.code).toBe('INVALID_TRANSITION');
     });
   });
 
@@ -64,57 +67,58 @@ describe('LaneTransitionPolicy', () => {
     });
   });
 
-  describe('assertTransitionGuards', () => {
-    it('throws when validating below completeness threshold', () => {
-      expect(() =>
-        assertTransitionGuards(
-          { completenessScore: 50, statusChangedAt: new Date() },
-          'VALIDATED',
-          { proofPackCount: 0 },
-        ),
-      ).toThrow('Lane completeness must be at least 95% before validation.');
+  describe('validateTransitionGuards', () => {
+    it('returns GUARD_FAILED when validating below completeness threshold', () => {
+      const violation = validateTransitionGuards(
+        { completenessScore: 50, statusChangedAt: new Date() },
+        'VALIDATED',
+        { proofPackCount: 0 },
+      );
+      expect(violation).not.toBeNull();
+      expect(violation!.code).toBe('GUARD_FAILED');
+      expect(violation!.message).toContain('95%');
     });
 
-    it('throws when packing without proof packs', () => {
-      expect(() =>
-        assertTransitionGuards(
-          { completenessScore: 100, statusChangedAt: new Date() },
-          'PACKED',
-          { proofPackCount: 0 },
-        ),
-      ).toThrow('At least one proof pack is required before packing.');
+    it('returns GUARD_FAILED when packing without proof packs', () => {
+      const violation = validateTransitionGuards(
+        { completenessScore: 100, statusChangedAt: new Date() },
+        'PACKED',
+        { proofPackCount: 0 },
+      );
+      expect(violation).not.toBeNull();
+      expect(violation!.code).toBe('GUARD_FAILED');
+      expect(violation!.message).toContain('proof pack');
     });
 
-    it('allows packing with proof packs', () => {
-      expect(() =>
-        assertTransitionGuards(
+    it('returns null when packing with proof packs', () => {
+      expect(
+        validateTransitionGuards(
           { completenessScore: 100, statusChangedAt: new Date() },
           'PACKED',
           { proofPackCount: 2 },
         ),
-      ).not.toThrow();
+      ).toBeNull();
     });
 
-    it('throws when archiving before retention period', () => {
-      const recentDate = new Date();
-      expect(() =>
-        assertTransitionGuards(
-          { completenessScore: 100, statusChangedAt: recentDate },
+    it('returns GUARD_FAILED when archiving before retention period', () => {
+      const violation = validateTransitionGuards(
+        { completenessScore: 100, statusChangedAt: new Date() },
+        'ARCHIVED',
+        { proofPackCount: 0 },
+      );
+      expect(violation).not.toBeNull();
+      expect(violation!.code).toBe('GUARD_FAILED');
+      expect(violation!.message).toContain('retention');
+    });
+
+    it('returns null when archiving after retention period', () => {
+      expect(
+        validateTransitionGuards(
+          { completenessScore: 100, statusChangedAt: new Date('2010-01-01') },
           'ARCHIVED',
           { proofPackCount: 0 },
         ),
-      ).toThrow('Lane cannot be archived before the retention period ends.');
-    });
-
-    it('allows archiving after retention period', () => {
-      const oldDate = new Date('2010-01-01T00:00:00.000Z');
-      expect(() =>
-        assertTransitionGuards(
-          { completenessScore: 100, statusChangedAt: oldDate },
-          'ARCHIVED',
-          { proofPackCount: 0 },
-        ),
-      ).not.toThrow();
+      ).toBeNull();
     });
   });
 });

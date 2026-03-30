@@ -1,12 +1,17 @@
 import {
-  ConflictException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import {
   LANE_ARCHIVE_RETENTION_YEARS,
   LANE_VALIDATION_COMPLETENESS_THRESHOLD,
 } from './lane.constants';
 import type { LaneDetail, LaneStatus } from './lane.types';
+
+// ─── Violation types (framework-independent) ────────────────────────
+
+export interface TransitionViolation {
+  readonly code: 'INVALID_TRANSITION' | 'GUARD_FAILED';
+  readonly message: string;
+}
+
+// ─── Transition graph ───────────────────────────────────────────────
 
 const ALLOWED_TRANSITIONS: Record<LaneStatus, LaneStatus[]> = {
   CREATED: ['EVIDENCE_COLLECTING'],
@@ -20,17 +25,21 @@ const ALLOWED_TRANSITIONS: Record<LaneStatus, LaneStatus[]> = {
   ARCHIVED: [],
 };
 
-export function assertTransitionGraph(
+export function validateTransitionGraph(
   currentStatus: LaneStatus,
   targetStatus: LaneStatus,
-): void {
+): TransitionViolation | null {
   const allowedTargets = ALLOWED_TRANSITIONS[currentStatus] ?? [];
   if (!allowedTargets.includes(targetStatus)) {
-    throw new ConflictException(
-      `Invalid lane transition from ${currentStatus} to ${targetStatus}.`,
-    );
+    return {
+      code: 'INVALID_TRANSITION',
+      message: `Invalid lane transition from ${currentStatus} to ${targetStatus}.`,
+    };
   }
+  return null;
 }
+
+// ─── Automatic transition targets ───────────────────────────────────
 
 export function getAutomaticTransitionTarget(
   lane: Pick<LaneDetail, 'status' | 'completenessScore'>,
@@ -50,32 +59,34 @@ export function getAutomaticTransitionTarget(
   return null;
 }
 
+// ─── Transition guards ──────────────────────────────────────────────
+
 // Extend this context as new guards are added (e.g., defense pack count for
 // CLAIM_DEFENSE → DISPUTE_RESOLVED in Task 16).
 export interface TransitionGuardContext {
   readonly proofPackCount: number;
 }
 
-export function assertTransitionGuards(
+export function validateTransitionGuards(
   lane: Pick<LaneDetail, 'completenessScore' | 'statusChangedAt'>,
   targetStatus: LaneStatus,
   context: TransitionGuardContext,
-): void {
+): TransitionViolation | null {
   if (
     targetStatus === 'VALIDATED' &&
     lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD
   ) {
-    throw new UnprocessableEntityException(
-      'Lane completeness must be at least 95% before validation.',
-    );
+    return {
+      code: 'GUARD_FAILED',
+      message: 'Lane completeness must be at least 95% before validation.',
+    };
   }
 
-  if (targetStatus === 'PACKED') {
-    if (context.proofPackCount < 1) {
-      throw new UnprocessableEntityException(
-        'At least one proof pack is required before packing.',
-      );
-    }
+  if (targetStatus === 'PACKED' && context.proofPackCount < 1) {
+    return {
+      code: 'GUARD_FAILED',
+      message: 'At least one proof pack is required before packing.',
+    };
   }
 
   if (targetStatus === 'ARCHIVED') {
@@ -85,9 +96,12 @@ export function assertTransitionGuards(
     );
 
     if (archiveEligibleAt.getTime() > Date.now()) {
-      throw new UnprocessableEntityException(
-        'Lane cannot be archived before the retention period ends.',
-      );
+      return {
+        code: 'GUARD_FAILED',
+        message: 'Lane cannot be archived before the retention period ends.',
+      };
     }
   }
+
+  return null;
 }

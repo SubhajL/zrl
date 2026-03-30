@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
@@ -17,9 +19,10 @@ import {
   MAX_LANE_LIMIT,
 } from './lane.constants';
 import {
-  assertTransitionGraph,
-  assertTransitionGuards,
+  validateTransitionGraph,
+  validateTransitionGuards,
   getAutomaticTransitionTarget,
+  type TransitionViolation,
 } from './lane.transition-policy';
 import type {
   CreateCheckpointInput,
@@ -218,6 +221,14 @@ export class LaneService implements LaneReconciler {
     return { lane };
   }
 
+  private throwIfViolation(violation: TransitionViolation | null): void {
+    if (violation === null) return;
+    if (violation.code === 'INVALID_TRANSITION') {
+      throw new ConflictException(violation.message);
+    }
+    throw new UnprocessableEntityException(violation.message);
+  }
+
   private normalizeCreateColdChainConfig(input: CreateLaneInput): {
     mode: LaneColdChainMode;
     deviceId: string | null;
@@ -335,14 +346,18 @@ export class LaneService implements LaneReconciler {
       throw new ForbiddenException('Lane ownership required.');
     }
 
-    assertTransitionGraph(existingLane.status, input.targetStatus);
+    this.throwIfViolation(
+      validateTransitionGraph(existingLane.status, input.targetStatus),
+    );
     const proofPackCount =
       input.targetStatus === 'PACKED'
         ? await this.laneStore.countProofPacksForLane(id)
         : 0;
-    assertTransitionGuards(existingLane, input.targetStatus, {
-      proofPackCount,
-    });
+    this.throwIfViolation(
+      validateTransitionGuards(existingLane, input.targetStatus, {
+        proofPackCount,
+      }),
+    );
 
     const transitionedAt = new Date();
     const lane = await this.laneStore.transitionLaneStatus(
@@ -511,12 +526,14 @@ export class LaneService implements LaneReconciler {
         break;
       }
 
-      assertTransitionGraph(lane.status, targetStatus);
+      this.throwIfViolation(validateTransitionGraph(lane.status, targetStatus));
       const proofPackCount =
         targetStatus === 'PACKED'
           ? await this.laneStore.countProofPacksForLane(lane.id)
           : 0;
-      assertTransitionGuards(lane, targetStatus, { proofPackCount });
+      this.throwIfViolation(
+        validateTransitionGuards(lane, targetStatus, { proofPackCount }),
+      );
 
       const transitionedAt = new Date();
       const transitionedLane = await this.laneStore.transitionLaneStatus(
