@@ -139,6 +139,53 @@ describe('PrismaLaneStore', () => {
       }),
     ]);
   });
+
+  it('findProofPackSummaryById returns pack summary for valid id', async () => {
+    const query = jest.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM proof_packs')) {
+        return Promise.resolve({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'pack-1',
+              lane_id: 'lane-db-1',
+              pack_type: 'REGULATOR',
+              version: 1,
+              status: 'READY',
+              generated_at: '2026-03-28T00:00:00.000Z',
+              generated_by: 'user-1',
+            },
+          ],
+        });
+      }
+
+      return Promise.resolve({ rowCount: 0, rows: [] });
+    });
+    const store = new PrismaLaneStore({ query } as never);
+
+    const result = await store.findProofPackSummaryById('pack-1');
+
+    expect(result).toEqual({
+      id: 'pack-1',
+      laneId: 'lane-db-1',
+      packType: 'REGULATOR',
+      version: 1,
+      status: 'READY',
+      generatedAt: new Date('2026-03-28T00:00:00.000Z'),
+      generatedBy: 'user-1',
+    });
+  });
+
+  it('findProofPackSummaryById returns null for missing id', async () => {
+    const query = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ rowCount: 0, rows: [] }));
+    const store = new PrismaLaneStore({ query } as never);
+
+    const result = await store.findProofPackSummaryById('nonexistent');
+
+    expect(result).toBeNull();
+  });
 });
 
 function requireDatabaseUrl(): string {
@@ -211,7 +258,6 @@ describeIfDatabase('PrismaLaneStore (db-backed)', () => {
           dataFrequencySeconds: 300,
         }),
       } as never,
-      {} as never,
       {} as never,
       {
         publishLaneStatusChanged: jest.fn().mockResolvedValue(undefined),

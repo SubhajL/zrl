@@ -313,6 +313,15 @@ export interface LaneStore {
     checkpointId: string,
     input: UpdateCheckpointInput,
   ): Promise<LaneDetail['checkpoints'][number] | null>;
+  findProofPackSummaryById(packId: string): Promise<{
+    id: string;
+    laneId: string;
+    packType: string;
+    version: number;
+    status: string;
+    generatedAt: Date;
+    generatedBy: string;
+  } | null>;
 }
 
 export type LaneCompletenessResponse = RuleLaneEvaluation;
@@ -382,3 +391,10 @@ export interface LaneListResult {
 }
 
 export type LaneRequestUser = AuthSessionUser;
+
+export interface LaneReconciler {
+  reconcileAfterEvidenceChange(
+    laneId: string,
+    actorId: string,
+  ): Promise<{ lane: LaneDetail; transitions: LaneStatus[] }>;
+}

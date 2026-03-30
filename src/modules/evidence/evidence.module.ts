@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AuditModule } from '../../common/audit/audit.module';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuthModule } from '../../common/auth/auth.module';
@@ -6,7 +6,8 @@ import { DatabaseModule } from '../../common/database/database.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { LaneModule } from '../lane/lane.module';
-import { LaneService } from '../lane/lane.service';
+import { LANE_RECONCILER } from '../lane/lane.constants';
+import type { LaneReconciler } from '../lane/lane.types';
 import { RulesEngineModule } from '../rules-engine/rules-engine.module';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { NotificationModule } from '../notifications/notification.module';
@@ -15,6 +16,7 @@ import {
   EVIDENCE_OBJECT_STORE,
   EVIDENCE_PHOTO_METADATA_EXTRACTOR,
 } from './evidence.constants';
+import { CheckpointEvidenceController } from './checkpoint-evidence.controller';
 import { EvidenceController } from './evidence.controller';
 import { ExifPhotoMetadataExtractor } from './evidence.metadata';
 import { PrismaEvidenceStore } from './evidence.pg-store';
@@ -36,9 +38,9 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
     AuditModule,
     RulesEngineModule,
     NotificationModule,
-    forwardRef(() => LaneModule),
+    LaneModule,
   ],
-  controllers: [EvidenceController],
+  controllers: [EvidenceController, CheckpointEvidenceController],
   providers: [
     PrismaEvidenceStore,
     LocalEvidenceObjectStore,
@@ -66,7 +68,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         auditService: AuditService,
         photoMetadataExtractor: ExifPhotoMetadataExtractor,
         rulesEngineService: RulesEngineService,
-        laneService: LaneService,
+        laneReconciler: LaneReconciler,
         realtimeEvents: RealtimeEventsService,
       ) =>
         new EvidenceService(
@@ -76,7 +78,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
           auditService,
           photoMetadataExtractor,
           rulesEngineService,
-          laneService,
+          laneReconciler,
           realtimeEvents,
         ),
       inject: [
@@ -86,7 +88,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         AuditService,
         EVIDENCE_PHOTO_METADATA_EXTRACTOR,
         RulesEngineService,
-        LaneService,
+        LANE_RECONCILER,
         RealtimeEventsService,
       ],
     },

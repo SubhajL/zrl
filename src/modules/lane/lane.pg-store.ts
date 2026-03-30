@@ -735,6 +735,47 @@ export class PrismaLaneStore implements LaneStore {
     return await this.findLaneById(existing.id);
   }
 
+  async findProofPackSummaryById(packId: string): Promise<{
+    id: string;
+    laneId: string;
+    packType: string;
+    version: number;
+    status: string;
+    generatedAt: Date;
+    generatedBy: string;
+  } | null> {
+    const result = await this.requireExecutor().query<{
+      id: string;
+      lane_id: string;
+      pack_type: string;
+      version: number;
+      status: string;
+      generated_at: Date | string;
+      generated_by: string;
+    }>(
+      `
+        SELECT id, lane_id, pack_type, version, status, generated_at, generated_by
+        FROM proof_packs
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [packId],
+    );
+
+    if (result.rowCount === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      laneId: row.lane_id,
+      packType: row.pack_type,
+      version: row.version,
+      status: row.status,
+      generatedAt: new Date(row.generated_at),
+      generatedBy: row.generated_by,
+    };
+  }
+
   async countProofPacksForLane(id: string): Promise<number> {
     const lane = await this.resolveLaneRow(id);
     if (lane === null) {

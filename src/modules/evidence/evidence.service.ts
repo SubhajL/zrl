@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,7 +13,8 @@ import { extname } from 'node:path';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
-import { LaneService } from '../lane/lane.service';
+import { LANE_RECONCILER } from '../lane/lane.constants';
+import type { LaneReconciler } from '../lane/lane.types';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
@@ -197,7 +199,8 @@ export class EvidenceService {
     private readonly auditService: AuditService,
     private readonly photoMetadataExtractor: EvidencePhotoMetadataExtractor,
     private readonly rulesEngineService: RulesEngineService,
-    private readonly laneService: LaneService,
+    @Inject(LANE_RECONCILER)
+    private readonly laneReconciler: LaneReconciler,
     private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
@@ -591,7 +594,7 @@ export class EvidenceService {
     }
 
     try {
-      await this.laneService.reconcileAutomaticTransitions(lane.id, actorId);
+      await this.laneReconciler.reconcileAfterEvidenceChange(lane.id, actorId);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown reconciliation error';

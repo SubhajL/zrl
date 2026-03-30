@@ -3,7 +3,6 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import type { AuditService } from '../../common/audit/audit.service';
 import type { HashingService } from '../../common/hashing/hashing.service';
 import type { ColdChainService } from '../cold-chain/cold-chain.service';
-import type { ProofPackService } from '../evidence/proof-pack.service';
 import type { RealtimeEventsService } from '../notifications/realtime-events.service';
 import type { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
@@ -13,6 +12,7 @@ describe('LaneService.getTimeline', () => {
   const findLaneByIdMock = jest.fn();
   const getEntriesForLaneMock = jest.fn();
 
+  const findProofPackSummaryByIdMock = jest.fn();
   const laneStore = {
     findLaneById: findLaneByIdMock,
     runInTransaction: jest.fn(),
@@ -28,6 +28,7 @@ describe('LaneService.getTimeline', () => {
     findCheckpointById: jest.fn(),
     createCheckpoint: jest.fn(),
     updateCheckpoint: jest.fn(),
+    findProofPackSummaryById: findProofPackSummaryByIdMock,
   } as unknown as LaneStore;
 
   const auditService = {
@@ -48,10 +49,6 @@ describe('LaneService.getTimeline', () => {
   const hashingService = {
     hashString: jest.fn().mockResolvedValue('hash'),
   } as unknown as HashingService;
-  const getPackByIdMock = jest.fn();
-  const proofPackService = {
-    getPackById: getPackByIdMock,
-  } as unknown as ProofPackService;
   const realtimeEvents = {
     publishLaneStatusChanged: jest.fn(),
     publishCheckpointRecorded: jest.fn(),
@@ -69,7 +66,6 @@ describe('LaneService.getTimeline', () => {
       validateLaneConfiguration: jest.fn(),
     } as unknown as ColdChainService,
     { evaluateLane: jest.fn() } as unknown as RulesEngineService,
-    proofPackService,
     realtimeEvents as never,
   );
 
@@ -233,7 +229,7 @@ describe('LaneService.getTimeline', () => {
       generatedAt: new Date('2026-03-19T11:00:00Z'),
       errorMessage: null,
     });
-    expect(getPackByIdMock).not.toHaveBeenCalled();
+    expect(findProofPackSummaryByIdMock).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundException for unknown lane', async () => {
