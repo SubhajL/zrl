@@ -236,6 +236,25 @@ enum DataExportStatus {
   @@map("data_export_status")
 }
 
+enum DisputeType {
+  CUSTOMS_REJECTION
+  QUALITY_CLAIM
+  INSURANCE_CLAIM
+  GRADE_DISPUTE
+  CARGO_DAMAGE
+
+  @@map("dispute_type")
+}
+
+enum DisputeStatus {
+  OPEN
+  INVESTIGATING
+  DEFENSE_SUBMITTED
+  RESOLVED
+
+  @@map("dispute_status")
+}
+
 // ─── Models ─────────────────────────────────────────────────────────
 
 model User {
@@ -470,8 +489,29 @@ model Lane {
   notifications       Notification[]
   temperatureReadings TemperatureReading[]
   excursions          Excursion[]
+  disputes            Dispute[]
 
   @@map("lanes")
+}
+
+model Dispute {
+  id              String        @id @default(uuid())
+  laneId          String        @map("lane_id")
+  type            DisputeType
+  description     String
+  claimant        String
+  status          DisputeStatus @default(OPEN)
+  financialImpact Decimal?      @map("financial_impact") @db.Decimal(12, 2)
+  resolutionNotes String?       @map("resolution_notes")
+  defensePackId   String?       @map("defense_pack_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  resolvedAt      DateTime?     @map("resolved_at")
+
+  lane Lane @relation(fields: [laneId], references: [id], onDelete: Restrict)
+
+  @@index([laneId])
+  @@map("disputes")
 }
 
 model FruitProfile {
