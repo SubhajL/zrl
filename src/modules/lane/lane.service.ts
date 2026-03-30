@@ -10,7 +10,6 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
-import { ProofPackService } from '../evidence/proof-pack.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
@@ -24,6 +23,7 @@ import {
 import type {
   CreateCheckpointInput,
   CreateLaneInput,
+  LaneReconciler,
   LaneStatus,
   LaneColdChainMode,
   LaneListQuery,
@@ -107,7 +107,7 @@ const ALLOWED_LANE_TRANSITIONS: Record<LaneStatus, LaneStatus[]> = {
 };
 
 @Injectable()
-export class LaneService {
+export class LaneService implements LaneReconciler {
   constructor(
     private readonly laneStore: LaneStore,
     private readonly hashingService: HashingService,
@@ -115,7 +115,6 @@ export class LaneService {
     private readonly ruleSnapshotResolver: LaneRuleSnapshotResolver,
     private readonly coldChainService: ColdChainService,
     private readonly rulesEngineService: RulesEngineService,
-    private readonly proofPackService: ProofPackService,
     private readonly realtimeEvents: RealtimeEventsService,
   ) {}
 
@@ -548,6 +547,10 @@ export class LaneService {
     return { lane, transitions };
   }
 
+  async reconcileAfterEvidenceChange(laneId: string, actorId: string) {
+    return await this.reconcileAutomaticTransitions(laneId, actorId);
+  }
+
   private generateLaneId(now: Date, latestLaneId: string | null): string {
     const year = now.getUTCFullYear();
     const latestSequence =
@@ -792,15 +795,21 @@ export class LaneService {
 
     if (entry.entityType === AuditEntityType.PROOF_PACK) {
       try {
-        const pack = await this.proofPackService.getPackById(entry.entityId);
+        const pack = await this.laneStore.findProofPackSummaryById(
+          entry.entityId,
+        );
+        if (pack === null) {
+          return undefined;
+        }
+
         return {
-          kind: 'proofPack',
+          kind: 'proofPack' as const,
           packType: pack.packType,
           version: pack.version,
-          status: pack.status,
-          contentHash: pack.contentHash,
+          status: pack.status as 'GENERATING' | 'READY' | 'FAILED',
+          contentHash: null,
           generatedAt: pack.generatedAt,
-          errorMessage: pack.errorMessage,
+          errorMessage: null,
         };
       } catch {
         return undefined;

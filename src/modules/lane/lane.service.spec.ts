@@ -2,7 +2,6 @@ import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { ColdChainService } from '../cold-chain/cold-chain.service';
-import { ProofPackService } from '../evidence/proof-pack.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { LaneService } from './lane.service';
@@ -104,6 +103,7 @@ describe('LaneService', () => {
   const findCheckpointByIdMock = jest.fn();
   const createCheckpointMock = jest.fn();
   const updateCheckpointMock = jest.fn();
+  const findProofPackSummaryByIdMock = jest.fn();
   const laneStore: LaneStore = {
     runInTransaction: runInTransactionMock as LaneStore['runInTransaction'],
     findLatestLaneIdByYear:
@@ -126,6 +126,8 @@ describe('LaneService', () => {
       findCheckpointByIdMock as LaneStore['findCheckpointById'],
     createCheckpoint: createCheckpointMock as LaneStore['createCheckpoint'],
     updateCheckpoint: updateCheckpointMock as LaneStore['updateCheckpoint'],
+    findProofPackSummaryById:
+      findProofPackSummaryByIdMock as LaneStore['findProofPackSummaryById'],
   };
   const createAuditEntryMock = jest.fn().mockResolvedValue({
     id: 'audit-db-1',
@@ -157,10 +159,6 @@ describe('LaneService', () => {
   const rulesEngineService = {
     evaluateLane: evaluateLaneMock,
   } as unknown as RulesEngineService;
-  const getPackByIdMock = jest.fn();
-  const proofPackService = {
-    getPackById: getPackByIdMock,
-  } as unknown as ProofPackService;
   const publishLaneStatusChangedMock = jest.fn().mockResolvedValue(undefined);
   const publishCheckpointRecordedMock = jest.fn().mockResolvedValue(undefined);
   const realtimeEvents = {
@@ -179,7 +177,6 @@ describe('LaneService', () => {
       ruleSnapshotResolver,
       coldChainService,
       rulesEngineService,
-      proofPackService,
       realtimeEvents as never,
     );
   }

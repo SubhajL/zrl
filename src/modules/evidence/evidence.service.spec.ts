@@ -10,7 +10,6 @@ import {
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import type { AuditStore } from '../../common/audit/audit.types';
 import type { HashingService } from '../../common/hashing/hashing.service';
-import type { LaneService } from '../lane/lane.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { EvidenceService } from './evidence.service';
 import {
@@ -86,7 +85,7 @@ describe('EvidenceService', () => {
     evaluateLane: jest.Mock;
     notifyCertificationAlertForArtifact: jest.Mock;
   };
-  let laneService: Pick<LaneService, 'reconcileAutomaticTransitions'>;
+  let laneReconciler: { reconcileAfterEvidenceChange: jest.Mock };
   let realtimeEvents: Pick<RealtimeEventsService, 'publishEvidenceUploaded'>;
 
   beforeEach(() => {
@@ -170,8 +169,8 @@ describe('EvidenceService', () => {
         .fn()
         .mockResolvedValue(undefined),
     };
-    laneService = {
-      reconcileAutomaticTransitions: jest.fn().mockResolvedValue({
+    laneReconciler = {
+      reconcileAfterEvidenceChange: jest.fn().mockResolvedValue({
         lane: null,
         transitions: [],
       }),
@@ -186,7 +185,7 @@ describe('EvidenceService', () => {
       auditService as never,
       photoMetadataExtractor as never,
       rulesEngineService as never,
-      laneService as never,
+      laneReconciler as never,
       realtimeEvents as never,
     );
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
@@ -611,7 +610,7 @@ describe('EvidenceService', () => {
       type: 'MRL_TEST',
       completeness: 40,
     });
-    expect(laneService.reconcileAutomaticTransitions).toHaveBeenCalledWith(
+    expect(laneReconciler.reconcileAfterEvidenceChange).toHaveBeenCalledWith(
       'lane-db-1',
       'exporter-1',
     );
@@ -658,7 +657,7 @@ describe('EvidenceService', () => {
     );
 
     expect(updateLaneCompletenessScoreMock).not.toHaveBeenCalled();
-    expect(laneService.reconcileAutomaticTransitions).not.toHaveBeenCalled();
+    expect(laneReconciler.reconcileAfterEvidenceChange).not.toHaveBeenCalled();
   });
 
   it('uploadArtifact notifies on expired certification artifacts after persistence', async () => {
@@ -830,7 +829,7 @@ describe('EvidenceService', () => {
       labValidation: null,
       certificationAlerts: [],
     });
-    laneService.reconcileAutomaticTransitions = jest
+    laneReconciler.reconcileAfterEvidenceChange = jest
       .fn()
       .mockRejectedValue(new Error('transition store unavailable'));
     const loggerErrorSpy = jest
