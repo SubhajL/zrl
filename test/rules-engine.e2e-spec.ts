@@ -13,6 +13,11 @@ import {
 import { RulesEngineService } from './../src/modules/rules-engine/rules-engine.service';
 
 describe('RulesEngineController (e2e)', () => {
+  const envSnapshot = { ...process.env };
+
+  afterAll(() => {
+    process.env = envSnapshot;
+  });
   let app: INestApplication<App>;
   const adminUser = {
     id: 'admin-1',
@@ -107,6 +112,7 @@ describe('RulesEngineController (e2e)', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    process.env['CERTIFICATION_EXPIRY_WORKER_ENABLED'] = 'false';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
