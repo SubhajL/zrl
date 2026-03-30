@@ -106,6 +106,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Check no PrismaClient in runtime code
+        run: npm run check:prisma-runtime
+
       - name: Run migrations
         run: npx prisma migrate deploy
 

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { Pool, QueryResultRow } from 'pg';
+import { Pool, type PoolClient, type QueryResultRow } from 'pg';
 import { DATABASE_POOL } from '../../common/database/database.constants';
 import type {
   CreateDisputeInput,
@@ -10,6 +10,8 @@ import type {
   DisputeType,
   UpdateDisputeInput,
 } from './dispute.types';
+
+type QueryExecutor = Pool | PoolClient;
 
 interface DisputeRow extends QueryResultRow {
   id: string;
@@ -28,9 +30,15 @@ interface DisputeRow extends QueryResultRow {
 
 @Injectable()
 export class PrismaDisputeStore implements DisputeStore {
+  private executor?: QueryExecutor;
+
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool | undefined) {}
 
-  private requirePool(): Pool {
+  private requireExecutor(): QueryExecutor {
+    if (this.executor !== undefined) {
+      return this.executor;
+    }
+
     if (this.pool === undefined) {
       throw new Error('Dispute store is not configured.');
     }
@@ -38,12 +46,49 @@ export class PrismaDisputeStore implements DisputeStore {
     return this.pool;
   }
 
+  async runInTransaction<T>(
+    operation: (store: DisputeStore) => Promise<T>,
+  ): Promise<T> {
+    const executor = this.requireExecutor();
+
+    if (executor instanceof Pool) {
+      const client = await executor.connect();
+
+      try {
+        await client.query('BEGIN');
+        const transactionalStore = PrismaDisputeStore.withExecutor(
+          this.pool,
+          client,
+        );
+        const result = await operation(transactionalStore);
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    return await operation(this);
+  }
+
+  private static withExecutor(
+    pool: Pool | undefined,
+    executor: QueryExecutor,
+  ): PrismaDisputeStore {
+    const store = new PrismaDisputeStore(pool);
+    store.executor = executor;
+    return store;
+  }
+
   async createDispute(
     laneId: string,
     input: CreateDisputeInput,
   ): Promise<DisputeRecord> {
     const id = randomUUID();
-    const result = await this.requirePool().query<DisputeRow>(
+    const result = await this.requireExecutor().query<DisputeRow>(
       `
         INSERT INTO disputes (
           id,
@@ -76,7 +121,7 @@ export class PrismaDisputeStore implements DisputeStore {
   }
 
   async findDisputeById(id: string): Promise<DisputeRecord | null> {
-    const result = await this.requirePool().query<DisputeRow>(
+    const result = await this.requireExecutor().query<DisputeRow>(
       `
         SELECT
           id, lane_id, type, description, claimant, status,
@@ -93,7 +138,7 @@ export class PrismaDisputeStore implements DisputeStore {
   }
 
   async findDisputesForLane(laneId: string): Promise<DisputeRecord[]> {
-    const result = await this.requirePool().query<DisputeRow>(
+    const result = await this.requireExecutor().query<DisputeRow>(
       `
         SELECT
           id, lane_id, type, description, claimant, status,
@@ -133,7 +178,7 @@ export class PrismaDisputeStore implements DisputeStore {
       paramIndex++;
     }
 
-    const result = await this.requirePool().query<DisputeRow>(
+    const result = await this.requireExecutor().query<DisputeRow>(
       `
         UPDATE disputes
         SET ${setClauses.join(', ')}
@@ -153,7 +198,7 @@ export class PrismaDisputeStore implements DisputeStore {
     disputeId: string,
     defensePackId: string,
   ): Promise<DisputeRecord | null> {
-    const result = await this.requirePool().query<DisputeRow>(
+    const result = await this.requireExecutor().query<DisputeRow>(
       `
         UPDATE disputes
         SET
@@ -173,7 +218,7 @@ export class PrismaDisputeStore implements DisputeStore {
   }
 
   async countDisputesForLane(laneId: string): Promise<number> {
-    const result = await this.requirePool().query<{ count: number }>(
+    const result = await this.requireExecutor().query<{ count: number }>(
       `SELECT COUNT(*)::int AS count FROM disputes WHERE lane_id = $1`,
       [laneId],
     );
@@ -181,7 +226,7 @@ export class PrismaDisputeStore implements DisputeStore {
   }
 
   async countExcursionsForLane(laneId: string): Promise<number> {
-    const result = await this.requirePool().query<{ count: number }>(
+    const result = await this.requireExecutor().query<{ count: number }>(
       `SELECT COUNT(*)::int AS count FROM excursions WHERE lane_id = $1`,
       [laneId],
     );
