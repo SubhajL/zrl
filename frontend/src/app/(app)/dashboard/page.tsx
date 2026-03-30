@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CheckCircle,
@@ -18,7 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardSkeleton } from '@/components/zrl/skeletons';
 import { useSocketContext } from '@/components/zrl/socket-provider';
-import { loadDashboardPageData, type DashboardPageData } from '@/lib/dashboard-data';
+import { useDashboardQuery, DASHBOARD_QUERY_KEY } from '@/hooks/use-dashboard-query';
+import type { DashboardPageData } from '@/lib/dashboard-data';
 import { getErrorMessage } from '@/lib/app-api';
 import {
   type Lane,
@@ -90,29 +92,12 @@ const LANE_COLUMNS: Column<Lane>[] = [
 ];
 
 export default function DashboardPage() {
-  const [data, setData] = React.useState<DashboardPageData | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const { data, error: queryError, isLoading } = useDashboardQuery();
+  const error = queryError
+    ? getErrorMessage(queryError, 'Unable to load dashboard.')
+    : null;
   const { socket } = useSocketContext();
-
-  React.useEffect(() => {
-    let active = true;
-
-    void loadDashboardPageData()
-      .then((result) => {
-        if (active) {
-          setData(result);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(getErrorMessage(loadError, 'Unable to load dashboard.'));
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const queryClient = useQueryClient();
 
   React.useEffect(() => {
     if (socket === null) return;
@@ -125,27 +110,30 @@ export default function DashboardPage() {
         createdAt: string;
       };
     }) {
-      setData((prev) => {
-        if (prev === null) return prev;
-        return {
-          ...prev,
-          recentNotifications: [
-            payload.notification,
-            ...prev.recentNotifications,
-          ].slice(0, 5),
-          kpis: {
-            ...prev.kpis,
-            unreadAlerts: prev.kpis.unreadAlerts + 1,
-          },
-        };
-      });
+      queryClient.setQueryData<DashboardPageData>(
+        DASHBOARD_QUERY_KEY,
+        (prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            recentNotifications: [
+              payload.notification,
+              ...prev.recentNotifications,
+            ].slice(0, 5),
+            kpis: {
+              ...prev.kpis,
+              unreadAlerts: prev.kpis.unreadAlerts + 1,
+            },
+          };
+        },
+      );
     }
 
     socket.on('notification.new', handleNotification);
     return () => {
       socket.off('notification.new', handleNotification);
     };
-  }, [socket]);
+  }, [socket, queryClient]);
 
   return (
     <div className="space-y-8">
@@ -165,11 +153,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {data === null && !error ? (
+      {isLoading && !error ? (
         <div aria-busy="true" role="status" aria-label="Loading dashboard">
           <DashboardSkeleton />
         </div>
-      ) : data !== null ? (
+      ) : data !== undefined ? (
         <>
           <BentoGrid>
             <BentoGridItem colSpan={3}>
