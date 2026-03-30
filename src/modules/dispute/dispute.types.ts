@@ -39,6 +39,9 @@ export interface UpdateDisputeInput {
 }
 
 export interface DisputeStore {
+  runInTransaction<T>(
+    operation: (store: DisputeStore) => Promise<T>,
+  ): Promise<T>;
   createDispute(
     laneId: string,
     input: CreateDisputeInput,

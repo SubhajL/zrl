@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -46,40 +47,50 @@ export class DisputeService {
       );
     }
 
-    const dispute = await this.store.createDispute(lane.id, input);
+    // NOTE: This transaction only guarantees atomicity for the dispute INSERT.
+    // laneService.transition() and auditService.createEntry() each acquire
+    // their own DB connections and run independent transactions. If the audit
+    // write fails, the dispute row rolls back but a lane transition may have
+    // already committed (idempotent: CLOSED→CLAIM_DEFENSE is safe to retry).
+    // Full cross-service atomicity would require the createEntryWithStore
+    // pattern used by rules-engine — deferred to a future refactor.
+    const dispute = await this.store.runInTransaction(async (txStore) => {
+      const created = await txStore.createDispute(lane.id, input);
 
-    // Transition lane to CLAIM_DEFENSE if not already there
-    if (lane.status === 'CLOSED') {
-      await this.laneService.transition(
-        lane.id,
-        { targetStatus: 'CLAIM_DEFENSE' },
-        actor,
+      if (lane.status === 'CLOSED') {
+        await this.laneService.transition(
+          lane.id,
+          { targetStatus: 'CLAIM_DEFENSE' },
+          actor,
+        );
+      }
+
+      const payloadHash = await this.hashingService.hashString(
+        JSON.stringify({
+          disputeId: created.id,
+          laneId: lane.id,
+          type: created.type,
+          claimant: created.claimant,
+          financialImpact: created.financialImpact,
+        }),
       );
-    }
 
-    const payloadHash = await this.hashingService.hashString(
-      JSON.stringify({
-        disputeId: dispute.id,
-        laneId: lane.id,
-        type: dispute.type,
-        claimant: dispute.claimant,
-        financialImpact: dispute.financialImpact,
-      }),
-    );
+      await this.auditService.createEntry({
+        actor: actor.id,
+        action: AuditAction.CREATE,
+        entityType: AuditEntityType.LANE,
+        entityId: lane.id,
+        payloadHash,
+        payloadSnapshot: {
+          kind: 'dispute',
+          disputeId: created.id,
+          type: created.type,
+          claimant: created.claimant,
+          status: created.status,
+        },
+      });
 
-    await this.auditService.createEntry({
-      actor: actor.id,
-      action: AuditAction.CREATE,
-      entityType: AuditEntityType.LANE,
-      entityId: lane.id,
-      payloadHash,
-      payloadSnapshot: {
-        kind: 'dispute',
-        disputeId: dispute.id,
-        type: dispute.type,
-        claimant: dispute.claimant,
-        status: dispute.status,
-      },
+      return created;
     });
 
     return dispute;
@@ -92,6 +103,12 @@ export class DisputeService {
     }
 
     if (actor !== undefined) {
+      if (actor.role === 'PARTNER') {
+        throw new ForbiddenException(
+          'Partners cannot access disputes directly.',
+        );
+      }
+
       const { lane } = await this.laneService.findById(dispute.laneId);
       if (actor.role === 'EXPORTER' && lane.exporterId !== actor.id) {
         throw new NotFoundException('Dispute not found.');
@@ -110,7 +127,7 @@ export class DisputeService {
     disputeId: string,
     actor: DisputeActor,
   ): Promise<DisputeRecord> {
-    const dispute = await this.getDispute(disputeId);
+    const dispute = await this.getDispute(disputeId, actor);
     const { lane } = await this.laneService.findById(dispute.laneId);
 
     const [auditEntries, checkpoints, completeness, excursionCount] =
@@ -193,31 +210,36 @@ export class DisputeService {
       templateData,
     );
 
-    const linkedDispute = await this.store.linkDefensePack(dispute.id, pack.id);
-    if (linkedDispute === null) {
-      throw new NotFoundException('Dispute not found after linking pack.');
-    }
+    // See createDispute comment: audit entry runs in its own transaction.
+    const linkedDispute = await this.store.runInTransaction(async (txStore) => {
+      const linked = await txStore.linkDefensePack(dispute.id, pack.id);
+      if (linked === null) {
+        throw new NotFoundException('Dispute not found after linking pack.');
+      }
 
-    const payloadHash = await this.hashingService.hashString(
-      JSON.stringify({
-        disputeId: dispute.id,
-        defensePackId: pack.id,
-        laneId: lane.id,
-      }),
-    );
+      const payloadHash = await this.hashingService.hashString(
+        JSON.stringify({
+          disputeId: dispute.id,
+          defensePackId: pack.id,
+          laneId: lane.id,
+        }),
+      );
 
-    await this.auditService.createEntry({
-      actor: actor.id,
-      action: AuditAction.GENERATE,
-      entityType: AuditEntityType.PROOF_PACK,
-      entityId: pack.id,
-      payloadHash,
-      payloadSnapshot: {
-        kind: 'dispute-defense',
-        disputeId: dispute.id,
-        packType: 'DEFENSE',
-        packId: pack.id,
-      },
+      await this.auditService.createEntry({
+        actor: actor.id,
+        action: AuditAction.GENERATE,
+        entityType: AuditEntityType.PROOF_PACK,
+        entityId: pack.id,
+        payloadHash,
+        payloadSnapshot: {
+          kind: 'dispute-defense',
+          disputeId: dispute.id,
+          packType: 'DEFENSE',
+          packId: pack.id,
+        },
+      });
+
+      return linked;
     });
 
     return linkedDispute;
@@ -228,7 +250,10 @@ export class DisputeService {
     input: UpdateDisputeInput,
     actor: DisputeActor,
   ): Promise<DisputeRecord> {
-    const updated = await this.store.updateDispute(id, input);
+    // Verify ownership and retrieve dispute in a single pass (avoids TOCTOU)
+    const existing = await this.assertDisputeAccess(id, actor);
+
+    const updated = await this.store.updateDispute(existing.id, input);
     if (updated === null) {
       throw new NotFoundException('Dispute not found.');
     }
@@ -257,5 +282,35 @@ export class DisputeService {
     });
 
     return updated;
+  }
+
+  /**
+   * Verifies the actor has access to the dispute.
+   * Returns the dispute record so callers can reuse it (avoids TOCTOU).
+   * PARTNER role is denied — partners interact via lane-scoped API key endpoints.
+   */
+  private async assertDisputeAccess(
+    disputeId: string,
+    actor: DisputeActor,
+  ): Promise<DisputeRecord> {
+    const dispute = await this.store.findDisputeById(disputeId);
+    if (dispute === null) {
+      throw new NotFoundException('Dispute not found.');
+    }
+
+    if (actor.role === 'ADMIN' || actor.role === 'AUDITOR') {
+      return dispute;
+    }
+
+    if (actor.role === 'PARTNER') {
+      throw new ForbiddenException('Partners cannot modify disputes directly.');
+    }
+
+    const { lane } = await this.laneService.findById(dispute.laneId);
+    if (lane.exporterId !== actor.id) {
+      throw new ForbiddenException('Dispute ownership required.');
+    }
+
+    return dispute;
   }
 }
