@@ -1,10 +1,8 @@
 import {
-  ConflictException,
   BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { AuditService } from '../../common/audit/audit.service';
@@ -16,10 +14,13 @@ import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
-  LANE_ARCHIVE_RETENTION_YEARS,
-  LANE_VALIDATION_COMPLETENESS_THRESHOLD,
   MAX_LANE_LIMIT,
 } from './lane.constants';
+import {
+  assertTransitionGraph,
+  assertTransitionGuards,
+  getAutomaticTransitionTarget,
+} from './lane.transition-policy';
 import type {
   CreateCheckpointInput,
   CreateLaneInput,
@@ -93,18 +94,6 @@ function marketCode(market: CreateLaneInput['destination']['market']): string {
 function formatDatePart(date: Date): string {
   return date.toISOString().slice(0, 10).replace(/-/g, '');
 }
-
-const ALLOWED_LANE_TRANSITIONS: Record<LaneStatus, LaneStatus[]> = {
-  CREATED: ['EVIDENCE_COLLECTING'],
-  EVIDENCE_COLLECTING: ['VALIDATED'],
-  VALIDATED: ['PACKED', 'INCOMPLETE'],
-  PACKED: ['CLOSED'],
-  CLOSED: ['CLAIM_DEFENSE', 'ARCHIVED'],
-  INCOMPLETE: ['EVIDENCE_COLLECTING'],
-  CLAIM_DEFENSE: ['DISPUTE_RESOLVED'],
-  DISPUTE_RESOLVED: [],
-  ARCHIVED: [],
-};
 
 @Injectable()
 export class LaneService implements LaneReconciler {
@@ -346,8 +335,14 @@ export class LaneService implements LaneReconciler {
       throw new ForbiddenException('Lane ownership required.');
     }
 
-    this.assertTransitionGraph(existingLane.status, input.targetStatus);
-    await this.assertTransitionGuards(existingLane, input.targetStatus);
+    assertTransitionGraph(existingLane.status, input.targetStatus);
+    const proofPackCount =
+      input.targetStatus === 'PACKED'
+        ? await this.laneStore.countProofPacksForLane(id)
+        : 0;
+    assertTransitionGuards(existingLane, input.targetStatus, {
+      proofPackCount,
+    });
 
     const transitionedAt = new Date();
     const lane = await this.laneStore.transitionLaneStatus(
@@ -511,13 +506,17 @@ export class LaneService implements LaneReconciler {
     const transitions: LaneStatus[] = [];
 
     while (true) {
-      const targetStatus = this.getAutomaticTransitionTarget(lane);
+      const targetStatus = getAutomaticTransitionTarget(lane);
       if (targetStatus === null) {
         break;
       }
 
-      this.assertTransitionGraph(lane.status, targetStatus);
-      await this.assertTransitionGuards(lane, targetStatus);
+      assertTransitionGraph(lane.status, targetStatus);
+      const proofPackCount =
+        targetStatus === 'PACKED'
+          ? await this.laneStore.countProofPacksForLane(lane.id)
+          : 0;
+      assertTransitionGuards(lane, targetStatus, { proofPackCount });
 
       const transitionedAt = new Date();
       const transitionedLane = await this.laneStore.transitionLaneStatus(
@@ -579,72 +578,6 @@ export class LaneService implements LaneReconciler {
         : Number(latestBatchId.split('-').at(-1) ?? '0');
 
     return `${prefix}-${padSequence(latestSequence + 1)}`;
-  }
-
-  private assertTransitionGraph(
-    currentStatus: LaneStatus,
-    targetStatus: LaneStatus,
-  ): void {
-    const allowedTargets = ALLOWED_LANE_TRANSITIONS[currentStatus] ?? [];
-    if (!allowedTargets.includes(targetStatus)) {
-      throw new ConflictException(
-        `Invalid lane transition from ${currentStatus} to ${targetStatus}.`,
-      );
-    }
-  }
-
-  private getAutomaticTransitionTarget(lane: LaneDetail): LaneStatus | null {
-    if (lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD) {
-      return null;
-    }
-
-    if (lane.status === 'CREATED' || lane.status === 'INCOMPLETE') {
-      return 'EVIDENCE_COLLECTING';
-    }
-
-    if (lane.status === 'EVIDENCE_COLLECTING') {
-      return 'VALIDATED';
-    }
-
-    return null;
-  }
-
-  private async assertTransitionGuards(
-    lane: LaneDetail,
-    targetStatus: LaneStatus,
-  ): Promise<void> {
-    if (
-      targetStatus === 'VALIDATED' &&
-      lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD
-    ) {
-      throw new UnprocessableEntityException(
-        'Lane completeness must be at least 95% before validation.',
-      );
-    }
-
-    if (targetStatus === 'PACKED') {
-      const proofPackCount = await this.laneStore.countProofPacksForLane(
-        lane.id,
-      );
-      if (proofPackCount < 1) {
-        throw new UnprocessableEntityException(
-          'At least one proof pack is required before packing.',
-        );
-      }
-    }
-
-    if (targetStatus === 'ARCHIVED') {
-      const archiveEligibleAt = new Date(lane.statusChangedAt);
-      archiveEligibleAt.setUTCFullYear(
-        archiveEligibleAt.getUTCFullYear() + LANE_ARCHIVE_RETENTION_YEARS,
-      );
-
-      if (archiveEligibleAt.getTime() > Date.now()) {
-        throw new UnprocessableEntityException(
-          'Lane cannot be archived before the retention period ends.',
-        );
-      }
-    }
   }
 
   private buildCheckpointAuditPayload(

@@ -100,6 +100,14 @@ Any session that produces implementation or debugging work **MUST** append an en
 - `npm run db:seed` — Seed MRL data + test fixtures
 - `npm run db:reset` — Reset dev database (NEVER in production)
 
+### Persistence Strategy (Explicit Decision)
+
+- **Prisma** is used for **schema definition and migrations only** — `prisma/schema.prisma` defines all models, `prisma/migrations/` tracks schema changes
+- **Raw SQL via `pg.Pool`** is used for **all runtime queries** — every module has a `*.pg-store.ts` using parameterized SQL (`$1, $2`) via the shared `DATABASE_POOL` token
+- **Prisma Client is NOT used at runtime** — only in `prisma/seed.ts` for seeding
+- This is intentional: raw SQL gives full control over query optimization, transaction-bound clones, and aggregation queries (analytics, cold-chain range queries)
+- **MUST** follow when adding new modules: define models in `schema.prisma`, implement queries in `*.pg-store.ts`
+
 ### Quality Gates (run before PR)
 
 ```bash
