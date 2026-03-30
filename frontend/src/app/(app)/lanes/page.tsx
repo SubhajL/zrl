@@ -1,6 +1,5 @@
 'use client';
 
-import * as React from 'react';
 import Link from 'next/link';
 import { Package, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { DataTableSkeleton } from '@/components/zrl/skeletons';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/zrl/progress-bar';
 import { getErrorMessage } from '@/lib/app-api';
-import { loadLanesPage } from '@/lib/lanes-data';
+import { useLanesQuery } from '@/hooks/use-lanes-query';
 import {
   type Lane,
   MARKET_FLAGS,
@@ -80,32 +79,14 @@ const columns: Column<Lane>[] = [
   },
 ];
 
+const DEFAULT_LANES_OPTIONS = { page: 1, limit: 50 } as const;
+
 export default function LanesListPage() {
-  const [lanes, setLanes] = React.useState<Lane[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let active = true;
-
-    void loadLanesPage({ page: 1, limit: 50 })
-      .then((response) => {
-        if (active) {
-          setLanes(response.data);
-          setLoading(false);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(getErrorMessage(loadError, 'Unable to load lanes.'));
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data: lanesData, error: queryError, isLoading } = useLanesQuery(DEFAULT_LANES_OPTIONS);
+  const lanes = lanesData?.data ?? [];
+  const error = queryError
+    ? getErrorMessage(queryError, 'Unable to load lanes.')
+    : null;
 
   return (
     <div className="space-y-6">
@@ -141,7 +122,7 @@ export default function LanesListPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && !error ? (
+          {isLoading && !error ? (
             <div aria-busy="true" role="status" aria-label="Loading lanes">
               <DataTableSkeleton rows={5} columns={5} />
             </div>

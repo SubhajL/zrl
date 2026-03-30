@@ -1,17 +1,13 @@
 'use client';
 
-import * as React from 'react';
 import { BentoGrid, BentoGridItem } from '@/components/zrl/bento-grid';
 import { DataTable, type Column } from '@/components/zrl/data-table';
 import { KpiTile } from '@/components/zrl/kpi-tile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KpiTileSkeleton, DataTableSkeleton } from '@/components/zrl/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  loadAnalyticsPageData,
-  type AnalyticsBreakdownRow,
-  type AnalyticsPageData,
-} from '@/lib/analytics-data';
+import { useAnalyticsQuery } from '@/hooks/use-analytics-query';
+import type { AnalyticsBreakdownRow } from '@/lib/analytics-data';
 import { getErrorMessage } from '@/lib/app-api';
 
 const BREAKDOWN_COLUMNS: Column<AnalyticsBreakdownRow>[] = [
@@ -34,28 +30,10 @@ const BREAKDOWN_COLUMNS: Column<AnalyticsBreakdownRow>[] = [
 ];
 
 export default function AnalyticsPage() {
-  const [data, setData] = React.useState<AnalyticsPageData | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let active = true;
-
-    void loadAnalyticsPageData()
-      .then((result) => {
-        if (active) {
-          setData(result);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(getErrorMessage(loadError, 'Unable to load analytics.'));
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { data, error: queryError, isLoading } = useAnalyticsQuery();
+  const error = queryError
+    ? getErrorMessage(queryError, 'Unable to load analytics.')
+    : null;
 
   return (
     <div className="space-y-8">
@@ -75,7 +53,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {data === null && !error ? (
+      {isLoading && !error ? (
         <div className="space-y-8" aria-busy="true" role="status" aria-label="Loading analytics">
           <BentoGrid>
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -97,7 +75,7 @@ export default function AnalyticsPage() {
             ))}
           </BentoGrid>
         </div>
-      ) : data !== null ? (
+      ) : data !== undefined ? (
         <>
           <BentoGrid>
             {data.metrics.map((metric) => (
