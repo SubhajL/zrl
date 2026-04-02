@@ -38,6 +38,61 @@ export interface UpdateDisputeInput {
   resolutionNotes?: string;
 }
 
+export interface DisputeTimelineEvent {
+  readonly timestamp: string;
+  readonly category:
+    | 'LANE_STATUS'
+    | 'CHECKPOINT'
+    | 'TEMPERATURE'
+    | 'EXCURSION'
+    | 'ARTIFACT'
+    | 'AUDIT';
+  readonly title: string;
+  readonly details: string;
+  readonly actor: string | null;
+  readonly location: string | null;
+  readonly signer: string | null;
+  readonly temperatureC: number | null;
+}
+
+export interface DefenseTemperatureForensics {
+  readonly slaStatus: 'PASS' | 'CONDITIONAL' | 'FAIL';
+  readonly defensibilityScore: number;
+  readonly remainingShelfLifeDays: number;
+  readonly totalExcursionMinutes: number;
+  readonly maxDeviationC: number;
+  readonly readingCount: number;
+  readonly chartPoints: ReadonlyArray<{
+    readonly label: string;
+    readonly temperatureC: number;
+    readonly heightPercent: number;
+  }>;
+  readonly checkpointMarkers: ReadonlyArray<{
+    readonly label: string;
+    readonly timestamp: string | null;
+  }>;
+  readonly excursions: ReadonlyArray<{
+    readonly severity: string;
+    readonly type: string;
+    readonly direction: string;
+    readonly startedAt: string;
+    readonly endedAt: string | null;
+    readonly durationMinutes: number;
+    readonly maxDeviationC: number;
+  }>;
+  readonly narrative: string;
+}
+
+export interface DefenseVisualEvidenceItem {
+  readonly fileName: string;
+  readonly checkpointLabel: string | null;
+  readonly capturedAt: string | null;
+  readonly gps: string | null;
+  readonly cameraModel: string | null;
+  readonly source: string;
+  readonly exifStatus: string;
+}
+
 export interface DisputeStore {
   runInTransaction<T>(
     operation: (store: DisputeStore) => Promise<T>,

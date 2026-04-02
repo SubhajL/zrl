@@ -13,6 +13,7 @@ import { LaneService } from '../lane/lane.service';
 import { ProofPackService } from '../evidence/proof-pack.service';
 import type { ProofPackTemplateData } from '../evidence/proof-pack.types';
 import { DISPUTE_STORE } from './dispute.constants';
+import { DisputeTimelineService } from './dispute-timeline.service';
 import type {
   CreateDisputeInput,
   DisputeRecord,
@@ -29,6 +30,7 @@ export class DisputeService {
   constructor(
     @Inject(DISPUTE_STORE) private readonly store: DisputeStore,
     private readonly laneService: LaneService,
+    private readonly disputeTimelineService: DisputeTimelineService,
     private readonly proofPackService: ProofPackService,
     private readonly auditService: AuditService,
     private readonly hashingService: HashingService,
@@ -130,16 +132,14 @@ export class DisputeService {
     const dispute = await this.getDispute(disputeId, actor);
     const { lane } = await this.laneService.findById(dispute.laneId);
 
-    const [auditEntries, checkpoints, completeness, excursionCount] =
-      await Promise.all([
-        this.auditService.getEntriesForLane(lane.id),
-        this.laneService.getCheckpoints(lane.id),
-        this.laneService.getCompleteness(lane.id),
-        this.store.countExcursionsForLane(lane.id),
-      ]);
+    const [auditEntries, completeness, defenseEvidence] = await Promise.all([
+      this.auditService.getEntriesForLane(lane.id),
+      this.laneService.getCompleteness(lane.id),
+      this.disputeTimelineService.buildDefenseEvidence(lane.id),
+    ]);
 
     const checkpointData: ProofPackTemplateData['checkpoints'] =
-      checkpoints.map((cp) => ({
+      lane.checkpoints.map((cp) => ({
         sequence: cp.sequence,
         location: cp.locationName,
         status: cp.status,
@@ -175,8 +175,6 @@ export class DisputeService {
           }))
         : null;
 
-    const slaStatus = excursionCount === 0 ? 'PASS' : 'FAIL';
-
     const templateData: ProofPackTemplateData = {
       laneId: lane.laneId,
       batchId: lane.batch?.batchId ?? '',
@@ -195,8 +193,25 @@ export class DisputeService {
       labResults,
       checkpoints: checkpointData,
       auditEntries: auditEntryData,
-      slaStatus,
-      excursionCount,
+      defenseCase: {
+        disputeType: dispute.type,
+        claimant: dispute.claimant,
+        description: dispute.description,
+        status: dispute.status,
+        financialImpact: dispute.financialImpact,
+        openedAt: dispute.createdAt.toISOString(),
+        resolvedAt: dispute.resolvedAt?.toISOString() ?? null,
+        resolutionNotes: dispute.resolutionNotes,
+        timelineEventCount: defenseEvidence.timeline.length,
+        checkpointPhotoCount: defenseEvidence.visualEvidence.length,
+        temperatureReadingCount:
+          defenseEvidence.temperatureForensics.readingCount,
+      },
+      chainOfCustodyTimeline: defenseEvidence.timeline,
+      temperatureForensics: defenseEvidence.temperatureForensics,
+      visualEvidence: defenseEvidence.visualEvidence,
+      slaStatus: defenseEvidence.temperatureForensics.slaStatus,
+      excursionCount: defenseEvidence.temperatureForensics.excursions.length,
       generatedAt: new Date().toISOString(),
       packType: 'DEFENSE',
     };

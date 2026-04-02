@@ -8,6 +8,7 @@ import {
   getGenesisHash,
   hashUtf8String,
 } from '../src/common/hashing/hashing.utils.js';
+import { DEFAULT_EMISSION_FACTORS } from '../src/modules/mrv-lite/mrv-lite.constants.js';
 import { loadRuleDefinitionFromFile } from '../src/modules/rules-engine/rule-definition.files.js';
 
 const databaseUrl = process.env['DATABASE_URL'] ?? '';
@@ -232,6 +233,35 @@ async function seedFruitProfiles() {
   return profiles;
 }
 
+async function seedEmissionFactors() {
+  for (const factor of DEFAULT_EMISSION_FACTORS) {
+    await prisma.emissionFactor.upsert({
+      where: {
+        product_market_transportMode: {
+          product: factor.product as 'MANGO' | 'DURIAN' | 'MANGOSTEEN' | 'LONGAN',
+          market: factor.market as 'JAPAN' | 'CHINA' | 'KOREA' | 'EU',
+          transportMode: factor.transportMode as 'AIR' | 'SEA' | 'TRUCK',
+        },
+      },
+      update: {
+        co2ePerKg: factor.co2ePerKg,
+        source: factor.source,
+        lastUpdated: new Date(factor.lastUpdated),
+      },
+      create: {
+        product: factor.product as 'MANGO' | 'DURIAN' | 'MANGOSTEEN' | 'LONGAN',
+        market: factor.market as 'JAPAN' | 'CHINA' | 'KOREA' | 'EU',
+        transportMode: factor.transportMode as 'AIR' | 'SEA' | 'TRUCK',
+        co2ePerKg: factor.co2ePerKg,
+        source: factor.source,
+        lastUpdated: new Date(factor.lastUpdated),
+      },
+    });
+  }
+
+  return DEFAULT_EMISSION_FACTORS.length;
+}
+
 async function seedSampleLane(exporterId: string) {
   const publicLaneId = 'LN-2026-001';
   const existingLane = await prisma.lane.findUnique({
@@ -443,6 +473,9 @@ async function main() {
 
   const profiles = await seedFruitProfiles();
   console.log(`  ✓ Seeded fruit profiles: ${profiles.length}`);
+
+  const emissionFactorCount = await seedEmissionFactors();
+  console.log(`  ✓ Seeded emission factors: ${emissionFactorCount}`);
 
   const lane = await seedSampleLane(users.exporter.id);
   console.log(`  ✓ Created sample lane: ${lane.laneId}`);

@@ -111,6 +111,65 @@ export interface ProofPackTemplateData {
     readonly entityId: string;
     readonly entryHash: string;
   }>;
+  readonly defenseCase?: {
+    readonly disputeType: string;
+    readonly claimant: string;
+    readonly description: string;
+    readonly status: string;
+    readonly financialImpact: number | null;
+    readonly openedAt: string;
+    readonly resolvedAt: string | null;
+    readonly resolutionNotes: string | null;
+    readonly timelineEventCount: number;
+    readonly checkpointPhotoCount: number;
+    readonly temperatureReadingCount: number;
+  };
+  readonly chainOfCustodyTimeline?: ReadonlyArray<{
+    readonly timestamp: string;
+    readonly category: string;
+    readonly title: string;
+    readonly details: string;
+    readonly actor: string | null;
+    readonly location: string | null;
+    readonly signer: string | null;
+    readonly temperatureC: number | null;
+  }>;
+  readonly temperatureForensics?: {
+    readonly slaStatus: string;
+    readonly defensibilityScore: number;
+    readonly remainingShelfLifeDays: number;
+    readonly totalExcursionMinutes: number;
+    readonly maxDeviationC: number;
+    readonly readingCount: number;
+    readonly chartPoints: ReadonlyArray<{
+      readonly label: string;
+      readonly temperatureC: number;
+      readonly heightPercent: number;
+    }>;
+    readonly checkpointMarkers: ReadonlyArray<{
+      readonly label: string;
+      readonly timestamp: string | null;
+    }>;
+    readonly excursions: ReadonlyArray<{
+      readonly severity: string;
+      readonly type: string;
+      readonly direction: string;
+      readonly startedAt: string;
+      readonly endedAt: string | null;
+      readonly durationMinutes: number;
+      readonly maxDeviationC: number;
+    }>;
+    readonly narrative: string;
+  };
+  readonly visualEvidence?: ReadonlyArray<{
+    readonly fileName: string;
+    readonly checkpointLabel: string | null;
+    readonly capturedAt: string | null;
+    readonly gps: string | null;
+    readonly cameraModel: string | null;
+    readonly source: string;
+    readonly exifStatus: string;
+  }>;
   readonly slaStatus?: string;
   readonly excursionCount?: number;
   readonly qrCodeDataUrl?: string;

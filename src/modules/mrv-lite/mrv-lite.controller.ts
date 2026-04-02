@@ -56,7 +56,7 @@ export class MrvLiteController {
   }
 
   @Get('esg/carbon/factors')
-  getEmissionFactors() {
-    return { factors: this.mrvLiteService.getEmissionFactors() };
+  async getEmissionFactors() {
+    return { factors: await this.mrvLiteService.getEmissionFactors() };
   }
 }

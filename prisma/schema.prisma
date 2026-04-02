@@ -514,6 +514,21 @@ model Dispute {
   @@map("disputes")
 }
 
+model EmissionFactor {
+  id            String            @id @default(uuid())
+  product       ProductType
+  market        DestinationMarket
+  transportMode TransportMode     @map("transport_mode")
+  co2ePerKg     Decimal           @map("co2e_per_kg") @db.Decimal(10, 4)
+  source        String
+  lastUpdated   DateTime          @map("last_updated") @db.Date
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  @@unique([product, market, transportMode])
+  @@map("emission_factors")
+}
+
 model FruitProfile {
   id                 String      @id @default(uuid())
   productType        ProductType @unique @map("product_type")

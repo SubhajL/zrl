@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import Handlebars from 'handlebars';
 import { tmpdir } from 'node:os';
@@ -17,6 +18,8 @@ import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { NotificationService } from '../notifications/notification.service';
+import { LANE_RECONCILER } from '../lane/lane.constants';
+import type { LaneReconciler } from '../lane/lane.types';
 import { EVIDENCE_OBJECT_STORE } from './evidence.constants';
 import type { EvidenceObjectStore } from './evidence.types';
 import {
@@ -48,6 +51,9 @@ export class ProofPackService {
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
     private readonly notificationService?: NotificationService,
+    @Optional()
+    @Inject(LANE_RECONCILER)
+    private readonly laneReconciler?: LaneReconciler,
   ) {
     this.templatesDir = resolve(process.cwd(), 'templates');
     this.registerTemplateHelpers();
@@ -140,6 +146,10 @@ export class ProofPackService {
         version: readyPack.version,
       },
     });
+    await this.reconcileLanePackingSafely(
+      readyPack.laneId,
+      claimedJob.pack.generatedBy,
+    );
     this.logger.log(
       `Generated ${claimedJob.pack.packType} pack v${claimedJob.pack.version} for lane ${claimedJob.pack.laneId}`,
     );
@@ -237,6 +247,23 @@ export class ProofPackService {
     }
 
     return leaseExpiresAt;
+  }
+
+  private async reconcileLanePackingSafely(
+    laneId: string,
+    actorId: string,
+  ): Promise<void> {
+    if (this.laneReconciler === undefined) {
+      return;
+    }
+
+    try {
+      await this.laneReconciler.reconcileAfterEvidenceChange(laneId, actorId);
+    } catch (error) {
+      this.logger.warn(
+        `Proof pack generated for lane ${laneId}, but automatic packing reconciliation failed: ${this.normalizeErrorMessage(error)}`,
+      );
+    }
   }
 
   private async requirePack(id: string): Promise<ProofPackRecord> {

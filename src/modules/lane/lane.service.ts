@@ -521,18 +521,21 @@ export class LaneService implements LaneReconciler {
     const transitions: LaneStatus[] = [];
 
     while (true) {
-      const targetStatus = getAutomaticTransitionTarget(lane);
+      const proofPackCount = await this.laneStore.countProofPacksForLane(
+        lane.id,
+      );
+      const targetStatus = getAutomaticTransitionTarget(lane, {
+        proofPackCount,
+      });
       if (targetStatus === null) {
         break;
       }
 
       this.throwIfViolation(validateTransitionGraph(lane.status, targetStatus));
-      const proofPackCount =
-        targetStatus === 'PACKED'
-          ? await this.laneStore.countProofPacksForLane(lane.id)
-          : 0;
       this.throwIfViolation(
-        validateTransitionGuards(lane, targetStatus, { proofPackCount }),
+        validateTransitionGuards(lane, targetStatus, {
+          proofPackCount: targetStatus === 'PACKED' ? proofPackCount : 0,
+        }),
       );
 
       const transitionedAt = new Date();
