@@ -43,6 +43,7 @@ export function validateTransitionGraph(
 
 export function getAutomaticTransitionTarget(
   lane: Pick<LaneDetail, 'status' | 'completenessScore'>,
+  context: { readonly proofPackCount?: number } = {},
 ): LaneStatus | null {
   if (lane.completenessScore < LANE_VALIDATION_COMPLETENESS_THRESHOLD) {
     return null;
@@ -54,6 +55,10 @@ export function getAutomaticTransitionTarget(
 
   if (lane.status === 'EVIDENCE_COLLECTING') {
     return 'VALIDATED';
+  }
+
+  if (lane.status === 'VALIDATED' && (context.proofPackCount ?? 0) > 0) {
+    return 'PACKED';
   }
 
   return null;

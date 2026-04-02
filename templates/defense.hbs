@@ -228,6 +228,93 @@
       font-weight: 700;
       margin-top: 2px;
     }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .summary-card {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .summary-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748B;
+      font-weight: 600;
+    }
+    .summary-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-top: 4px;
+    }
+    .timeline-category {
+      font-size: 10px;
+      font-weight: 700;
+      color: #7C3AED;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 120px;
+      margin-top: 12px;
+      padding: 12px;
+      background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+    }
+    .chart-point {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+    }
+    .chart-bar {
+      width: 100%;
+      border-radius: 6px 6px 0 0;
+      background: linear-gradient(180deg, #0EA5E9 0%, #1D4ED8 100%);
+    }
+    .chart-temp {
+      font-size: 9px;
+      color: #0F172A;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+    .chart-label {
+      font-size: 8px;
+      color: #64748B;
+      margin-top: 2px;
+    }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .photo-card {
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #FFFFFF;
+    }
+    .photo-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #0F172A;
+    }
+    .photo-meta {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #475569;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -269,13 +356,7 @@
     </tr>
     <tr>
       <td>Status</td>
-      <td>
-        {{#if (eq status "PASS")}}
-          <span class="badge-pass">PASS</span>
-        {{else}}
-          <span class="badge-fail">FAIL</span>
-        {{/if}}
-      </td>
+      <td>{{status}}</td>
     </tr>
     <tr>
       <td>Completeness</td>
@@ -309,10 +390,73 @@
       <td>Carrier</td>
       <td>{{carrier}}</td>
     </tr>
+    {{#if defenseCase}}
+    <tr>
+      <td>Dispute Type</td>
+      <td>{{defenseCase.disputeType}}</td>
+    </tr>
+    <tr>
+      <td>Claimant</td>
+      <td>{{defenseCase.claimant}}</td>
+    </tr>
+    <tr>
+      <td>Claim Summary</td>
+      <td>{{defenseCase.description}}</td>
+    </tr>
+    <tr>
+      <td>Dispute Status</td>
+      <td>{{defenseCase.status}}</td>
+    </tr>
+    {{/if}}
   </table>
+  {{#if defenseCase}}
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Timeline Events</div>
+      <div class="summary-value">{{defenseCase.timelineEventCount}}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Checkpoint Photos</div>
+      <div class="summary-value">{{defenseCase.checkpointPhotoCount}}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Telemetry Samples</div>
+      <div class="summary-value">{{defenseCase.temperatureReadingCount}}</div>
+    </div>
+  </div>
+  {{/if}}
 
-  <!-- Section 2: Full MRL Analysis -->
-  <h2>2. Full MRL Analysis</h2>
+  <!-- Section 2: Chain-of-Custody Timeline -->
+  <h2>2. Chain-of-Custody Timeline</h2>
+  {{#if chainOfCustodyTimeline}}
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Category</th>
+        <th>Event</th>
+        <th>Location / Signer</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each chainOfCustodyTimeline}}
+      <tr>
+        <td>{{this.timestamp}}</td>
+        <td><span class="timeline-category">{{this.category}}</span></td>
+        <td>{{this.title}}</td>
+        <td>{{#if this.location}}{{this.location}}{{else}}-{{/if}}{{#if this.signer}} / {{this.signer}}{{/if}}</td>
+        <td>{{this.details}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="no-data">No reconstructed timeline available.</p>
+  {{/if}}
+
+  <!-- Section 3: Compliance Report -->
+  <h2>3. Compliance Report</h2>
   {{#if labResults}}
   <table>
     <thead>
@@ -345,9 +489,6 @@
   {{else}}
   <p class="no-data">No lab results available.</p>
   {{/if}}
-
-  <!-- Section 3: Document Evidence -->
-  <h2>3. Document Evidence</h2>
   {{#if checklistItems}}
   <table>
     <thead>
@@ -381,73 +522,105 @@
   <p class="no-data">No checklist items available.</p>
   {{/if}}
 
-  <!-- Section 4: Chain-of-Custody Timeline -->
-  <h2>4. Chain-of-Custody Timeline</h2>
-  {{#if checkpoints}}
-  <table>
-    <thead>
-      <tr>
-        <th>Seq</th>
-        <th>Location</th>
-        <th>Status</th>
-        <th>Timestamp</th>
-        <th>Temperature</th>
-        <th>Signer</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#each checkpoints}}
-      <tr>
-        <td>{{this.sequence}}</td>
-        <td>{{this.location}}</td>
-        <td>
-          {{#if (eq this.status "PASS")}}
-            <span class="badge-pass">PASS</span>
-          {{else if (eq this.status "FAIL")}}
-            <span class="badge-fail">FAIL</span>
-          {{else}}
-            <span class="badge-missing">{{this.status}}</span>
-          {{/if}}
-        </td>
-        <td>{{this.timestamp}}</td>
-        <td>{{this.temperature}}</td>
-        <td>{{this.signer}}</td>
-      </tr>
-      {{/each}}
-    </tbody>
-  </table>
-  {{else}}
-  <p class="no-data">No checkpoint data available.</p>
-  {{/if}}
-
-  <!-- Section 5: Cold-Chain Forensics -->
-  <h2>5. Cold-Chain Forensics</h2>
+  <!-- Section 4: Temperature Forensics -->
+  <h2>4. Temperature Forensics</h2>
   <div class="forensics-card">
     <div class="forensics-grid">
       <div class="forensics-item">
         <div class="forensics-label">SLA Status</div>
         <div class="forensics-value">
-          {{#if (eq slaStatus "PASS")}}
+          {{#if (eq temperatureForensics.slaStatus "PASS")}}
             <span class="badge-pass" style="font-size: 12px; padding: 3px 10px;">PASS</span>
-          {{else if (eq slaStatus "FAIL")}}
+          {{else if (eq temperatureForensics.slaStatus "FAIL")}}
             <span class="badge-fail" style="font-size: 12px; padding: 3px 10px;">FAIL</span>
           {{else}}
-            <span class="badge-missing" style="font-size: 12px; padding: 3px 10px;">{{slaStatus}}</span>
+            <span class="badge-missing" style="font-size: 12px; padding: 3px 10px;">{{temperatureForensics.slaStatus}}</span>
           {{/if}}
         </div>
       </div>
       <div class="forensics-item">
-        <div class="forensics-label">Excursion Count</div>
-        <div class="forensics-value" style="color: {{#if excursionCount}}{{#if (eq excursionCount 0)}}#15803D{{else}}#B91C1C{{/if}}{{else}}#475569{{/if}};">
-          {{excursionCount}}
-        </div>
+        <div class="forensics-label">Defensibility Score</div>
+        <div class="forensics-value">{{temperatureForensics.defensibilityScore}}</div>
+      </div>
+      <div class="forensics-item">
+        <div class="forensics-label">Max Deviation</div>
+        <div class="forensics-value">{{temperatureForensics.maxDeviationC}}&deg;C</div>
       </div>
     </div>
+    {{#if temperatureForensics.chartPoints}}
+    <div class="chart">
+      {{#each temperatureForensics.chartPoints}}
+      <div class="chart-point">
+        <div class="chart-bar" style="height: {{this.heightPercent}}%;"></div>
+        <div class="chart-temp">{{this.temperatureC}}&deg;C</div>
+        <div class="chart-label">{{this.label}}</div>
+      </div>
+      {{/each}}
+    </div>
+    {{/if}}
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Readings</div>
+        <div class="summary-value">{{temperatureForensics.readingCount}}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Excursion Minutes</div>
+        <div class="summary-value">{{temperatureForensics.totalExcursionMinutes}}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Remaining Shelf Life</div>
+        <div class="summary-value">{{temperatureForensics.remainingShelfLifeDays}}</div>
+      </div>
+    </div>
+    {{#if temperatureForensics.excursions}}
+    <table>
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Type</th>
+          <th>Window</th>
+          <th>Duration (min)</th>
+          <th>Max Deviation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each temperatureForensics.excursions}}
+        <tr>
+          <td>{{this.severity}}</td>
+          <td>{{this.type}} / {{this.direction}}</td>
+          <td>{{this.startedAt}} {{#if this.endedAt}}→ {{this.endedAt}}{{/if}}</td>
+          <td>{{this.durationMinutes}}</td>
+          <td>{{this.maxDeviationC}}&deg;C</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{/if}}
     <div class="audit-note" style="margin-top: 12px; border-left-color: #F59E0B;">
-      Temperature data is recorded by IoT sensors at each checkpoint. Any deviation from the fruit-specific
-      optimal range is flagged as an excursion. Full sensor telemetry is available upon request.
+      {{temperatureForensics.narrative}}
     </div>
   </div>
+
+  <!-- Section 5: Visual Evidence -->
+  <h2>5. Visual Evidence</h2>
+  {{#if visualEvidence}}
+  <div class="photo-grid">
+    {{#each visualEvidence}}
+    <div class="photo-card">
+      <div class="photo-title">{{this.fileName}}</div>
+      <div class="photo-meta">
+        EXIF Status: <strong>{{this.exifStatus}}</strong><br>
+        Captured At: {{#if this.capturedAt}}{{this.capturedAt}}{{else}}Unavailable{{/if}}<br>
+        GPS: {{#if this.gps}}{{this.gps}}{{else}}Unavailable{{/if}}<br>
+        Camera Model: {{#if this.cameraModel}}{{this.cameraModel}}{{else}}Unavailable{{/if}}<br>
+        Source: {{this.source}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{else}}
+  <p class="no-data">No checkpoint photo evidence with EXIF metadata is available.</p>
+  {{/if}}
 
   <!-- Section 6: Audit Trail -->
   <h2>6. Audit Trail</h2>

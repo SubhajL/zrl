@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { ProofPackTemplateData } from '../evidence/proof-pack.types';
 import { DisputeService } from './dispute.service';
 import type { DisputeStore, DisputeRecord } from './dispute.types';
 
@@ -94,11 +95,64 @@ describe('DisputeService', () => {
       transition: jest
         .fn()
         .mockResolvedValue({ lane: { ...baseLane, status: 'CLAIM_DEFENSE' } }),
-      getCheckpoints: jest.fn().mockResolvedValue(baseLane.checkpoints),
       getCompleteness: jest.fn().mockResolvedValue({
         score: 100,
         checklist: [],
         labValidation: null,
+      }),
+    };
+  }
+
+  function createDisputeTimelineServiceMock() {
+    return {
+      buildDefenseEvidence: jest.fn().mockResolvedValue({
+        timeline: [
+          {
+            timestamp: '2026-03-29T08:00:00.000Z',
+            category: 'CHECKPOINT',
+            title: 'Checkpoint 1: Farm Pickup',
+            details: 'Status COMPLETED.',
+            actor: 'user-1',
+            location: 'Farm Pickup',
+            signer: 'Farmer A',
+            temperatureC: 12,
+          },
+        ],
+        temperatureForensics: {
+          slaStatus: 'PASS',
+          defensibilityScore: 96,
+          remainingShelfLifeDays: 12,
+          totalExcursionMinutes: 0,
+          maxDeviationC: 0,
+          readingCount: 4,
+          chartPoints: [
+            {
+              label: '2026-03-29T08:00:00.000Z',
+              temperatureC: 12,
+              heightPercent: 50,
+            },
+          ],
+          checkpointMarkers: [
+            {
+              label: 'CP1 Farm Pickup',
+              timestamp: '2026-03-29T08:00:00.000Z',
+            },
+          ],
+          excursions: [],
+          narrative:
+            'Telemetry remained within the product-specific operating band.',
+        },
+        visualEvidence: [
+          {
+            fileName: 'pickup-photo.jpg',
+            checkpointLabel: 'Farm Pickup',
+            capturedAt: '2026-03-29T08:00:00.000Z',
+            gps: '13.70000, 101.00000',
+            cameraModel: 'iPhone',
+            source: 'EXIF',
+            exifStatus: 'VERIFIED',
+          },
+        ],
       }),
     };
   }
@@ -159,12 +213,17 @@ describe('DisputeService', () => {
   function buildService(overrides?: {
     store?: jest.Mocked<DisputeStore>;
     laneService?: ReturnType<typeof createLaneServiceMock>;
+    disputeTimelineService?: ReturnType<
+      typeof createDisputeTimelineServiceMock
+    >;
     proofPackService?: ReturnType<typeof createProofPackServiceMock>;
     auditService?: ReturnType<typeof createAuditServiceMock>;
     hashingService?: ReturnType<typeof createHashingServiceMock>;
   }) {
     const store = overrides?.store ?? createStoreMock();
     const laneService = overrides?.laneService ?? createLaneServiceMock();
+    const disputeTimelineService =
+      overrides?.disputeTimelineService ?? createDisputeTimelineServiceMock();
     const proofPackService =
       overrides?.proofPackService ?? createProofPackServiceMock();
     const auditService = overrides?.auditService ?? createAuditServiceMock();
@@ -174,6 +233,7 @@ describe('DisputeService', () => {
     return new DisputeService(
       store as never,
       laneService as never,
+      disputeTimelineService as never,
       proofPackService as never,
       auditService as never,
       hashingService as never,
@@ -237,16 +297,22 @@ describe('DisputeService', () => {
   it('generates defense pack with template data', async () => {
     const store = createStoreMock();
     const laneService = createLaneServiceMock();
+    const disputeTimelineService = createDisputeTimelineServiceMock();
     const proofPackService = createProofPackServiceMock();
     const auditService = createAuditServiceMock();
     const service = buildService({
       store,
       laneService,
+      disputeTimelineService,
       proofPackService,
       auditService,
     });
 
     const result = await service.generateDefensePack('dispute-1', actor);
+    const generatePackCall = proofPackService.generatePack.mock.calls[0] as
+      | [unknown, ProofPackTemplateData]
+      | undefined;
+    const templateData = generatePackCall?.[1];
 
     expect(result).toBeDefined();
     expect(proofPackService.generatePack).toHaveBeenCalledWith(
@@ -262,7 +328,30 @@ describe('DisputeService', () => {
         market: 'JAPAN',
       }),
     );
+    expect(templateData).toBeDefined();
+    expect(templateData?.chainOfCustodyTimeline).toEqual(expect.any(Array));
+    expect(templateData?.temperatureForensics).toEqual(
+      expect.objectContaining({
+        slaStatus: 'PASS',
+        defensibilityScore: 96,
+      }),
+    );
+    expect(templateData?.visualEvidence).toEqual([
+      expect.objectContaining({
+        fileName: 'pickup-photo.jpg',
+        exifStatus: 'VERIFIED',
+      }),
+    ]);
+    expect(templateData?.defenseCase).toEqual(
+      expect.objectContaining({
+        disputeType: 'QUALITY_CLAIM',
+        claimant: 'Importer Co',
+      }),
+    );
     expect(store.linkDefensePack).toHaveBeenCalledWith('dispute-1', 'pack-1');
+    expect(disputeTimelineService.buildDefenseEvidence).toHaveBeenCalledWith(
+      'lane-db-1',
+    );
   });
 
   it('updates dispute status with audit entry', async () => {

@@ -164,6 +164,9 @@ describe('ProofPackService', () => {
   let notificationService: {
     notifyLaneOwner: jest.Mock;
   };
+  let laneReconciler: {
+    reconcileAfterEvidenceChange: jest.Mock;
+  };
   let service: ProofPackService;
 
   beforeEach(() => {
@@ -225,6 +228,12 @@ describe('ProofPackService', () => {
     notificationService = {
       notifyLaneOwner: jest.fn().mockResolvedValue([]),
     };
+    laneReconciler = {
+      reconcileAfterEvidenceChange: jest.fn().mockResolvedValue({
+        lane: { id: 'lane-1', status: 'PACKED' },
+        transitions: ['PACKED'],
+      }),
+    };
 
     service = new ProofPackService(
       store as unknown as ProofPackStore,
@@ -232,6 +241,7 @@ describe('ProofPackService', () => {
       hashingService as unknown as HashingService,
       auditService as never,
       notificationService as never,
+      laneReconciler as never,
     );
   });
 
@@ -333,6 +343,10 @@ describe('ProofPackService', () => {
         version: 1,
       },
     });
+    expect(laneReconciler.reconcileAfterEvidenceChange).toHaveBeenCalledWith(
+      'lane-1',
+      'user-1',
+    );
   });
 
   it('rejects leased completion when the worker no longer owns the lease', async () => {
@@ -341,6 +355,25 @@ describe('ProofPackService', () => {
 
     await expect(service.completeLeasedJob(buildClaimedJob())).rejects.toThrow(
       new ConflictException('Proof pack job lease is no longer active.'),
+    );
+  });
+
+  it('keeps the pack ready when lane packing reconciliation fails', async () => {
+    mockedReadFileSync.mockReturnValue('<html><body>{{laneId}}</body></html>');
+    laneReconciler.reconcileAfterEvidenceChange.mockRejectedValueOnce(
+      new Error('lane update timeout'),
+    );
+    const loggerWarnSpy = jest
+      .spyOn(service['logger'], 'warn')
+      .mockImplementation(() => undefined);
+
+    await expect(service.completeLeasedJob(buildClaimedJob())).resolves.toBe(
+      undefined,
+    );
+
+    expect(store.completePackJob).toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('automatic packing reconciliation failed'),
     );
   });
 

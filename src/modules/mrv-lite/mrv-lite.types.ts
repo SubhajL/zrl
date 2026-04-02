@@ -3,6 +3,8 @@ export interface EmissionFactor {
   readonly market: string;
   readonly transportMode: string;
   readonly co2ePerKg: number;
+  readonly source: string;
+  readonly lastUpdated: string;
 }
 
 export interface LaneEsgCard {
@@ -15,6 +17,11 @@ export interface LaneEsgCard {
   readonly waste: {
     readonly laneStatus: string;
     readonly isRejected: boolean;
+    readonly disputeCount: number;
+    readonly resolvedDisputeCount: number;
+    readonly gradeDowngradeCount: number;
+    readonly damageClaimCount: number;
+    readonly estimatedWasteEvents: number;
   };
   readonly social: {
     readonly originProvince: string;
@@ -39,6 +46,13 @@ export interface ExporterEsgReport {
     readonly distinctProvinces: number;
     readonly distinctProducts: number;
   };
+  readonly waste: {
+    readonly totalRejectedLanes: number;
+    readonly totalDisputes: number;
+    readonly totalGradeDowngrades: number;
+    readonly totalDamageClaims: number;
+    readonly estimatedWasteEvents: number;
+  };
   readonly governance: {
     readonly avgCompleteness: number;
     readonly totalEvidenceCount: number;
@@ -57,6 +71,13 @@ export interface PlatformEsgReport {
     readonly distinctProvinces: number;
     readonly distinctProducts: number;
   };
+  readonly waste: {
+    readonly totalRejectedLanes: number;
+    readonly totalDisputes: number;
+    readonly totalGradeDowngrades: number;
+    readonly totalDamageClaims: number;
+    readonly estimatedWasteEvents: number;
+  };
   readonly governance: {
     readonly avgCompleteness: number;
     readonly totalEvidenceCount: number;
@@ -65,6 +86,7 @@ export interface PlatformEsgReport {
 }
 
 export interface LaneCarbonRow {
+  readonly status: string;
   readonly productType: string;
   readonly destinationMarket: string;
   readonly transportMode: string | null;
@@ -73,10 +95,15 @@ export interface LaneCarbonRow {
   readonly originProvince: string;
   readonly evidenceCount: number;
   readonly auditEntryCount: number;
+  readonly disputeCount: number;
+  readonly resolvedDisputeCount: number;
+  readonly downgradedDisputeCount: number;
+  readonly damagedDisputeCount: number;
   readonly exporterId?: string;
 }
 
 export interface MrvLiteStore {
+  listEmissionFactors(): Promise<EmissionFactor[]>;
   getExporterLaneCarbonRows(
     exporterId: string,
     quarter: number,
@@ -93,5 +120,9 @@ export interface MrvLiteStore {
     originProvince: string;
     evidenceCount: number;
     auditEntryCount: number;
+    disputeCount: number;
+    resolvedDisputeCount: number;
+    downgradedDisputeCount: number;
+    damagedDisputeCount: number;
   } | null>;
 }

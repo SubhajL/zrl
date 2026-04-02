@@ -57,6 +57,18 @@ describe('LaneTransitionPolicy', () => {
       ).toBeNull();
     });
 
+    it('returns PACKED when a validated lane has a ready proof pack', () => {
+      expect(
+        getAutomaticTransitionTarget(
+          {
+            status: 'VALIDATED',
+            completenessScore: 100,
+          },
+          { proofPackCount: 1 },
+        ),
+      ).toBe('PACKED');
+    });
+
     it('returns null for states without automatic transitions', () => {
       expect(
         getAutomaticTransitionTarget({

@@ -22,7 +22,15 @@ describe('MrvLiteController (e2e)', () => {
       transportMode: 'AIR',
       quantityKg: 1000,
     },
-    waste: { laneStatus: 'VALIDATED', isRejected: false },
+    waste: {
+      laneStatus: 'VALIDATED',
+      isRejected: false,
+      disputeCount: 1,
+      resolvedDisputeCount: 0,
+      gradeDowngradeCount: 1,
+      damageClaimCount: 0,
+      estimatedWasteEvents: 1,
+    },
     social: { originProvince: 'Chanthaburi', product: 'MANGO' },
     governance: {
       completenessScore: 85,
@@ -36,6 +44,13 @@ describe('MrvLiteController (e2e)', () => {
     period: { quarter: 1, year: 2026 },
     environmental: { totalCo2eKg: 4600, avgCo2ePerKg: 2.3, laneCount: 2 },
     social: { distinctProvinces: 2, distinctProducts: 1 },
+    waste: {
+      totalRejectedLanes: 0,
+      totalDisputes: 1,
+      totalGradeDowngrades: 1,
+      totalDamageClaims: 0,
+      estimatedWasteEvents: 1,
+    },
     governance: { avgCompleteness: 80, totalEvidenceCount: 24 },
   };
 
@@ -46,6 +61,13 @@ describe('MrvLiteController (e2e)', () => {
       distinctExporters: 15,
       distinctProvinces: 8,
       distinctProducts: 4,
+    },
+    waste: {
+      totalRejectedLanes: 2,
+      totalDisputes: 12,
+      totalGradeDowngrades: 4,
+      totalDamageClaims: 3,
+      estimatedWasteEvents: 9,
     },
     governance: {
       avgCompleteness: 75,
@@ -88,12 +110,14 @@ describe('MrvLiteController (e2e)', () => {
     getLaneEsgCard: jest.fn().mockResolvedValue(mockLaneEsgCard),
     getExporterReport: jest.fn().mockResolvedValue(mockExporterReport),
     getPlatformReport: jest.fn().mockResolvedValue(mockPlatformReport),
-    getEmissionFactors: jest.fn().mockReturnValue([
+    getEmissionFactors: jest.fn().mockResolvedValue([
       {
         product: 'MANGO',
         market: 'JAPAN',
         transportMode: 'AIR',
         co2ePerKg: 2.3,
+        source: 'seed',
+        lastUpdated: '2026-04-02',
       },
     ]),
   };

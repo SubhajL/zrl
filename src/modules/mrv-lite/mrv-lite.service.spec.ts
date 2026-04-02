@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { MRV_LITE_STORE, EMISSION_FACTORS } from './mrv-lite.constants';
+import { MRV_LITE_STORE } from './mrv-lite.constants';
 import type { LaneCarbonRow, MrvLiteStore } from './mrv-lite.types';
 import { MrvLiteService } from './mrv-lite.service';
 
 // Two sample lanes: MANGO/JAPAN/AIR (factor=2.3) and MANGO/JAPAN/SEA (factor=1.1)
 const exporterLaneRows: LaneCarbonRow[] = [
   {
+    status: 'VALIDATED',
     productType: 'MANGO',
     destinationMarket: 'JAPAN',
     transportMode: 'AIR',
@@ -14,8 +15,13 @@ const exporterLaneRows: LaneCarbonRow[] = [
     originProvince: 'Chanthaburi',
     evidenceCount: 12,
     auditEntryCount: 5,
+    disputeCount: 0,
+    resolvedDisputeCount: 0,
+    downgradedDisputeCount: 0,
+    damagedDisputeCount: 0,
   },
   {
+    status: 'VALIDATED',
     productType: 'MANGO',
     destinationMarket: 'JAPAN',
     transportMode: 'SEA',
@@ -24,12 +30,17 @@ const exporterLaneRows: LaneCarbonRow[] = [
     originProvince: 'Rayong',
     evidenceCount: 12,
     auditEntryCount: 5,
+    disputeCount: 0,
+    resolvedDisputeCount: 0,
+    downgradedDisputeCount: 0,
+    damagedDisputeCount: 0,
   },
 ];
 
 const platformLaneRows: LaneCarbonRow[] = [
   ...exporterLaneRows.map((r) => ({ ...r, exporterId: 'exporter-1' })),
   {
+    status: 'VALIDATED',
     productType: 'DURIAN',
     destinationMarket: 'CHINA',
     transportMode: 'TRUCK',
@@ -38,6 +49,10 @@ const platformLaneRows: LaneCarbonRow[] = [
     originProvince: 'Chumphon',
     evidenceCount: 6,
     auditEntryCount: 3,
+    disputeCount: 0,
+    resolvedDisputeCount: 0,
+    downgradedDisputeCount: 0,
+    damagedDisputeCount: 0,
     exporterId: 'exporter-2',
   },
 ];
@@ -54,9 +69,39 @@ function createMockStore(): jest.Mocked<MrvLiteStore> {
       originProvince: 'Chanthaburi',
       evidenceCount: 12,
       auditEntryCount: 5,
+      disputeCount: 1,
+      resolvedDisputeCount: 0,
+      downgradedDisputeCount: 1,
+      damagedDisputeCount: 0,
     }),
     getExporterLaneCarbonRows: jest.fn().mockResolvedValue(exporterLaneRows),
     getPlatformLaneCarbonRows: jest.fn().mockResolvedValue(platformLaneRows),
+    listEmissionFactors: jest.fn().mockResolvedValue([
+      {
+        product: 'MANGO',
+        market: 'JAPAN',
+        transportMode: 'AIR',
+        co2ePerKg: 2.3,
+        source: 'seed',
+        lastUpdated: '2026-04-02',
+      },
+      {
+        product: 'MANGO',
+        market: 'JAPAN',
+        transportMode: 'SEA',
+        co2ePerKg: 1.1,
+        source: 'seed',
+        lastUpdated: '2026-04-02',
+      },
+      {
+        product: 'DURIAN',
+        market: 'CHINA',
+        transportMode: 'TRUCK',
+        co2ePerKg: 0.8,
+        source: 'seed',
+        lastUpdated: '2026-04-02',
+      },
+    ]),
   };
 }
 
@@ -80,6 +125,7 @@ describe('MrvLiteService', () => {
       const card = await service.getLaneEsgCard('lane-1');
 
       expect(store.getLaneEsgData.mock.calls[0][0]).toBe('lane-1');
+      expect(store.listEmissionFactors).toHaveBeenCalled();
       // MANGO + JAPAN + AIR = 2.3 co2ePerKg, 1000 kg => 2300 total
       expect(card.carbon.co2ePerKg).toBe(2.3);
       expect(card.carbon.co2eTotalKg).toBe(2300);
@@ -98,6 +144,10 @@ describe('MrvLiteService', () => {
         originProvince: 'Rayong',
         evidenceCount: 3,
         auditEntryCount: 1,
+        disputeCount: 0,
+        resolvedDisputeCount: 0,
+        downgradedDisputeCount: 0,
+        damagedDisputeCount: 0,
       });
 
       const card = await service.getLaneEsgCard('lane-2');
@@ -112,6 +162,10 @@ describe('MrvLiteService', () => {
 
       expect(card.waste.laneStatus).toBe('VALIDATED');
       expect(card.waste.isRejected).toBe(false);
+      expect(card.waste.disputeCount).toBe(1);
+      expect(card.waste.gradeDowngradeCount).toBe(1);
+      expect(card.waste.damageClaimCount).toBe(0);
+      expect(card.waste.estimatedWasteEvents).toBe(1);
     });
 
     it('marks isRejected true for INCOMPLETE status', async () => {
@@ -125,6 +179,10 @@ describe('MrvLiteService', () => {
         originProvince: 'Chanthaburi',
         evidenceCount: 2,
         auditEntryCount: 1,
+        disputeCount: 2,
+        resolvedDisputeCount: 0,
+        downgradedDisputeCount: 1,
+        damagedDisputeCount: 1,
       });
 
       const card = await service.getLaneEsgCard('lane-3');
@@ -165,6 +223,10 @@ describe('MrvLiteService', () => {
         originProvince: 'Nonthaburi',
         evidenceCount: 1,
         auditEntryCount: 0,
+        disputeCount: 0,
+        resolvedDisputeCount: 0,
+        downgradedDisputeCount: 0,
+        damagedDisputeCount: 0,
       });
 
       const card = await service.getLaneEsgCard('lane-4');
@@ -197,6 +259,10 @@ describe('MrvLiteService', () => {
       expect(report.social.distinctProducts).toBe(1);
       expect(report.governance.avgCompleteness).toBe(80);
       expect(report.governance.totalEvidenceCount).toBe(24);
+      expect(report.waste.totalRejectedLanes).toBe(0);
+      expect(report.waste.totalDisputes).toBe(0);
+      expect(report.waste.totalGradeDowngrades).toBe(0);
+      expect(report.waste.totalDamageClaims).toBe(0);
     });
 
     it('returns zeros for empty lane set', async () => {
@@ -207,11 +273,13 @@ describe('MrvLiteService', () => {
       expect(report.environmental.totalCo2eKg).toBe(0);
       expect(report.environmental.avgCo2ePerKg).toBe(0);
       expect(report.environmental.laneCount).toBe(0);
+      expect(report.waste.totalRejectedLanes).toBe(0);
     });
 
     it('excludes empty-string provinces from distinct count', async () => {
       store.getExporterLaneCarbonRows.mockResolvedValue([
         {
+          status: 'VALIDATED',
           productType: 'MANGO',
           destinationMarket: 'JAPAN',
           transportMode: 'AIR',
@@ -220,8 +288,13 @@ describe('MrvLiteService', () => {
           originProvince: '',
           evidenceCount: 1,
           auditEntryCount: 0,
+          disputeCount: 0,
+          resolvedDisputeCount: 0,
+          downgradedDisputeCount: 0,
+          damagedDisputeCount: 0,
         },
         {
+          status: 'VALIDATED',
           productType: 'MANGO',
           destinationMarket: 'JAPAN',
           transportMode: 'AIR',
@@ -230,6 +303,10 @@ describe('MrvLiteService', () => {
           originProvince: 'Chanthaburi',
           evidenceCount: 1,
           auditEntryCount: 0,
+          disputeCount: 0,
+          resolvedDisputeCount: 0,
+          downgradedDisputeCount: 0,
+          damagedDisputeCount: 0,
         },
       ]);
 
@@ -259,6 +336,8 @@ describe('MrvLiteService', () => {
       expect(report.governance.avgCompleteness).toBe(75);
       expect(report.governance.totalEvidenceCount).toBe(30);
       expect(report.governance.totalAuditEntries).toBe(13);
+      expect(report.waste.totalRejectedLanes).toBe(0);
+      expect(report.waste.totalDisputes).toBe(0);
     });
 
     it('returns zeros for empty lane set', async () => {
@@ -269,29 +348,39 @@ describe('MrvLiteService', () => {
       expect(report.environmental.totalCo2eKg).toBe(0);
       expect(report.environmental.avgCo2ePerKg).toBe(0);
       expect(report.environmental.laneCount).toBe(0);
+      expect(report.waste.totalRejectedLanes).toBe(0);
     });
   });
 
   describe('getEmissionFactors', () => {
-    it('returns all factors', () => {
-      const factors = service.getEmissionFactors();
+    it('returns persisted factors from the store', async () => {
+      const factors = await service.getEmissionFactors();
 
-      expect(factors).toHaveLength(EMISSION_FACTORS.length);
-      expect(factors).toEqual(expect.arrayContaining(EMISSION_FACTORS));
+      expect(store.listEmissionFactors).toHaveBeenCalled();
+      expect(factors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            product: 'MANGO',
+            market: 'JAPAN',
+            transportMode: 'AIR',
+            co2ePerKg: 2.3,
+          }),
+        ]),
+      );
     });
 
-    it('returns a copy, not the original array', () => {
-      const factors = service.getEmissionFactors();
+    it('returns a copy, not the original array', async () => {
+      const factors = await service.getEmissionFactors();
       factors.push({
         product: 'TEST',
         market: 'TEST',
         transportMode: 'TEST',
         co2ePerKg: 0,
+        source: 'test',
+        lastUpdated: '2026-04-02',
       });
 
-      expect(service.getEmissionFactors()).toHaveLength(
-        EMISSION_FACTORS.length,
-      );
+      await expect(service.getEmissionFactors()).resolves.toHaveLength(3);
     });
   });
 });
