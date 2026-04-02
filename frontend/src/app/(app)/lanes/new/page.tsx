@@ -152,6 +152,23 @@ export default function LaneCreationWizard() {
     setSubmitError(null);
 
     try {
+      const gapCertificateNumber = gapCertificate.trim();
+      if (gapCertificateNumber.length > 0) {
+        const lookup = await requestAppJson<{
+          lookup: {
+            valid: boolean;
+          };
+        }>(
+          `/api/zrl/integrations/certifications/acfs/${encodeURIComponent(
+            gapCertificateNumber,
+          )}`,
+        );
+
+        if (!lookup.lookup.valid) {
+          throw new Error('ACFS GAP certificate is invalid or expired.');
+        }
+      }
+
       const response = await requestAppJson<{ lane: { id: string } }>(
         '/api/zrl/lanes',
         {
@@ -182,6 +199,26 @@ export default function LaneCreationWizard() {
           }),
         },
       );
+
+      if (gapCertificateNumber.length > 0) {
+        try {
+          await requestAppJson(
+            `/api/zrl/lanes/${response.lane.id}/integrations/certifications/acfs/import`,
+            {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                certificateNumber: gapCertificateNumber,
+              }),
+            },
+          );
+        } catch {
+          router.push(`/lanes/${response.lane.id}`);
+          return;
+        }
+      }
 
       router.push(`/lanes/${response.lane.id}`);
     } catch (error) {

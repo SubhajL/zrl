@@ -10,6 +10,7 @@ import {
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import type { AuditStore } from '../../common/audit/audit.types';
 import type { HashingService } from '../../common/hashing/hashing.service';
+import type { ColdChainService } from '../cold-chain/cold-chain.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { EvidenceService } from './evidence.service';
 import {
@@ -87,6 +88,7 @@ describe('EvidenceService', () => {
   };
   let laneReconciler: { reconcileAfterEvidenceChange: jest.Mock };
   let realtimeEvents: Pick<RealtimeEventsService, 'publishEvidenceUploaded'>;
+  let coldChainService: Pick<ColdChainService, 'ingestLaneReadings'>;
 
   beforeEach(() => {
     auditStore = {
@@ -178,6 +180,21 @@ describe('EvidenceService', () => {
     realtimeEvents = {
       publishEvidenceUploaded: jest.fn().mockResolvedValue(undefined),
     };
+    coldChainService = {
+      ingestLaneReadings: jest.fn().mockResolvedValue({
+        count: 2,
+        excursionsDetected: 0,
+        sla: {
+          status: 'PASS',
+          defensibilityScore: 100,
+          shelfLifeImpactPercent: 0,
+          remainingShelfLifeDays: 14,
+          excursionCount: 0,
+          totalExcursionMinutes: 0,
+          maxDeviationC: 0,
+        },
+      }),
+    };
     service = new EvidenceService(
       store,
       objectStore,
@@ -187,6 +204,7 @@ describe('EvidenceService', () => {
       rulesEngineService as never,
       laneReconciler as never,
       realtimeEvents as never,
+      coldChainService as never,
     );
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
     uploadFilePath = join(tempDirectory, 'phyto.pdf');
@@ -277,6 +295,164 @@ describe('EvidenceService', () => {
       type: 'PHYTO_CERT',
       completeness: 0,
     });
+  });
+
+  it('createPartnerTemperatureArtifact persists the artifact and ingests normalized readings into cold-chain', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-temp-1',
+      artifactType: 'TEMP_DATA',
+      fileName: 'temperature-data.json',
+      mimeType: 'application/json',
+      source: ArtifactSource.PARTNER_API,
+      metadata: {
+        readings: [
+          {
+            timestamp: '2026-04-02T12:00:00.000Z',
+            temperatureC: 11.4,
+            deviceId: 'sensor-1',
+          },
+          {
+            timestamp: '2026-04-02T12:05:00.000Z',
+            temperatureC: 11.6,
+            deviceId: 'sensor-1',
+          },
+        ],
+      },
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    const result = await service.createPartnerTemperatureArtifact(
+      {
+        laneId: 'lane-db-1',
+        issuer: 'Thai Airways Cargo',
+        issuedAt: '2026-04-02T12:00:00.000Z',
+        payload: {
+          provider: 'thai-airways',
+          shipmentId: 'TG-100',
+          readings: [
+            {
+              timestamp: '2026-04-02T12:00:00.000Z',
+              temperatureC: 11.4,
+              deviceId: 'sensor-1',
+            },
+            {
+              timestamp: '2026-04-02T12:05:00.000Z',
+              temperatureC: 11.6,
+              deviceId: 'sensor-1',
+            },
+          ],
+        },
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(coldChainService.ingestLaneReadings).toHaveBeenCalledWith(
+      'lane-db-1',
+      {
+        readings: [
+          {
+            timestamp: new Date('2026-04-02T12:00:00.000Z'),
+            temperatureC: 11.4,
+            deviceId: 'sensor-1',
+          },
+          {
+            timestamp: new Date('2026-04-02T12:05:00.000Z'),
+            temperatureC: 11.6,
+            deviceId: 'sensor-1',
+          },
+        ],
+      },
+    );
+    expect(result.artifact.artifactType).toBe('TEMP_DATA');
+    expect(result.ingestion?.count).toBe(2);
+  });
+
+  it('createPartnerCertificationArtifact persists GAP certificate metadata', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-gap-1',
+      artifactType: 'GAP_CERT',
+      fileName: 'gap-certificate.json',
+      mimeType: 'application/json',
+      source: ArtifactSource.PARTNER_API,
+      metadata: {
+        certificateNumber: 'GAP-100',
+        valid: true,
+        holderName: 'Exporter Co',
+      },
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    const result = await service.createPartnerCertificationArtifact(
+      {
+        laneId: 'lane-db-1',
+        issuer: 'ACFS Thailand',
+        issuedAt: '2026-04-02T12:00:00.000Z',
+        payload: {
+          provider: 'acfs',
+          certificateNumber: 'GAP-100',
+          valid: true,
+          holderName: 'Exporter Co',
+          scope: ['Mango'],
+        },
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    const [createArtifactInput] = createArtifactMock.mock.calls[0] as [
+      {
+        artifactType: string;
+        source: string;
+        metadata: Record<string, unknown> | null;
+      },
+    ];
+    expect(createArtifactInput.artifactType).toBe('GAP_CERT');
+    expect(createArtifactInput.source).toBe(ArtifactSource.PARTNER_API);
+    expect(createArtifactInput.metadata).toMatchObject({
+      certificateNumber: 'GAP-100',
+      valid: true,
+      holderName: 'Exporter Co',
+    });
+    expect(result.artifact.artifactType).toBe('GAP_CERT');
   });
 
   it('uploadArtifact auto-links a checkpoint artifact to prior lane and checkpoint parents', async () => {

@@ -5,6 +5,8 @@ import { AuthModule } from '../../common/auth/auth.module';
 import { DatabaseModule } from '../../common/database/database.module';
 import { HashingModule } from '../../common/hashing/hashing.module';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { ColdChainModule } from '../cold-chain/cold-chain.module';
+import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { LaneModule } from '../lane/lane.module';
 import { LANE_RECONCILER } from '../lane/lane.constants';
 import type { LaneReconciler } from '../lane/lane.types';
@@ -39,6 +41,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
     RulesEngineModule,
     NotificationModule,
     LaneModule,
+    ColdChainModule,
   ],
   controllers: [EvidenceController, CheckpointEvidenceController],
   providers: [
@@ -70,6 +73,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         rulesEngineService: RulesEngineService,
         laneReconciler: LaneReconciler,
         realtimeEvents: RealtimeEventsService,
+        coldChainService: ColdChainService,
       ) =>
         new EvidenceService(
           store,
@@ -80,6 +84,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
           rulesEngineService,
           laneReconciler,
           realtimeEvents,
+          coldChainService,
         ),
       inject: [
         PrismaEvidenceStore,
@@ -90,6 +95,7 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         RulesEngineService,
         LANE_RECONCILER,
         RealtimeEventsService,
+        ColdChainService,
       ],
     },
     ProofPackService,

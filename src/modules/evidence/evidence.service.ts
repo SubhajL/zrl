@@ -13,6 +13,11 @@ import { extname } from 'node:path';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import { ColdChainService } from '../cold-chain/cold-chain.service';
+import type {
+  IngestLaneReadingsResult,
+  TemperatureReadingInput,
+} from '../cold-chain/cold-chain.types';
 import { LANE_RECONCILER } from '../lane/lane.constants';
 import type { LaneReconciler } from '../lane/lane.types';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
@@ -92,7 +97,7 @@ function hasCheckpointCaptureMetadata(
 }
 
 function normalizePartnerMetadata(
-  artifactType: 'MRL_TEST' | 'TEMP_DATA',
+  artifactType: 'MRL_TEST' | 'TEMP_DATA' | 'GAP_CERT',
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
   const metadata: Record<string, unknown> = {};
@@ -105,7 +110,65 @@ function normalizePartnerMetadata(
     }
   }
 
+  if (artifactType === 'GAP_CERT') {
+    if (typeof payload['certificateNumber'] === 'string') {
+      metadata['certificateNumber'] = payload['certificateNumber'];
+    }
+    if (typeof payload['valid'] === 'boolean') {
+      metadata['valid'] = payload['valid'];
+    }
+    if (typeof payload['holderName'] === 'string') {
+      metadata['holderName'] = payload['holderName'];
+    }
+    if (typeof payload['expiryDate'] === 'string') {
+      metadata['expiryDate'] = payload['expiryDate'];
+    }
+    if (Array.isArray(payload['scope'])) {
+      metadata['scope'] = payload['scope'];
+    }
+  }
+
   return metadata;
+}
+
+function extractPartnerTemperatureReadings(
+  payload: Record<string, unknown>,
+): TemperatureReadingInput[] {
+  if (!Array.isArray(payload['readings'])) {
+    return [];
+  }
+
+  return payload['readings']
+    .map((entry) =>
+      typeof entry === 'object' && entry !== null && !Array.isArray(entry)
+        ? (entry as Record<string, unknown>)
+        : null,
+    )
+    .filter((entry): entry is Record<string, unknown> => entry !== null)
+    .map((reading) => {
+      const timestamp = reading['timestamp'];
+      const temperatureC = reading['temperatureC'];
+      const deviceId = reading['deviceId'];
+      return {
+        timestamp:
+          typeof timestamp === 'string' || timestamp instanceof Date
+            ? new Date(timestamp)
+            : new Date(Number.NaN),
+        temperatureC:
+          typeof temperatureC === 'number'
+            ? temperatureC
+            : Number(temperatureC ?? Number.NaN),
+        deviceId:
+          typeof deviceId === 'string' && deviceId.trim().length > 0
+            ? deviceId.trim()
+            : null,
+      };
+    })
+    .filter(
+      (reading) =>
+        !Number.isNaN(reading.timestamp.getTime()) &&
+        Number.isFinite(reading.temperatureC),
+    );
 }
 
 function mergeLinks(
@@ -202,6 +265,7 @@ export class EvidenceService {
     @Inject(LANE_RECONCILER)
     private readonly laneReconciler: LaneReconciler,
     private readonly realtimeEvents: RealtimeEventsService,
+    private readonly coldChainService?: ColdChainService,
   ) {}
 
   async uploadArtifact(input: UploadArtifactInput, actor: EvidenceRequestUser) {
@@ -420,11 +484,43 @@ export class EvidenceService {
     },
     actor: EvidenceRequestUser,
   ) {
-    return await this.createPartnerArtifact(
+    const result = await this.createPartnerArtifact(
       {
         ...input,
         artifactType: 'TEMP_DATA',
         fileName: 'temperature-data.json',
+      },
+      actor,
+    );
+
+    const readings = extractPartnerTemperatureReadings(input.payload);
+    let ingestion: IngestLaneReadingsResult | undefined;
+    if (readings.length > 0 && this.coldChainService !== undefined) {
+      ingestion = await this.coldChainService.ingestLaneReadings(input.laneId, {
+        readings,
+      });
+    }
+
+    return {
+      ...result,
+      ingestion,
+    };
+  }
+
+  async createPartnerCertificationArtifact(
+    input: {
+      laneId: string;
+      issuer?: string;
+      issuedAt?: string;
+      payload: Record<string, unknown>;
+    },
+    actor: EvidenceRequestUser,
+  ) {
+    return await this.createPartnerArtifact(
+      {
+        ...input,
+        artifactType: 'GAP_CERT',
+        fileName: 'gap-certificate.json',
       },
       actor,
     );
@@ -767,7 +863,7 @@ export class EvidenceService {
   private async createPartnerArtifact(
     input: {
       laneId: string;
-      artifactType: 'MRL_TEST' | 'TEMP_DATA';
+      artifactType: 'MRL_TEST' | 'TEMP_DATA' | 'GAP_CERT';
       fileName: string;
       issuer?: string;
       issuedAt?: string;

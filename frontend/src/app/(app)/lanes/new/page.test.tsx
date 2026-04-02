@@ -211,4 +211,155 @@ describe('LaneCreationWizard', () => {
     );
     expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-1');
   });
+
+  it('validates and imports the GAP certificate during lane creation when provided', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          lookup: {
+            provider: 'acfs',
+            certificateNumber: 'GAP-100',
+            valid: true,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          lane: {
+            id: 'lane-db-1',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          artifact: {
+            id: 'artifact-gap-1',
+            artifactType: 'GAP_CERT',
+          },
+          valid: true,
+        }),
+      });
+
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.type(screen.getByLabelText(/variety/i), 'Nam Doc Mai');
+    await user.type(screen.getByLabelText(/quantity/i), '5000');
+    await user.type(screen.getByLabelText(/harvest date/i), '2026-03-28');
+    await user.type(screen.getByLabelText(/origin province/i), 'Chachoengsao');
+    await user.type(screen.getByLabelText(/gap certificate/i), 'GAP-100');
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+    await user.click(screen.getByRole('button', { name: /next: review/i }));
+    await user.click(screen.getByRole('button', { name: /create lane/i }));
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/zrl/integrations/certifications/acfs/GAP-100',
+      expect.any(Object),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/zrl/lanes',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      3,
+      '/api/zrl/lanes/lane-db-1/integrations/certifications/acfs/import',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-1');
+  });
+
+  it('blocks lane creation when GAP certificate validation fails', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({
+        message: 'ACFS GAP certificate is invalid or expired.',
+      }),
+    });
+
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.type(screen.getByLabelText(/quantity/i), '5000');
+    await user.type(screen.getByLabelText(/harvest date/i), '2026-03-28');
+    await user.type(screen.getByLabelText(/origin province/i), 'Chachoengsao');
+    await user.type(screen.getByLabelText(/gap certificate/i), 'BAD-CERT');
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+    await user.click(screen.getByRole('button', { name: /next: review/i }));
+    await user.click(screen.getByRole('button', { name: /create lane/i }));
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/zrl/integrations/certifications/acfs/BAD-CERT',
+      expect.any(Object),
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'ACFS GAP certificate is invalid or expired.',
+    );
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('redirects to the created lane even when post-create GAP import fails', async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          lookup: {
+            provider: 'acfs',
+            certificateNumber: 'GAP-100',
+            valid: true,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          lane: {
+            id: 'lane-db-1',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          message: 'Temporary ACFS import failure.',
+        }),
+      });
+
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.type(screen.getByLabelText(/quantity/i), '5000');
+    await user.type(screen.getByLabelText(/harvest date/i), '2026-03-28');
+    await user.type(screen.getByLabelText(/origin province/i), 'Chachoengsao');
+    await user.type(screen.getByLabelText(/gap certificate/i), 'GAP-100');
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+    await user.click(screen.getByRole('button', { name: /next: review/i }));
+    await user.click(screen.getByRole('button', { name: /create lane/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-1');
+  });
 });

@@ -14,6 +14,7 @@ import { AuditModule } from './common/audit/audit.module';
 import { NotificationModule } from './modules/notifications/notification.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PartnerIntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     NotificationModule,
     PrivacyModule,
     AnalyticsModule,
+    PartnerIntegrationsModule,
     // Common services
     AuthModule,
     HashingModule,
