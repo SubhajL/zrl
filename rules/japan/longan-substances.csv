@@ -1,0 +1,17 @@
+# Source: JFCRF db.ffcr.or.jp + Chiang Mai longan orchard study (Sci. Rep. 2026)
+# Commodity: Longan (リュウガン / ロンガン) — tropical fruit, cold-storage (2-5°C)
+# Verified: 2026-04-03
+# Official PLS default MRL when no specific row exists: 0.01 mg/kg
+# Study ref: nature.com/articles/s41598-026-43950-6 — 25 pesticides detected in Chiang Mai longan canals
+# Thai MoPH: carbendazim MRL = 1.0 mg/kg for longan
+name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
+Carbendazim,カルベンダジム,10605-21-7,1.0,0.5,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Dominant fungicide at fruit set; ecological risk driver
+Hexaconazole,ヘキサコナゾール,79983-71-4,0.5,0.01,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Triazole fungicide increased at fruit set; PLS default
+Carbosulfan,カルボスルファン,55285-14-8,0.5,0.01,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Dominant insecticide at flowering; ecological risk driver
+Chlorpyrifos,クロルピリホス,2921-88-2,0.5,0.01,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Common organophosphate; 50x stringency
+Formothion,ホルモチオン,2540-82-1,0.5,0.01,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Peaked at fruit set; PLS default
+Ethion,エチオン,563-12-2,1.0,0.01,"JFCRF db.ffcr.or.jp; Sci. Rep. 2026",Episodic ecological risk driver; PLS default
+Imidacloprid,イミダクロプリド,138261-41-3,1.0,0.2,JFCRF db.ffcr.or.jp,Neonicotinoid; Japan mango MRL proxy
+Dimethoate,ジメトエート,60-51-5,1.0,0.01,JFCRF db.ffcr.or.jp,Organophosphate; PLS default
+Cypermethrin,シペルメトリン,52315-07-8,2.0,0.2,JFCRF db.ffcr.or.jp,Common pyrethroid; Japan mango MRL proxy
+Profenofos,プロフェノホス,41198-08-7,0.5,0.05,JFCRF db.ffcr.or.jp,Organophosphate; Japan mango MRL proxy

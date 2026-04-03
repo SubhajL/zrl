@@ -1,0 +1,45 @@
+# Source checked: 2026-04-03
+# Primary sources:
+# - https://db.ffcr.or.jp/front/?lng=en (JFCRF MRL Database)
+# - https://academic.oup.com/jipm/article/10/1/18/5510771 (Longan IPM — confirms B. dorsalis host)
+# - https://www.nature.com/articles/s41598-026-43950-6 (Chiang Mai longan orchard pesticides)
+# Notes:
+# - Longan IS a confirmed host for Bactrocera dorsalis (unlike durian/mangosteen)
+# - VHT Certificate is required for Japan import (quarantine treatment for fruit fly)
+# - Cold-storage fruit: optimal 2-5°C, >8°C causes browning
+# - SO₂ fumigation standard practice for pericarp browning control
+# - Key pest chemicals: carbendazim, hexaconazole (fungicides at fruit set),
+#   carbosulfan (insecticide at flowering), formothion, ethion
+market: JAPAN
+product: LONGAN
+version: 1
+effectiveDate: 2026-04-03
+requiredDocuments:
+  - Phytosanitary Certificate
+  - VHT Certificate
+  - MRL Test Results
+  - Export License
+  - Commercial Invoice
+  - Grading Report
+  - Product Photos
+  - GAP Certificate
+  - Packing List
+  - Temperature Log
+  - SLA Summary
+  - Excursion Report
+  - Handoff Signatures
+  - Transport Document
+  - Delivery Note
+completenessWeights:
+  regulatory: 0.4
+  quality: 0.25
+  coldChain: 0.2
+  chainOfCustody: 0.15
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
+substancesFile: ./longan-substances.csv
