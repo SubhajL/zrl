@@ -23,4 +23,11 @@ completenessWeights:
   quality: 0.25
   coldChain: 0.2
   chainOfCustody: 0.15
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
 substancesFile: ./mango-substances.csv

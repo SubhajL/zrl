@@ -1,13 +1,18 @@
-name,cas,thaiMrl,destinationMrl
-Chlorpyrifos,2921-88-2,0.5,0.01
-Dithiocarbamates,111-54-6,2,0.1
-Carbendazim,10605-21-7,5,0.5
-Cypermethrin,52315-07-8,2,0.2
-Profenofos,41198-08-7,0.5,0.05
-Imidacloprid,138261-41-3,1,0.2
-Metalaxyl,57837-19-1,1,0.2
-Difenoconazole,119446-68-3,0.5,0.1
-Thiabendazole,148-79-8,10,3
-Prochloraz,67747-09-5,5,2
-Lambda-cyhalothrin,91465-08-6,0.5,0.2
-Acetamiprid,135410-20-7,0.5,0.3
+# Source: Japan JFCRF MRL Database (db.ffcr.or.jp) + CLAUDE.md critical substances table
+# Commodity: Mango (マンゴー) — individual classification, tropical fruit (inedible peel)
+# Verified: 2026-04-03
+# Official PLS default MRL when no specific row exists: 0.01 mg/kg
+# Thai MRL values from Thailand DOA pesticide registration database
+name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
+Chlorpyrifos,クロルピリホス,2921-88-2,0.5,0.01,JFCRF db.ffcr.or.jp,50x stringency ratio — highest risk
+Dithiocarbamates,ジチオカーバメート,111-54-6,2,0.1,JFCRF db.ffcr.or.jp,20x stringency ratio
+Carbendazim,カルベンダジム,10605-21-7,5,0.5,JFCRF db.ffcr.or.jp,10x stringency ratio
+Cypermethrin,シペルメトリン,52315-07-8,2,0.2,JFCRF db.ffcr.or.jp,10x stringency ratio
+Profenofos,プロフェノホス,41198-08-7,0.5,0.05,JFCRF db.ffcr.or.jp,10x stringency ratio
+Imidacloprid,イミダクロプリド,138261-41-3,1,0.2,JFCRF db.ffcr.or.jp,5x stringency ratio
+Metalaxyl,メタラキシル,57837-19-1,1,0.2,JFCRF db.ffcr.or.jp,5x stringency ratio
+Difenoconazole,ジフェノコナゾール,119446-68-3,0.5,0.1,JFCRF db.ffcr.or.jp,5x stringency ratio
+Thiabendazole,チアベンダゾール,148-79-8,10,3,JFCRF db.ffcr.or.jp,3.3x stringency ratio
+Prochloraz,プロクロラズ,67747-09-5,5,2,JFCRF db.ffcr.or.jp,2.5x stringency ratio
+Lambda-cyhalothrin,ラムダシハロトリン,91465-08-6,0.5,0.2,JFCRF db.ffcr.or.jp,2.5x stringency ratio
+Acetamiprid,アセタミプリド,135410-20-7,0.5,0.3,JFCRF db.ffcr.or.jp,1.7x stringency ratio
