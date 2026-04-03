@@ -1,3 +1,5 @@
+import type { AuditAction } from '../../common/audit/audit.types';
+
 export const RuleMarket = {
   JAPAN: 'JAPAN',
   CHINA: 'CHINA',
@@ -45,13 +47,48 @@ export const RuleChecklistCategory = {
 export type RuleChecklistCategory =
   (typeof RuleChecklistCategory)[keyof typeof RuleChecklistCategory];
 
+export const RuleLabEnforcementMode = {
+  DOCUMENT_ONLY: 'DOCUMENT_ONLY',
+  FULL_PESTICIDE: 'FULL_PESTICIDE',
+} as const;
+
+export type RuleLabEnforcementMode =
+  (typeof RuleLabEnforcementMode)[keyof typeof RuleLabEnforcementMode];
+
+export const RuleLabValidationStatus = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  BLOCKED: 'BLOCKED',
+} as const;
+
+export type RuleLabValidationStatus =
+  (typeof RuleLabValidationStatus)[keyof typeof RuleLabValidationStatus];
+
+export const RuleLabLimitSource = {
+  SPECIFIC: 'SPECIFIC',
+  DEFAULT_FALLBACK: 'DEFAULT_FALLBACK',
+} as const;
+
+export type RuleLabLimitSource =
+  (typeof RuleLabLimitSource)[keyof typeof RuleLabLimitSource];
+
+export interface RuleLabPolicy {
+  enforcementMode: RuleLabEnforcementMode;
+  requiredArtifactType: 'MRL_TEST';
+  acceptedUnits: string[];
+  defaultDestinationMrlMgKg: number | null;
+}
+
 export interface RuleSubstanceDefinition {
   name: string;
-  cas: string;
-  thaiMrl: number;
+  aliases: string[];
+  cas: string | null;
+  thaiMrl: number | null;
   destinationMrl: number;
-  stringencyRatio: number;
-  riskLevel: RuleRiskLevel;
+  stringencyRatio: number | null;
+  riskLevel: RuleRiskLevel | null;
+  sourceRef: string | null;
+  note: string | null;
 }
 
 export interface RuleSetDefinition {
@@ -62,6 +99,7 @@ export interface RuleSetDefinition {
   sourcePath: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  labPolicy?: RuleLabPolicy;
   substances: RuleSubstanceDefinition[];
 }
 
@@ -69,11 +107,11 @@ export interface RuleSubstanceRecord {
   id: string;
   market: RuleMarket;
   name: string;
-  cas: string;
-  thaiMrl: number;
+  cas: string | null;
+  thaiMrl: number | null;
   destinationMrl: number;
-  stringencyRatio: number;
-  riskLevel: RuleRiskLevel;
+  stringencyRatio: number | null;
+  riskLevel: RuleRiskLevel | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -109,6 +147,7 @@ export interface RuleSnapshotPayload {
   sourcePath: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  labPolicy?: RuleLabPolicy;
   substances: RuleSubstanceDefinition[];
 }
 
@@ -140,17 +179,20 @@ export interface RuleChecklistCategorySummary {
 
 export interface RuleLabValidationResultItem {
   substance: string;
-  cas: string;
+  cas: string | null;
   valueMgKg: number | null;
-  limitMgKg: number;
+  limitMgKg: number | null;
   passed: boolean;
   status: 'PASS' | 'FAIL' | 'UNKNOWN';
-  riskLevel: RuleRiskLevel;
+  riskLevel: RuleRiskLevel | null;
+  limitSource: RuleLabLimitSource;
 }
 
 export interface RuleLabValidationResult {
+  status: RuleLabValidationStatus;
   valid: boolean;
   hasUnknowns: boolean;
+  blockingReasons: string[];
   results: RuleLabValidationResultItem[];
 }
 
@@ -249,7 +291,7 @@ export interface RuleStore {
   listSubstances(market?: RuleMarket): Promise<RuleSubstanceRecord[]>;
   createSubstance(
     market: RuleMarket,
-    input: Omit<RuleSubstanceDefinition, 'stringencyRatio' | 'riskLevel'>,
+    input: RuleSubstanceInput,
   ): Promise<RuleSubstanceRecord>;
   bumpRuleVersionsForMarket(
     market: RuleMarket,
@@ -257,9 +299,7 @@ export interface RuleStore {
   ): Promise<RuleSetRecord[]>;
   updateSubstance(
     substanceId: string,
-    input: Partial<
-      Omit<RuleSubstanceDefinition, 'stringencyRatio' | 'riskLevel'>
-    >,
+    input: Partial<RuleSubstanceInput>,
   ): Promise<RuleSubstanceRecord>;
   listRuleVersions(filter?: {
     market?: RuleMarket;
@@ -305,11 +345,19 @@ export interface RuleDefinitionSource {
   substancesFile?: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  labPolicy?: {
+    enforcementMode: RuleLabEnforcementMode;
+    requiredArtifactType?: 'MRL_TEST';
+    acceptedUnits?: string[];
+    defaultDestinationMrlMgKg?: number | null;
+  };
   substances?: Array<{
     name: string;
-    cas: string;
-    thaiMrl: number;
+    aliases?: string[];
+    cas?: string | null;
+    thaiMrl?: number | null;
     destinationMrl: number;
+    sourceRef?: string | null;
+    note?: string | null;
   }>;
 }
-import type { AuditAction } from '../../common/audit/audit.types';

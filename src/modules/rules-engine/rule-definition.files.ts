@@ -93,7 +93,7 @@ function parseRuleSubstancesCsv(
 
   const [headerRow, ...dataRows] = rows;
   const headers = parseCsvLine(headerRow);
-  const requiredHeaders = ['name', 'cas', 'thaiMrl', 'destinationMrl'];
+  const requiredHeaders = ['name', 'destinationMrl'];
   for (const header of requiredHeaders) {
     if (!headers.includes(header)) {
       throw new Error(`Invalid ${context}: missing "${header}" column.`);
@@ -114,15 +114,27 @@ function parseRuleSubstancesCsv(
 
     return {
       name: record['name'] ?? '',
-      cas: record['cas'] ?? '',
-      thaiMrl: parseCsvNumber(
-        record['thaiMrl'] ?? '',
-        `${context} row ${index + 2} thaiMrl`,
-      ),
+      aliases:
+        typeof record['aliases'] === 'string' && record['aliases'].length > 0
+          ? record['aliases']
+              .split('|')
+              .map((value) => value.trim())
+              .filter((value) => value.length > 0)
+          : undefined,
+      cas: record['cas']?.trim() || null,
+      thaiMrl:
+        typeof record['thaiMrl'] === 'string' && record['thaiMrl'].trim() !== ''
+          ? parseCsvNumber(
+              record['thaiMrl'],
+              `${context} row ${index + 2} thaiMrl`,
+            )
+          : null,
       destinationMrl: parseCsvNumber(
         record['destinationMrl'] ?? '',
         `${context} row ${index + 2} destinationMrl`,
       ),
+      sourceRef: record['sourceRef']?.trim() || null,
+      note: record['note']?.trim() || null,
     };
   });
 }

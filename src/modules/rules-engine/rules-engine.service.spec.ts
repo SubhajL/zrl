@@ -22,6 +22,12 @@ function buildDefinition(
       coldChain: 0.2,
       chainOfCustody: 0.15,
     },
+    labPolicy: {
+      enforcementMode: 'DOCUMENT_ONLY',
+      requiredArtifactType: 'MRL_TEST',
+      acceptedUnits: ['mg/kg', 'ppm'],
+      defaultDestinationMrlMgKg: null,
+    },
     substances: [
       {
         name: 'Chlorpyrifos',
@@ -30,6 +36,9 @@ function buildDefinition(
         destinationMrl: 0.01,
         stringencyRatio: 50,
         riskLevel: 'CRITICAL',
+        aliases: [],
+        sourceRef: null,
+        note: null,
       },
     ],
     ...overrides,
@@ -400,19 +409,25 @@ describe('RulesEngineService', () => {
       substances: [
         {
           name: 'Chlorpyrifos',
+          aliases: [],
           cas: '2921-88-2',
           thaiMrl: 0.5,
           destinationMrl: 0.01,
           stringencyRatio: 50,
           riskLevel: 'CRITICAL',
+          sourceRef: null,
+          note: null,
         },
         {
           name: 'Dithiocarbamates',
+          aliases: [],
           cas: '111-54-6',
           thaiMrl: 2,
           destinationMrl: 0.1,
           stringencyRatio: 20,
           riskLevel: 'CRITICAL',
+          sourceRef: null,
+          note: null,
         },
       ],
     });
@@ -488,11 +503,114 @@ describe('RulesEngineService', () => {
       expect.objectContaining({
         valid: true,
         hasUnknowns: false,
+        blockingReasons: [],
         results: [
           expect.objectContaining({
             substance: 'Chlorpyrifos',
             valueMgKg: 0.01,
             status: 'PASS',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('evaluateLane blocks when full pesticide enforcement requires structured mrl evidence', () => {
+    const definition = buildDefinition({
+      market: 'KOREA',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, []);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'BLOCKED',
+        valid: false,
+        blockingReasons: ['MRL_TEST_REQUIRED'],
+        results: [],
+      }),
+    );
+  });
+
+  it('evaluateLane uses the specific korea mango threshold before the default fallback', () => {
+    const definition = buildDefinition({
+      market: 'KOREA',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+      substances: [
+        {
+          name: 'Acetamiprid',
+          aliases: ['아세타미프리드'],
+          cas: '135410-20-7',
+          thaiMrl: null,
+          destinationMrl: 0.2,
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'MFDS foodView:ap105050006; infoView:P00227',
+          note: null,
+        },
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: '아세타미프리드',
+              valueMgKg: 0.25,
+            },
+            {
+              substance: 'Unlisted Pesticide',
+              valueMgKg: 0.02,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'FAIL',
+        valid: false,
+        blockingReasons: [],
+        results: [
+          expect.objectContaining({
+            substance: 'Acetamiprid',
+            limitMgKg: 0.2,
+            status: 'FAIL',
+            limitSource: 'SPECIFIC',
+          }),
+          expect.objectContaining({
+            substance: 'Unlisted Pesticide',
+            limitMgKg: 0.01,
+            status: 'FAIL',
+            limitSource: 'DEFAULT_FALLBACK',
           }),
         ],
       }),

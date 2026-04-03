@@ -34,6 +34,7 @@ import type { AuthPrincipalRequest } from '../../common/auth/auth.types';
 import { AuditService } from '../../common/audit/audit.service';
 import { LaneService } from '../lane/lane.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
+import { adaptLaneSnapshotToRulePayload } from '../rules-engine/rules-engine.utils';
 import { ArtifactSource, type EvidenceArtifactType } from './evidence.types';
 import { EvidenceService } from './evidence.service';
 import { ProofPackService } from './proof-pack.service';
@@ -422,21 +423,7 @@ export class EvidenceController {
         metadata: a.metadata,
       }));
       const evaluation = this.rulesEngineService.evaluateLane(
-        {
-          market: lane.ruleSnapshot.market,
-          product: lane.ruleSnapshot.product,
-          version: lane.ruleSnapshot.version,
-          effectiveDate: new Date(),
-          sourcePath: lane.ruleSnapshot.rules.sourcePath ?? '',
-          requiredDocuments: lane.ruleSnapshot.rules.requiredDocuments ?? [],
-          completenessWeights: lane.ruleSnapshot.rules.completenessWeights ?? {
-            regulatory: 0.4,
-            quality: 0.25,
-            coldChain: 0.2,
-            chainOfCustody: 0.15,
-          },
-          substances: lane.ruleSnapshot.rules.substances ?? [],
-        },
+        adaptLaneSnapshotToRulePayload(lane.ruleSnapshot),
         artifactsForEval,
       );
 
@@ -456,7 +443,7 @@ export class EvidenceController {
         );
         labResults = evaluation.labValidation.results.map((result) => ({
           substance: result.substance,
-          thaiMrl: substanceMap.get(result.substance.toLowerCase()) ?? 0,
+          thaiMrl: substanceMap.get(result.substance.toLowerCase()) ?? null,
           destinationMrl: result.limitMgKg,
           measuredValue: result.valueMgKg,
           status: result.status,

@@ -84,6 +84,12 @@ interface CertificationAlertCandidate {
   data: Record<string, unknown>;
 }
 
+interface ParsedLabResult {
+  substance: string;
+  cas: string | null;
+  valueMgKg: number;
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -726,62 +732,159 @@ export class RulesEngineService {
     snapshot: RuleSnapshotPayload,
     artifacts: RuleLaneArtifact[],
   ): RuleLabValidationResult | null {
+    const enforcementMode = snapshot.labPolicy?.enforcementMode;
     const latestLabArtifact = [...artifacts]
       .reverse()
       .find((artifact) => artifact.artifactType === 'MRL_TEST');
 
     if (latestLabArtifact === undefined) {
+      if (enforcementMode === 'FULL_PESTICIDE') {
+        return {
+          status: 'BLOCKED',
+          valid: false,
+          hasUnknowns: false,
+          blockingReasons: ['MRL_TEST_REQUIRED'],
+          results: [],
+        };
+      }
+
       return null;
     }
 
     const results = this.parseLabResults(latestLabArtifact.metadata);
-    const resultByKey = new Map(
-      results.flatMap((result) => {
-        const keys = [normalizeKey(result.substance)];
-        if (result.cas !== null) {
-          keys.push(normalizeKey(result.cas));
-        }
+    const blockingReasons: string[] = [];
+    if (enforcementMode === 'FULL_PESTICIDE' && results.length === 0) {
+      blockingReasons.push('MRL_RESULTS_REQUIRED');
+    }
 
-        return keys.map((key) => [key, result] as const);
-      }),
-    );
+    const resultByKey = new Map<string, ParsedLabResult>();
+    for (const result of results) {
+      resultByKey.set(normalizeKey(result.substance), result);
+      if (result.cas !== null) {
+        resultByKey.set(normalizeKey(result.cas), result);
+      }
+    }
 
-    const validationResults: RuleLabValidationResultItem[] =
-      snapshot.substances.map((substance) => {
-        const measured =
-          resultByKey.get(normalizeKey(substance.name)) ??
-          resultByKey.get(normalizeKey(substance.cas));
-        if (measured === undefined) {
-          return {
-            substance: substance.name,
-            cas: substance.cas,
-            valueMgKg: null,
-            limitMgKg: substance.destinationMrl,
-            passed: false,
-            status: 'UNKNOWN',
-            riskLevel: substance.riskLevel,
-          };
-        }
+    const matchedMeasuredKeys = new Set<string>();
+    const validationResults: RuleLabValidationResultItem[] = [];
+    const pushMeasuredKeys = (result: ParsedLabResult) => {
+      matchedMeasuredKeys.add(normalizeKey(result.substance));
+      if (result.cas !== null) {
+        matchedMeasuredKeys.add(normalizeKey(result.cas));
+      }
+    };
 
-        const passed = measured.valueMgKg <= substance.destinationMrl;
-        return {
+    for (const substance of snapshot.substances) {
+      const measured = this.findMeasuredResult(resultByKey, substance);
+      if (measured === null) {
+        validationResults.push({
           substance: substance.name,
           cas: substance.cas,
-          valueMgKg: measured.valueMgKg,
+          valueMgKg: null,
           limitMgKg: substance.destinationMrl,
-          passed,
-          status: passed ? 'PASS' : 'FAIL',
+          passed: false,
+          status: 'UNKNOWN',
           riskLevel: substance.riskLevel,
-        };
+          limitSource: 'SPECIFIC',
+        });
+        continue;
+      }
+
+      pushMeasuredKeys(measured);
+      const passed = measured.valueMgKg <= substance.destinationMrl;
+      validationResults.push({
+        substance: substance.name,
+        cas: substance.cas,
+        valueMgKg: measured.valueMgKg,
+        limitMgKg: substance.destinationMrl,
+        passed,
+        status: passed ? 'PASS' : 'FAIL',
+        riskLevel: substance.riskLevel,
+        limitSource: 'SPECIFIC',
       });
+    }
+
+    const defaultDestinationMrlMgKg =
+      snapshot.labPolicy?.defaultDestinationMrlMgKg ?? null;
+    for (const measured of results) {
+      const measuredKeys = [
+        normalizeKey(measured.substance),
+        measured.cas === null ? null : normalizeKey(measured.cas),
+      ].filter((value): value is string => value !== null);
+      if (measuredKeys.some((key) => matchedMeasuredKeys.has(key))) {
+        continue;
+      }
+
+      if (defaultDestinationMrlMgKg === null) {
+        validationResults.push({
+          substance: measured.substance,
+          cas: measured.cas,
+          valueMgKg: measured.valueMgKg,
+          limitMgKg: null,
+          passed: false,
+          status: 'UNKNOWN',
+          riskLevel: null,
+          limitSource: 'DEFAULT_FALLBACK',
+        });
+        continue;
+      }
+
+      const passed = measured.valueMgKg <= defaultDestinationMrlMgKg;
+      validationResults.push({
+        substance: measured.substance,
+        cas: measured.cas,
+        valueMgKg: measured.valueMgKg,
+        limitMgKg: defaultDestinationMrlMgKg,
+        passed,
+        status: passed ? 'PASS' : 'FAIL',
+        riskLevel: null,
+        limitSource: 'DEFAULT_FALLBACK',
+      });
+    }
+
+    const hasUnknowns = validationResults.some(
+      (result) => result.status === 'UNKNOWN',
+    );
+    const hasFailures = validationResults.some(
+      (result) => result.status === 'FAIL',
+    );
+
+    if (blockingReasons.length > 0) {
+      return {
+        status: 'BLOCKED',
+        valid: false,
+        hasUnknowns,
+        blockingReasons,
+        results: validationResults,
+      };
+    }
 
     return {
-      valid: validationResults.every((result) => result.status !== 'FAIL'),
-      hasUnknowns: validationResults.some(
-        (result) => result.status === 'UNKNOWN',
-      ),
+      status: hasFailures ? 'FAIL' : 'PASS',
+      valid: !hasFailures,
+      hasUnknowns,
+      blockingReasons: [],
       results: validationResults,
     };
+  }
+
+  private findMeasuredResult(
+    resultByKey: Map<string, ParsedLabResult>,
+    substance: RuleSnapshotPayload['substances'][number],
+  ): ParsedLabResult | null {
+    const keys = [
+      normalizeKey(substance.name),
+      ...(substance.cas === null ? [] : [normalizeKey(substance.cas)]),
+      ...substance.aliases.map((alias) => normalizeKey(alias)),
+    ];
+    for (const key of keys) {
+      const result = resultByKey.get(key);
+      if (result !== undefined) {
+        return result;
+      }
+    }
+
+    return null;
   }
 
   private detectCertificationAlerts(
@@ -933,7 +1036,7 @@ export class RulesEngineService {
 
   private parseLabResults(
     metadata: Record<string, unknown> | null,
-  ): Array<{ substance: string; cas: string | null; valueMgKg: number }> {
+  ): ParsedLabResult[] {
     if (metadata === null) {
       return [];
     }

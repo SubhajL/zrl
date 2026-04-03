@@ -258,6 +258,73 @@ describe('RulesEngineController (e2e)', () => {
     );
   });
 
+  it('GET /rules/markets/KOREA/products/MANGO/ruleset returns lab policy and fallback metadata', async () => {
+    rulesEngineServiceMock.getRuleSnapshot.mockResolvedValueOnce({
+      market: 'KOREA',
+      product: 'MANGO',
+      version: 1,
+      effectiveDate: new Date('2026-04-03'),
+      sourcePath: 'rules/korea/mango.yaml',
+      requiredDocuments: ['Phytosanitary Certificate', 'MRL Test Results'],
+      completenessWeights: {
+        regulatory: 0.4,
+        quality: 0.25,
+        coldChain: 0.2,
+        chainOfCustody: 0.15,
+      },
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+      substances: [
+        {
+          name: 'Acetamiprid',
+          aliases: ['아세타미프리드'],
+          cas: '135410-20-7',
+          thaiMrl: null,
+          destinationMrl: 0.2,
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'MFDS foodView:ap105050006',
+          note: null,
+        },
+      ],
+    });
+
+    await request(app.getHttpServer())
+      .get('/rules/markets/KOREA/products/MANGO/ruleset')
+      .set('Authorization', 'Bearer access-token')
+      .expect(200)
+      .expect((response: Response) => {
+        const body = response.body as {
+          market: string;
+          product: string;
+          labPolicy: {
+            enforcementMode: string;
+            defaultDestinationMrlMgKg: number;
+          };
+          substances: Array<{
+            name: string;
+            thaiMrl: number | null;
+            riskLevel: string | null;
+          }>;
+        };
+        expect(body.market).toBe('KOREA');
+        expect(body.product).toBe('MANGO');
+        expect(body.labPolicy).toEqual(
+          expect.objectContaining({
+            enforcementMode: 'FULL_PESTICIDE',
+            defaultDestinationMrlMgKg: 0.01,
+          }),
+        );
+        expect(body.substances[0].name).toBe('Acetamiprid');
+        expect(body.substances[0].thaiMrl).toBeNull();
+        expect(body.substances[0].riskLevel).toBeNull();
+      });
+  });
+
   it('PATCH /rules/substances/:id forwards the authenticated actor to the service', async () => {
     const payload = {
       name: 'Chlorpyrifos',

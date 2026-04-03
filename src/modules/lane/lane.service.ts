@@ -13,6 +13,7 @@ import { ColdChainService } from '../cold-chain/cold-chain.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import type { RuleLaneArtifact } from '../rules-engine/rules-engine.types';
+import { adaptLaneSnapshotToRulePayload } from '../rules-engine/rules-engine.utils';
 import {
   DEFAULT_LANE_LIMIT,
   DEFAULT_LANE_PAGE,
@@ -136,7 +137,7 @@ export class LaneService implements LaneReconciler {
         );
 
         if (ruleSnapshot === null) {
-          throw new Error(
+          throw new UnprocessableEntityException(
             'No rules are available for the selected market/product.',
           );
         }
@@ -312,22 +313,7 @@ export class LaneService implements LaneReconciler {
     return this.rulesEngineService.evaluateLane(
       lane.ruleSnapshot === null
         ? null
-        : {
-            market: lane.ruleSnapshot.market,
-            product: lane.ruleSnapshot.product,
-            version: lane.ruleSnapshot.version,
-            effectiveDate: lane.ruleSnapshot.effectiveDate,
-            sourcePath: lane.ruleSnapshot.rules.sourcePath ?? '',
-            requiredDocuments: lane.ruleSnapshot.rules.requiredDocuments ?? [],
-            completenessWeights: lane.ruleSnapshot.rules
-              .completenessWeights ?? {
-              regulatory: 0.4,
-              quality: 0.25,
-              coldChain: 0.2,
-              chainOfCustody: 0.15,
-            },
-            substances: lane.ruleSnapshot.rules.substances ?? [],
-          },
+        : adaptLaneSnapshotToRulePayload(lane.ruleSnapshot),
       artifacts,
     );
   }

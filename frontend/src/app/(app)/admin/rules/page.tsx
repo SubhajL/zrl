@@ -57,7 +57,7 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
     header: 'Thai MRL',
     sortable: true,
     className: 'text-right font-mono tabular-nums',
-    render: (value) => String(value),
+    render: (value) => (value == null ? '-' : String(value)),
   },
   {
     key: 'destinationMrl',
@@ -71,15 +71,20 @@ const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
     header: 'Ratio',
     sortable: true,
     className: 'text-right font-bold tabular-nums',
-    render: (value) => `${value}x`,
+    render: (value) => (value == null ? '-' : `${value}x`),
   },
   {
     key: 'riskLevel',
     header: 'Risk Level',
     sortable: true,
-    render: (_value, row) => (
-      <Badge variant={RISK_BADGE_VARIANT[row.riskLevel]}>{row.riskLevel}</Badge>
-    ),
+    render: (_value, row) =>
+      row.riskLevel == null ? (
+        '-'
+      ) : (
+        <Badge variant={RISK_BADGE_VARIANT[row.riskLevel]}>
+          {row.riskLevel}
+        </Badge>
+      ),
   },
   {
     key: 'updatedAt',

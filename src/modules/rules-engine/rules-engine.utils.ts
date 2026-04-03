@@ -1,4 +1,9 @@
-import { RuleMarket, RuleProduct, RuleRiskLevel } from './rules-engine.types';
+import {
+  RuleLabEnforcementMode,
+  RuleMarket,
+  RuleProduct,
+  RuleRiskLevel,
+} from './rules-engine.types';
 
 function assertObject(
   value: unknown,
@@ -33,6 +38,16 @@ function assertArray(value: unknown, context: string): unknown[] {
   }
 
   return value;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : null;
 }
 
 export function normalizeRuleMarket(value: string): RuleMarket {
@@ -106,13 +121,22 @@ export function buildRuleDefinition(
     coldChain: number;
     chainOfCustody: number;
   };
+  labPolicy?: {
+    enforcementMode: RuleLabEnforcementMode;
+    requiredArtifactType: 'MRL_TEST';
+    acceptedUnits: string[];
+    defaultDestinationMrlMgKg: number | null;
+  };
   substances: Array<{
     name: string;
-    cas: string;
-    thaiMrl: number;
+    aliases: string[];
+    cas: string | null;
+    thaiMrl: number | null;
     destinationMrl: number;
-    stringencyRatio: number;
-    riskLevel: RuleRiskLevel;
+    stringencyRatio: number | null;
+    riskLevel: RuleRiskLevel | null;
+    sourceRef: string | null;
+    note: string | null;
   }>;
 } {
   const record = assertObject(raw, 'rule definition');
@@ -138,6 +162,37 @@ export function buildRuleDefinition(
     record['completenessWeights'],
     'completenessWeights',
   );
+  const labPolicyRecord =
+    record['labPolicy'] === undefined
+      ? null
+      : assertObject(record['labPolicy'], 'labPolicy');
+  const labPolicy =
+    labPolicyRecord === null
+      ? undefined
+      : {
+          enforcementMode: assertString(
+            labPolicyRecord['enforcementMode'],
+            'labPolicy.enforcementMode',
+          ) as RuleLabEnforcementMode,
+          requiredArtifactType: (readString(
+            labPolicyRecord['requiredArtifactType'],
+          ) ?? 'MRL_TEST') as 'MRL_TEST',
+          acceptedUnits: (Array.isArray(labPolicyRecord['acceptedUnits'])
+            ? labPolicyRecord['acceptedUnits']
+            : ['mg/kg', 'ppm']
+          ).map((value, index) =>
+            assertString(value, `labPolicy.acceptedUnits[${index}]`),
+          ),
+          defaultDestinationMrlMgKg:
+            labPolicyRecord['defaultDestinationMrlMgKg'] === null
+              ? null
+              : labPolicyRecord['defaultDestinationMrlMgKg'] === undefined
+                ? null
+                : assertNumber(
+                    labPolicyRecord['defaultDestinationMrlMgKg'],
+                    'labPolicy.defaultDestinationMrlMgKg',
+                  ),
+        };
   const substances = assertArray(record['substances'], 'substances').map(
     (substance, index) => {
       const substanceRecord = assertObject(substance, `substances[${index}]`);
@@ -145,27 +200,39 @@ export function buildRuleDefinition(
         substanceRecord['name'],
         `substances[${index}].name`,
       );
-      const cas = assertString(
-        substanceRecord['cas'],
-        `substances[${index}].cas`,
-      );
-      const thaiMrl = assertNumber(
-        substanceRecord['thaiMrl'],
-        `substances[${index}].thaiMrl`,
-      );
+      const aliasesValue = substanceRecord['aliases'];
+      const aliases =
+        aliasesValue === undefined
+          ? []
+          : assertArray(aliasesValue, `substances[${index}].aliases`).map(
+              (value, aliasIndex) =>
+                assertString(
+                  value,
+                  `substances[${index}].aliases[${aliasIndex}]`,
+                ),
+            );
+      const cas = readString(substanceRecord['cas']);
+      const thaiMrl = readNumber(substanceRecord['thaiMrl']);
       const destinationMrl = assertNumber(
         substanceRecord['destinationMrl'],
         `substances[${index}].destinationMrl`,
       );
-      const stringencyRatio = computeStringencyRatio(thaiMrl, destinationMrl);
+      const stringencyRatio =
+        thaiMrl === null
+          ? null
+          : computeStringencyRatio(thaiMrl, destinationMrl);
 
       return {
         name,
+        aliases,
         cas,
         thaiMrl,
         destinationMrl,
         stringencyRatio,
-        riskLevel: classifyRiskLevel(stringencyRatio),
+        riskLevel:
+          stringencyRatio === null ? null : classifyRiskLevel(stringencyRatio),
+        sourceRef: readString(substanceRecord['sourceRef']),
+        note: readString(substanceRecord['note']),
       };
     },
   );
@@ -192,6 +259,7 @@ export function buildRuleDefinition(
         'completenessWeights.chainOfCustody',
       ),
     },
+    labPolicy,
     substances,
   };
 }
@@ -209,13 +277,22 @@ export function buildRuleSnapshotPayload(definition: {
     coldChain: number;
     chainOfCustody: number;
   };
+  labPolicy?: {
+    enforcementMode: RuleLabEnforcementMode;
+    requiredArtifactType: 'MRL_TEST';
+    acceptedUnits: string[];
+    defaultDestinationMrlMgKg: number | null;
+  };
   substances: Array<{
     name: string;
-    cas: string;
-    thaiMrl: number;
+    aliases: string[];
+    cas: string | null;
+    thaiMrl: number | null;
     destinationMrl: number;
-    stringencyRatio: number;
-    riskLevel: RuleRiskLevel;
+    stringencyRatio: number | null;
+    riskLevel: RuleRiskLevel | null;
+    sourceRef: string | null;
+    note: string | null;
   }>;
 }) {
   return {
@@ -226,6 +303,63 @@ export function buildRuleSnapshotPayload(definition: {
     sourcePath: definition.sourcePath,
     requiredDocuments: definition.requiredDocuments,
     completenessWeights: definition.completenessWeights,
+    labPolicy: definition.labPolicy,
     substances: definition.substances,
+  };
+}
+
+const DEFAULT_COMPLETENESS_WEIGHTS = {
+  regulatory: 0.4,
+  quality: 0.25,
+  coldChain: 0.2,
+  chainOfCustody: 0.15,
+};
+
+export function adaptLaneSnapshotToRulePayload(snapshot: {
+  market: string;
+  product: string;
+  version: number;
+  effectiveDate: Date;
+  rules: {
+    sourcePath?: string;
+    requiredDocuments?: string[];
+    completenessWeights?: {
+      regulatory: number;
+      quality: number;
+      coldChain: number;
+      chainOfCustody: number;
+    };
+    labPolicy?: {
+      enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';
+      requiredArtifactType: 'MRL_TEST';
+      acceptedUnits: string[];
+      defaultDestinationMrlMgKg: number | null;
+    };
+    substances?: Array<{
+      name: string;
+      cas: string | null;
+      thaiMrl: number | null;
+      destinationMrl: number;
+      stringencyRatio: number | null;
+      riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
+    }>;
+  };
+}) {
+  return {
+    market: snapshot.market as RuleMarket,
+    product: snapshot.product as RuleProduct,
+    version: snapshot.version,
+    effectiveDate: snapshot.effectiveDate,
+    sourcePath: snapshot.rules.sourcePath ?? '',
+    requiredDocuments: snapshot.rules.requiredDocuments ?? [],
+    completenessWeights:
+      snapshot.rules.completenessWeights ?? DEFAULT_COMPLETENESS_WEIGHTS,
+    labPolicy: snapshot.rules.labPolicy,
+    substances: (snapshot.rules.substances ?? []).map((substance) => ({
+      aliases: [] as string[],
+      sourceRef: null as string | null,
+      note: null as string | null,
+      ...substance,
+    })),
   };
 }

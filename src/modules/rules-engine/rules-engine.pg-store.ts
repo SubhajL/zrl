@@ -57,11 +57,11 @@ interface SubstanceRow extends QueryResultRow {
   id: string;
   market: RuleMarket;
   name: string;
-  cas: string;
-  thai_mrl: string | number;
+  cas: string | null;
+  thai_mrl: string | number | null;
   destination_mrl: string | number;
-  stringency_ratio: string | number;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  stringency_ratio: string | number | null;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -356,11 +356,14 @@ export class PrismaRulesEngineStore implements RuleStore {
         sourcePath: current.sourcePath ?? current.payload.sourcePath ?? '',
         substances: substances.map((substance) => ({
           name: substance.name,
+          aliases: [],
           cas: substance.cas,
           thaiMrl: substance.thaiMrl,
           destinationMrl: substance.destinationMrl,
           stringencyRatio: substance.stringencyRatio,
           riskLevel: substance.riskLevel,
+          sourceRef: null,
+          note: null,
         })),
       };
 
@@ -433,11 +436,12 @@ export class PrismaRulesEngineStore implements RuleStore {
     const existing = this.mapSubstance(existingResult.rows[0]);
     const nextThaiMrl = input.thaiMrl ?? existing.thaiMrl;
     const nextDestinationMrl = input.destinationMrl ?? existing.destinationMrl;
-    const stringencyRatio = computeStringencyRatio(
-      nextThaiMrl,
-      nextDestinationMrl,
-    );
-    const riskLevel = classifyRiskLevel(stringencyRatio);
+    const stringencyRatio =
+      nextThaiMrl === null
+        ? null
+        : computeStringencyRatio(nextThaiMrl, nextDestinationMrl);
+    const riskLevel =
+      stringencyRatio === null ? null : classifyRiskLevel(stringencyRatio);
 
     const result = await executor.query<SubstanceRow>(
       `
@@ -795,9 +799,10 @@ export class PrismaRulesEngineStore implements RuleStore {
       market: normalizeRuleMarket(row.market),
       name: row.name,
       cas: row.cas,
-      thaiMrl: Number(row.thai_mrl),
+      thaiMrl: row.thai_mrl === null ? null : Number(row.thai_mrl),
       destinationMrl: Number(row.destination_mrl),
-      stringencyRatio: Number(row.stringency_ratio),
+      stringencyRatio:
+        row.stringency_ratio === null ? null : Number(row.stringency_ratio),
       riskLevel: row.risk_level,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
