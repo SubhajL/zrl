@@ -772,11 +772,11 @@ model Substance {
   id              String            @id @default(uuid())
   market          DestinationMarket
   name            String
-  cas             String
-  thaiMrl         Decimal           @map("thai_mrl") @db.Decimal(10, 4)
+  cas             String?
+  thaiMrl         Decimal?          @map("thai_mrl") @db.Decimal(10, 4)
   destinationMrl  Decimal           @map("destination_mrl") @db.Decimal(10, 4)
-  stringencyRatio Decimal           @map("stringency_ratio") @db.Decimal(10, 2)
-  riskLevel       RiskLevel         @map("risk_level")
+  stringencyRatio Decimal?          @map("stringency_ratio") @db.Decimal(10, 2)
+  riskLevel       RiskLevel?        @map("risk_level")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 

@@ -175,13 +175,19 @@ export interface LaneRuleSnapshot {
       coldChain: number;
       chainOfCustody: number;
     };
+    labPolicy?: {
+      enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';
+      requiredArtifactType: 'MRL_TEST';
+      acceptedUnits: string[];
+      defaultDestinationMrlMgKg: number | null;
+    };
     substances?: Array<{
       name: string;
-      cas: string;
-      thaiMrl: number;
+      cas: string | null;
+      thaiMrl: number | null;
       destinationMrl: number;
-      stringencyRatio: number;
-      riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+      stringencyRatio: number | null;
+      riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
     }>;
   };
   effectiveDate: Date;
@@ -243,13 +249,19 @@ export interface LaneRuleSnapshotPayload {
     coldChain: number;
     chainOfCustody: number;
   };
+  labPolicy?: {
+    enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';
+    requiredArtifactType: 'MRL_TEST';
+    acceptedUnits: string[];
+    defaultDestinationMrlMgKg: number | null;
+  };
   substances: Array<{
     name: string;
-    cas: string;
-    thaiMrl: number;
+    cas: string | null;
+    thaiMrl: number | null;
     destinationMrl: number;
-    stringencyRatio: number;
-    riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+    stringencyRatio: number | null;
+    riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
   }>;
 }
 

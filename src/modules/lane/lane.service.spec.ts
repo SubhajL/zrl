@@ -1,3 +1,4 @@
+import { UnprocessableEntityException } from '@nestjs/common';
 import { AuditAction, AuditEntityType } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
 import { AuditService } from '../../common/audit/audit.service';
@@ -322,6 +323,52 @@ describe('LaneService', () => {
         totalPages: 1,
       },
     });
+  });
+
+  it('fails with a domain error when no rule snapshot exists for the market/product', async () => {
+    const service = createService();
+    const createInput: CreateLaneInput = {
+      product: 'DURIAN',
+      batch: {
+        variety: 'Monthong',
+        quantityKg: 2400,
+        originProvince: 'Chanthaburi',
+        harvestDate: new Date('2026-03-15T00:00:00.000Z'),
+        grade: 'A',
+      },
+      destination: {
+        market: 'JAPAN',
+      },
+      route: {
+        transportMode: 'SEA',
+        carrier: 'Evergreen Reefer',
+      },
+      coldChainConfig: {
+        mode: 'TELEMETRY',
+        deviceId: 'telemetry-1',
+        dataFrequencySeconds: 30,
+      },
+    };
+
+    resolveRuleSnapshotMock.mockResolvedValue(null);
+
+    await expect(
+      service.create(createInput, {
+        id: 'user-1',
+        role: 'EXPORTER',
+        email: 'exporter@example.com',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      }),
+    ).rejects.toThrow(
+      new UnprocessableEntityException(
+        'No rules are available for the selected market/product.',
+      ),
+    );
+
+    expect(createLaneBundleMock).not.toHaveBeenCalled();
+    expect(createAuditEntryMock).not.toHaveBeenCalled();
   });
 
   it('getCompleteness returns rules-engine evaluation output', async () => {

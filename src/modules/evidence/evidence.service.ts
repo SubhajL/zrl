@@ -816,11 +816,52 @@ export class EvidenceService {
       const results =
         metadata['results'] ?? metadata['substances'] ?? metadata['labResults'];
       if (Array.isArray(results)) {
-        metadata['results'] = results;
+        metadata['results'] = this.normalizeMrlTestResults(results);
       }
     }
 
     return Object.keys(metadata).length === 0 ? null : metadata;
+  }
+
+  private static readonly ACCEPTED_MRL_UNITS = new Set(['mg/kg', 'ppm']);
+
+  private normalizeMrlTestResults(results: unknown[]): unknown[] {
+    return results.map((entry, index) => {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        return entry;
+      }
+
+      const row = entry as Record<string, unknown>;
+      const unit = typeof row['unit'] === 'string' ? row['unit'] : null;
+      const value = typeof row['value'] === 'number' ? row['value'] : undefined;
+
+      if (unit !== null && !EvidenceService.ACCEPTED_MRL_UNITS.has(unit)) {
+        throw new BadRequestException(
+          `Unsupported MRL unit "${unit}" in result row ${index}: only mg/kg and ppm are accepted.`,
+        );
+      }
+
+      if (value === undefined || unit === null) {
+        return row;
+      }
+
+      // 1 ppm ≡ 1 mg/kg for pesticide residue analysis in food matrices (w/w basis)
+      const valueMgKg = value;
+      const reportingLimit =
+        typeof row['reportingLimit'] === 'number'
+          ? row['reportingLimit']
+          : undefined;
+
+      return {
+        ...row,
+        valueMgKg,
+        originalValue: value,
+        originalUnit: unit,
+        ...(reportingLimit !== undefined
+          ? { reportingLimitMgKg: reportingLimit }
+          : {}),
+      };
+    });
   }
 
   private mapArtifact(artifact: {

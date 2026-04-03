@@ -90,8 +90,8 @@ export interface ProofPackTemplateData {
   }>;
   readonly labResults: ReadonlyArray<{
     readonly substance: string;
-    readonly thaiMrl: number;
-    readonly destinationMrl: number;
+    readonly thaiMrl: number | null;
+    readonly destinationMrl: number | null;
     readonly measuredValue: number | null;
     readonly status: string;
   }> | null;

@@ -792,6 +792,120 @@ describe('EvidenceService', () => {
     );
   });
 
+  it('uploadArtifact normalizes structured mrl test rows to canonical valueMgKg metadata', async () => {
+    const createdArtifact = buildArtifact({ artifactType: 'MRL_TEST' });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    createArtifactMock.mockResolvedValue(createdArtifact);
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        mimeType: 'application/json',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: {
+          results: [
+            {
+              substance: 'Acetamiprid',
+              value: 0.2,
+              unit: 'ppm',
+              reportingLimit: 0.01,
+            },
+          ],
+        },
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(createArtifactMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          results: [
+            expect.objectContaining({
+              substance: 'Acetamiprid',
+              valueMgKg: 0.2,
+              originalValue: 0.2,
+              originalUnit: 'ppm',
+              reportingLimitMgKg: 0.01,
+            }),
+          ],
+        },
+      }),
+    );
+  });
+
+  it('uploadArtifact rejects mrl test rows with unsupported units', async () => {
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: null,
+    });
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
+
+    await expect(
+      service.uploadArtifact(
+        {
+          laneId: 'lane-db-1',
+          artifactType: 'MRL_TEST',
+          fileName: 'lab-results.json',
+          mimeType: 'application/json',
+          fileSizeBytes: 2048,
+          tempFilePath: uploadFilePath,
+          source: ArtifactSource.UPLOAD,
+          checkpointId: null,
+          metadata: {
+            results: [
+              {
+                substance: 'Acetamiprid',
+                value: 200,
+                unit: 'ppb',
+              },
+            ],
+          },
+          links: [],
+        },
+        {
+          id: 'exporter-1',
+          email: 'exporter@example.com',
+          role: 'EXPORTER',
+          companyName: 'Exporter Co',
+          mfaEnabled: false,
+          sessionVersion: 0,
+        },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(createArtifactMock).not.toHaveBeenCalled();
+  });
+
   it('uploadArtifact does not trigger automatic lane transitions when no rule snapshot exists', async () => {
     const createdArtifact = buildArtifact();
     findLaneByIdMock.mockResolvedValue({

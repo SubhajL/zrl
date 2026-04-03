@@ -286,10 +286,10 @@ export interface MrlSubstance {
   readonly id: string;
   readonly name: string;
   readonly casNumber: string | null;
-  readonly thaiMrl: number;
+  readonly thaiMrl: number | null;
   readonly destinationMrl: number;
-  readonly stringencyRatio: number;
-  readonly riskLevel: RiskLevel;
+  readonly stringencyRatio: number | null;
+  readonly riskLevel: RiskLevel | null;
   readonly updatedAt: string;
 }
 

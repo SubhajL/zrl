@@ -87,4 +87,33 @@ describe('RulesAdminPage', () => {
     expect(screen.getByText('Metalaxyl')).toBeInTheDocument();
     expect(screen.queryByText('Chlorpyrifos')).not.toBeInTheDocument();
   });
+
+  it('renders placeholders for substances without thai comparator metadata', async () => {
+    (loadRulesAdminData as jest.Mock).mockResolvedValue({
+      markets: ['KOREA'],
+      versions: [],
+      substancesByMarket: {
+        KOREA: [
+          {
+            id: 'sub-1',
+            name: 'Acetamiprid',
+            casNumber: '135410-20-7',
+            thaiMrl: null,
+            destinationMrl: 0.2,
+            stringencyRatio: null,
+            riskLevel: null,
+            updatedAt: '2026-04-03T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    render(<RulesAdminPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Acetamiprid')).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+  });
 });

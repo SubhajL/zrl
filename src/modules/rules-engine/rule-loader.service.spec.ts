@@ -135,6 +135,30 @@ describe('RuleLoaderService', () => {
     });
   });
 
+  it('loads the repository korea mango rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/korea/mango.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('KOREA');
+    expect(definition.product).toBe('MANGO');
+    expect(definition.sourcePath).toBe('rules/korea/mango.yaml');
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.substances.length).toBeGreaterThan(50);
+    expect(definition.substances[0]).toMatchObject({
+      name: 'Glufosinate(ammonium)',
+      aliases: ['글루포시네이트'],
+      destinationMrl: 0.05,
+      thaiMrl: null,
+    });
+  });
+
   it('refreshes cached rules automatically when the backing yaml changes', async () => {
     const rulesDir = mkdtempSync(join(tmpdir(), 'zrl-rules-'));
     const mangoDir = join(rulesDir, 'japan');
@@ -186,5 +210,65 @@ describe('RuleLoaderService', () => {
     const updated = await service.getRuleDefinition('JAPAN', 'MANGO');
     expect(updated?.version).toBe(1);
     expect(updated?.substances).toHaveLength(2);
+  });
+
+  it('loads csv-backed substances with aliases and nullable thai comparator fields', async () => {
+    const rulesDir = mkdtempSync(join(tmpdir(), 'zrl-rules-'));
+    const mangoDir = join(rulesDir, 'korea');
+    const mangoFile = join(mangoDir, 'mango.yaml');
+    const substancesFile = join(mangoDir, 'mango-substances.csv');
+    mkdirSync(mangoDir, { recursive: true });
+    writeFileSync(
+      mangoFile,
+      [
+        'market: KOREA',
+        'product: MANGO',
+        'version: 1',
+        'effectiveDate: 2026-04-03',
+        'requiredDocuments:',
+        '  - MRL Test Results',
+        'completenessWeights:',
+        '  regulatory: 0.4',
+        '  quality: 0.25',
+        '  coldChain: 0.2',
+        '  chainOfCustody: 0.15',
+        'labPolicy:',
+        '  enforcementMode: FULL_PESTICIDE',
+        '  requiredArtifactType: MRL_TEST',
+        '  acceptedUnits:',
+        '    - mg/kg',
+        '    - ppm',
+        '  defaultDestinationMrlMgKg: 0.01',
+        'substancesFile: ./mango-substances.csv',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      substancesFile,
+      [
+        'name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note',
+        'Acetamiprid,"아세타미프리드|Acetamiprid",135410-20-7,,0.2,"MFDS foodView:ap105050006; infoView:P00227","0.2 | 2020-11-26 개정고시 변경"',
+        '',
+      ].join('\n'),
+    );
+
+    const definition = await loadRuleDefinitionFromFile(mangoFile, rulesDir);
+
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.substances).toEqual([
+      expect.objectContaining({
+        name: 'Acetamiprid',
+        aliases: ['아세타미프리드', 'Acetamiprid'],
+        cas: '135410-20-7',
+        thaiMrl: null,
+        destinationMrl: 0.2,
+        stringencyRatio: null,
+        riskLevel: null,
+        sourceRef: 'MFDS foodView:ap105050006; infoView:P00227',
+      }),
+    ]);
   });
 });
