@@ -1,0 +1,41 @@
+# Source checked: 2026-04-03
+# Primary sources:
+# - https://db.ffcr.or.jp/front/?lng=en (JFCRF MRL Database)
+# - https://www.maff.go.jp/pps/j/law/houki/shorei/E_Annexed_Table2-2.html (MAFF quarantine)
+# Notes:
+# - Durian (Durio zibethinus) is NOT listed in MAFF Annexed Table 2-2 quarantine
+#   pest requirements — no VHT treatment required (thick husk = non-host for Bactrocera)
+# - Standard phytosanitary certificate from Thailand DOA is sufficient
+# - Japan MHLW flagged Thai durian pesticide residues in 2021 (carbendazim, dimethoate)
+market: JAPAN
+product: DURIAN
+version: 1
+effectiveDate: 2026-04-03
+requiredDocuments:
+  - Phytosanitary Certificate
+  - MRL Test Results
+  - Export License
+  - Commercial Invoice
+  - Grading Report
+  - Product Photos
+  - GAP Certificate
+  - Packing List
+  - Temperature Log
+  - SLA Summary
+  - Excursion Report
+  - Handoff Signatures
+  - Transport Document
+  - Delivery Note
+completenessWeights:
+  regulatory: 0.4
+  quality: 0.25
+  coldChain: 0.2
+  chainOfCustody: 0.15
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
+substancesFile: ./durian-substances.csv
