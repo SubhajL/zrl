@@ -1,0 +1,43 @@
+# Source checked: 2026-04-03
+# Primary sources:
+# - https://db.ffcr.or.jp/front/?lng=en (JFCRF MRL Database)
+# - https://www.freshplaza.com/asia/article/9549428/ (VHT exemption 2023)
+# - https://pubmed.ncbi.nlm.nih.gov/25195422/ (Nonhost status study)
+# Notes:
+# - Japan exempted Thai mangosteen from VHT in 2023 (JTEPA gazette)
+# - Scientific basis: mangosteen confirmed nonhost for B. dorsalis
+#   (pericarp hardness + latex secretion block fruit fly infestation)
+# - Standard phytosanitary certificate from Thailand DOA is sufficient
+# - Mangosteen (マンゴスチン) is individually classified, not grouped
+market: JAPAN
+product: MANGOSTEEN
+version: 1
+effectiveDate: 2026-04-03
+requiredDocuments:
+  - Phytosanitary Certificate
+  - MRL Test Results
+  - Export License
+  - Commercial Invoice
+  - Grading Report
+  - Product Photos
+  - GAP Certificate
+  - Packing List
+  - Temperature Log
+  - SLA Summary
+  - Excursion Report
+  - Handoff Signatures
+  - Transport Document
+  - Delivery Note
+completenessWeights:
+  regulatory: 0.4
+  quality: 0.25
+  coldChain: 0.2
+  chainOfCustody: 0.15
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
+substancesFile: ./mangosteen-substances.csv
