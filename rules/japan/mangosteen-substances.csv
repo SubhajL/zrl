@@ -1,0 +1,18 @@
+# Source: JFCRF db.ffcr.or.jp + Phopin 2017 (J. Sci. Food Agric.) mangosteen residue study
+# Commodity: Mangosteen (マンゴスチン) — individual classification, tropical fruit (inedible peel)
+# Verified: 2026-04-03
+# Official PLS default MRL when no specific row exists: 0.01 mg/kg
+# Study ref: PMC27185538 — 8 pesticides in 100% of Thai mangosteen samples, 97% exceeded MRLs
+# Thai MoPH Notification No.393 (2018): carbosulfan, dithiocarbamates, imidacloprid, dinotefuran MRLs for mangosteen
+name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
+Chlorothalonil,クロロタロニル,1897-45-6,0.1,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of mangosteen samples; PLS default
+Chlorpyrifos,クロルピリホス,2921-88-2,0.5,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; 50x stringency
+Diazinon,ダイアジノン,333-41-5,0.5,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; PLS default
+Dimethoate,ジメトエート,60-51-5,1.0,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; PLS default
+Metalaxyl,メタラキシル,57837-19-1,1.0,0.2,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; Japan mango MRL proxy
+Profenofos,プロフェノホス,41198-08-7,0.5,0.05,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; Japan mango MRL proxy
+Carbendazim,カルベンダジム,10605-21-7,1.0,0.5,JFCRF db.ffcr.or.jp,Thai MoPH mangosteen MRL = 1.0 mg/kg
+Carbosulfan,カルボスルファン,55285-14-8,0.5,0.01,JFCRF db.ffcr.or.jp,Thai MoPH No.393 mangosteen registration; PLS default
+Imidacloprid,イミダクロプリド,138261-41-3,1.0,0.2,JFCRF db.ffcr.or.jp,Thai MoPH No.393; Japan mango MRL proxy
+Dinotefuran,ジノテフラン,165252-70-0,1.0,0.01,JFCRF db.ffcr.or.jp,Thai MoPH No.393; PLS default
+Cypermethrin,シペルメトリン,52315-07-8,2.0,0.2,JFCRF db.ffcr.or.jp,Common pyrethroid; Japan mango MRL proxy

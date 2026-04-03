@@ -194,6 +194,31 @@ describe('RuleLoaderService', () => {
     });
   });
 
+  it('loads the repository japan mangosteen rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/japan/mangosteen.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('JAPAN');
+    expect(definition.product).toBe('MANGOSTEEN');
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.requiredDocuments).not.toContain('VHT Certificate');
+    expect(definition.substances).toHaveLength(11);
+    expect(definition.substances[0]).toMatchObject({
+      name: 'Chlorothalonil',
+      aliases: ['クロロタロニル'],
+      cas: '1897-45-6',
+      destinationMrl: 0.01,
+      sourceRef: 'JFCRF db.ffcr.or.jp; Phopin 2017 JSFA',
+    });
+  });
+
   it('refreshes cached rules automatically when the backing yaml changes', async () => {
     const rulesDir = mkdtempSync(join(tmpdir(), 'zrl-rules-'));
     const mangoDir = join(rulesDir, 'japan');
