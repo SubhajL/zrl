@@ -124,14 +124,21 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('JAPAN');
     expect(definition.product).toBe('MANGO');
     expect(definition.sourcePath).toBe('rules/japan/mango.yaml');
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
     expect(definition.substances).toHaveLength(12);
     expect(definition.substances[0]).toMatchObject({
       name: 'Chlorpyrifos',
+      aliases: ['クロルピリホス'],
       cas: '2921-88-2',
       thaiMrl: 0.5,
       destinationMrl: 0.01,
       stringencyRatio: 50,
       riskLevel: 'CRITICAL',
+      sourceRef: 'JFCRF db.ffcr.or.jp',
     });
   });
 
