@@ -1,18 +1,261 @@
-# Source: JFCRF db.ffcr.or.jp + Phopin 2017 (J. Sci. Food Agric.) mangosteen residue study
-# Commodity: Mangosteen (マンゴスチン) — individual classification, tropical fruit (inedible peel)
-# Verified: 2026-04-03
-# Official PLS default MRL when no specific row exists: 0.01 mg/kg
-# Study ref: PMC27185538 — 8 pesticides in 100% of Thai mangosteen samples, 97% exceeded MRLs
-# Thai MoPH Notification No.393 (2018): carbosulfan, dithiocarbamates, imidacloprid, dinotefuran MRLs for mangosteen
-name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
-Chlorothalonil,クロロタロニル,1897-45-6,0.1,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of mangosteen samples; PLS default
-Chlorpyrifos,クロルピリホス,2921-88-2,0.5,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; 50x stringency
-Diazinon,ダイアジノン,333-41-5,0.5,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; PLS default
-Dimethoate,ジメトエート,60-51-5,1.0,0.01,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; PLS default
-Metalaxyl,メタラキシル,57837-19-1,1.0,0.2,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; Japan mango MRL proxy
-Profenofos,プロフェノホス,41198-08-7,0.5,0.05,"JFCRF db.ffcr.or.jp; Phopin 2017 JSFA",Found in 100% of samples; Japan mango MRL proxy
-Carbendazim,カルベンダジム,10605-21-7,1.0,0.5,JFCRF db.ffcr.or.jp,Thai MoPH mangosteen MRL = 1.0 mg/kg
-Carbosulfan,カルボスルファン,55285-14-8,0.5,0.01,JFCRF db.ffcr.or.jp,Thai MoPH No.393 mangosteen registration; PLS default
-Imidacloprid,イミダクロプリド,138261-41-3,1.0,0.2,JFCRF db.ffcr.or.jp,Thai MoPH No.393; Japan mango MRL proxy
-Dinotefuran,ジノテフラン,165252-70-0,1.0,0.01,JFCRF db.ffcr.or.jp,Thai MoPH No.393; PLS default
-Cypermethrin,シペルメトリン,52315-07-8,2.0,0.2,JFCRF db.ffcr.or.jp,Common pyrethroid; Japan mango MRL proxy
+# Source checked: 2026-04-04
+# Primary-source basis:
+# - MAFF Plant Protection Station Thai mangosteen phytosanitary implementation rule
+# - CAA residue standards page: Japan positive-list framework and MRL reference surface
+# - MHLW residue standards page / Notification No. 497: 0.01 mg/kg uniform fallback when no specific MRL exists
+# Supporting numeric source:
+# - JFCRF food_group_detail:11900 / Excel export (Other Fruits)
+# - JFCRF glossary: N.D. = Not Detected
+# Scope:
+# - Exhaustive mangosteen-applicable row set from the official 11900 export retrieved on 2026-04-04
+# - Official export row count: 248
+# - Excluded row count: 1 (GIBBERELLIN, note = acerola)
+# - Effective explicit row count for mangosteen: 247
+name,aliases,cas,thaiMrl,destinationMrl,destinationLimitType,sourceRef,note
+1-NAPHTHALENEACETIC ACID,,,,0.7,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.7 mg/kg | Basis Ac2025
+"2,4-D",,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Aa2021
+4-CPA,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+ABAMECTIN,,,,0.005,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.005 mg/kg | Basis Aa2018
+ACEPHATE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Ab2018
+ACEQUINOCYL,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2010
+ACETAMIPRID,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ab2015
+ACRINATHRIN,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2019
+AFIDOPYROPEN,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ac2020
+ALANYCARB,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Bh2006
+ALDRIN and DIELDRIN,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Aa2020
+AMETOCTRADIN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2014
+AMISULBROM,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2013
+ATRAZINE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+AZOXYSTROBIN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Aa2014
+BENALAXYL,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+"BENOMYL (repeated/see CARBENDAZIM, THIOPHANATE, THIOPHANATE-METHYL and BENOMYL)",,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+BENTHIAVALICARB-ISOPROPYL,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2015
+BENZOVINDIFLUPYR,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2017
+BIFENAZATE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2014
+BIFENTHRIN,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2007
+BILANAFOS (BIALAPHOS),,,,0.004,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.004 mg/kg | Basis Bh2006
+BIORESMETHRIN,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Ag2006
+BITERTANOL,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+BOSCALID,,,,10,NUMERIC,JFCRF food_group_detail:11900,Source MRL 10 mg/kg | Basis Aa2014
+BRODIFACOUM,,,,0.001,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.001 mg/kg | Basis Bh2006
+BROMIDE,,,,60,NUMERIC,JFCRF food_group_detail:11900,Source MRL 60 mg/kg | Basis Ag2006
+BROMOPROPYLATE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Bh2006
+BUPROFEZIN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Aa2014
+BUTAFENACIL,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+CAPTAN,,,,10,NUMERIC,JFCRF food_group_detail:11900,Source MRL 10 mg/kg | Basis Aa2019
+CARBARYL,,,,30,NUMERIC,JFCRF food_group_detail:11900,Source MRL 30 mg/kg | Source note except fig | Basis Aa2020
+"CARBENDAZIM, THIOPHANATE, THIOPHANATE-METHYL and BENOMYL",,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+CARBOSULFAN,,,,0.07,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.07 mg/kg | Basis Aa2020
+CARFENTRAZONE-ETHYL,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+CHLORANTRANILIPROLE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2015
+CHLORDANE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+CHLORFENAPYR,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2008
+CHLORFENVINPHOS,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ag2006
+CHLOROTHALONIL,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ag2006
+CHLORPYRIFOS,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2021
+CHLORPYRIFOS-METHYL,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+CHLORTHAL-DIMETHYL,,,,4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 4 mg/kg | Basis Bh2006
+CLODINAFOP-PROPARGYL,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+CLOFENTEZINE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Aa2026
+CLOMAZONE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+CLOPIDOL,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+CLOTHIANIDIN,,,,4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 4 mg/kg | Basis Ag2006
+COPPER NONYLPHENOLSULFONATE,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Bh2006
+CYANTRANILIPROLE,,,,0.8,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.8 mg/kg | Basis Aa2022
+CYAZOFAMID,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2006
+CYCLANILIPROLE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ac2020
+CYCLOXYDIM,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+CYENOPYRAFEN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2013
+CYFLUMETOFEN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2013
+CYHALOTHRIN,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ag2006
+CYPERMETHRIN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2022
+CYPROCONAZOLE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+CYPRODINIL,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2014
+CYROMAZINE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2009
+DBEDC,,,,20,NUMERIC,JFCRF food_group_detail:11900,Source MRL 20 mg/kg | Basis Bh2006
+DCIP,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ab2018
+DDT,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+DELTAMETHRIN and TRALOMETHRIN,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2018
+DEMETON-S-METHYL,,,,0.4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.4 mg/kg | Basis Bh2006
+DIAFENTHIURON,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+DICHLOFLUANID,,,,5.0,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5.0 mg/kg | Basis Ag2006
+DICHLORAN,,,,10,NUMERIC,JFCRF food_group_detail:11900,Source MRL 10 mg/kg | Basis Bh2006
+DICHLORVOS and NALED,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Ag2006
+DICLOMEZINE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+DICOFOL,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+DIELDRIN (repeated/see ALDRIN and DIELDRIN),,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Aa2020
+DIFENOCONAZOLE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2014
+DIFENZOQUAT,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+DIFLUBENZURON,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Aa2019
+DIFLUFENICAN,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Ag2006
+DIFLUFENZOPYR,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+DIHYDROSTREPTOMYCIN and STREPTOMYCIN,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+DIMETHIPIN,,,,0.04,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.04 mg/kg | Basis Bh2006
+DIMETHOATE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+DIMETHOMORPH,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2023
+DINOTEFURAN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ab2018
+DIPHENYLAMINE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+DIQUAT,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Aa2020
+DISULFOTON,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+DITHIANON,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2012
+DITHIOCARBAMATES,,,,0.6,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.6 mg/kg | Basis Bh2006
+DIURON,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+DODINE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+EMAMECTIN BENZOATE,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+ENDOSULFAN,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+ENDRIN,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Bh2006
+ETHEPHON,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Bh2006
+ETHION,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Bh2006
+ETHYLENE DIBROMIDE (EDB),,,,0,NON_DETECT,JFCRF food_group_detail:11900,Source qualifier N.D. = Not Detected | Basis Bh2006
+ETHYLENE DICHLORIDE,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Bh2006
+ETOXAZOLE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ab2009
+ETRIDIAZOLE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+FAMOXADONE,,,,4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 4 mg/kg | Basis Ac2014
+FENAZAQUIN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2022
+FENBUCONAZOLE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Aa2021
+FENBUTATIN OXIDE,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+FENHEXAMID,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Ag2006
+FENITROTHION,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2019
+FENOXAPROP-ETHYL,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+FENOXYCARB,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+FENPROPATHRIN,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ac2021
+FENPROPIMORPH,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+FENPYRAZAMINE,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Aa2023
+FENPYROXIMATE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2022
+FENTHION,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2012
+FENTIN,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+FENVALERATE,,,,3.0,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3.0 mg/kg | Basis Ag2006
+FLONICAMID,,,,0.8,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.8 mg/kg | Basis Aa2020
+FLUAZINAM,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Ab2015
+FLUBENDIAMIDE,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Aa2014
+FLUCYTHRINATE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+FLUDIOXONIL,,,,15,NUMERIC,JFCRF food_group_detail:11900,Source MRL 15 mg/kg | Basis Ab2018
+FLUENSULFONE,,,,0.8,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.8 mg/kg | Basis Ac2022
+FLUMIOXAZIN,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Aa2023
+FLUOMETURON,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+FLUOPICOLIDE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2012
+FLUOPYRAM,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Aa2025
+FLUPYRADIFURONE,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ac2023
+FLUROXYPYR,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+FLUXAMETAMIDE,,,,0.7,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.7 mg/kg | Basis Ab2023
+FLUXAPYROXAD,,,,7,NUMERIC,JFCRF food_group_detail:11900,Source MRL 7 mg/kg | Basis Aa2019
+FORCHLORFENURON,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+FOSETYL-ALUMINIUM,,,,70,NUMERIC,JFCRF food_group_detail:11900,Source MRL 70 mg/kg | Basis Bh2006
+FOSTHIAZATE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Ab2021
+GLUFOSINATE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Aa2014
+GLYPHOSATE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ag2006
+HALOSULFURON METHYL,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Ac2009
+HALOXYFOP,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+HEXACHLOROBENZENE,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Bh2006
+HEXACONAZOLE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ab2017
+HEXYTHIAZOX,,,,0.7,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.7 mg/kg | Basis Ab2017
+HYDROGEN CYANIDE,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Bh2006
+HYDROGEN PHOSPHIDE,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Bh2006
+HYMEXAZOL,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Bh2006
+IMAZALIL,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+IMAZAQUIN,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+IMAZETHAPYR AMMONIUM,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+IMIDACLOPRID,,,,4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 4 mg/kg | Basis Aa2011
+IMINOCTADINE,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2020
+INPYRFLUXAM,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2025
+IOXYNIL,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+IPRODIONE,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ab2024
+ISOFETAMID,,,,10,NUMERIC,JFCRF food_group_detail:11900,Source MRL 10 mg/kg | Basis Ac2020
+ISOPYRAZAM,,,,0.4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.4 mg/kg | Basis Aa2019
+KASUGAMYCIN,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ac2015
+KRESOXIM-METHYL,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2013
+LENACIL,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ag2006
+LINDANE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+LINURON,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+MALATHION,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ag2006
+MALEIC HYDRAZIDE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ag2006
+MANDIPROPAMID,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Ab2018
+MEFENTRIFLUCONAZOLE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2020
+METHAMIDOPHOS,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Aa2018
+METHIDATHION,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+METHIOCARB,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Ag2006
+METHOMYL (repeated/see THIODICARB and METHOMYL),,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+METHOXYCHLOR,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Bh2006
+METHOXYFENOZIDE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2019
+MILBEMECTIN,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ab2013
+MYCLOBUTANIL,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2021
+NALED (repeated/see DICHLORVOS and NALED),,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Ag2006
+NAPROPAMIDE,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+NICOTINE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Bh2006
+NOVALURON,,,,0.7,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.7 mg/kg | Basis Aa2013
+OMETHOATE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+ORYZALIN,,,,0.08,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.08 mg/kg | Basis Bh2006
+OXADIXYL,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+OXATHIAPIPROLIN,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ac2017
+OXINE-COPPER,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2014
+OXYDEMETON-METHYL,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+PACLOBUTRAZOL,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Ag2006
+PARAQUAT,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Aa2024
+PARATHION,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+PARATHION-METHYL,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Ag2006
+PENCONAZOLE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+PENTHIOPYRAD,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Ac2014
+PERMETHRIN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ab2020
+PHORATE,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Bh2006
+PHOSMET,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+PHOXIM,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+PICARBUTRAZOX,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2025
+PINDONE,,,,0.001,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.001 mg/kg | Basis Bh2006
+PIPERONYL BUTOXIDE,,,,8,NUMERIC,JFCRF food_group_detail:11900,Source MRL 8 mg/kg | Basis Bh2006
+PIRIMICARB,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Bh2006
+PIRIMIPHOS-METHYL,,,,1.0,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1.0 mg/kg | Basis Ag2006
+PROFENOFOS,,,,10,NUMERIC,JFCRF food_group_detail:11900,Source MRL 10 mg/kg | Basis Aa2017
+PROPOXUR,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+PROTHIOCONAZOL,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2023
+PYDIFLUMETOFEN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Aa2024
+PYFLUBUMIDE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2015
+PYMETROZINE,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ac2012
+PYRACLOSTROBIN,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Ac2014
+PYRAFLUFEN ETHYL,,,,0.01,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.01 mg/kg | Basis Ab2022
+PYRAZOLYNATE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+PYRETHRINS,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ag2006
+PYRIDABEN,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2013
+PYRIMETHANIL,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ac2013
+PYRIOFENONE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2019
+PYRIPROXYFEN,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ac2021
+QUINALPHOS,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Ag2006
+QUINTOZENE,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+RESMETHRIN,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+SAFLUFENACIL,,,,0.03,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.03 mg/kg | Basis Ac2017
+SETHOXYDIM,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ac2020
+SIMAZINE,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+SPINETORAM,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ab2015
+SPINOSAD,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2012
+SPIRODICLOFEN,,,,5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 5 mg/kg | Basis Ac2013
+SPIROMESIFEN,,,,0.5,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.5 mg/kg | Basis Ac2007
+SPIROTETRAMAT,,,,15,NUMERIC,JFCRF food_group_detail:11900,Source MRL 15 mg/kg | Basis Aa2017
+STREPTOMYCIN(repeated/see DIHYDROSTREPTOMYCIN and STREPTOMYCIN),,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+SULFENTRAZONE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+SULFOXAFLOR,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Aa2017
+SULFURYL FLUORIDE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+TEBUCONAZOLE,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ac2013
+TEBUFENOZIDE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ac2010
+TEBUFENPYRAD,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ab2019
+TECNAZENE,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+TEFLUTHRIN,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+TERBACIL,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+TERBUFOS,,,,0.005,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.005 mg/kg | Basis Bh2006
+TETRACONAZOLE,,,,0.3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.3 mg/kg | Basis Ac2019
+THIABENDAZOLE,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+THIACLOPRID,,,,4,NUMERIC,JFCRF food_group_detail:11900,Source MRL 4 mg/kg | Basis Ac2019
+THIAMETHOXAM,,,,2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 2 mg/kg | Basis Ab2009
+THIODICARB and METHOMYL,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Bh2006
+"THIOPHANATE (repeated/see CARBENDAZIM, THIOPHANATE, THIOPHANATE-METHYL and BENOMYL)",,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+"THIOPHANATE-METHYL (repeated/see CARBENDAZIM, THIOPHANATE, THIOPHANATE-METHYL and BENOMYL)",,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Bh2006
+TRALOMETHRIN (repeated/see DELTAMETHRIN and TRALOMETHRIN),,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Aa2018
+TRI-ALLATE,,,,0.1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.1 mg/kg | Basis Bh2006
+TRIADIMEFON,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+TRIADIMENOL,,,,0.2,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.2 mg/kg | Basis Bh2006
+TRICHLORFON,,,,0.50,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.50 mg/kg | Basis Ag2006
+TRICLOPYR,,,,0.03,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.03 mg/kg | Basis Bh2006
+TRIDEMORPH,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Bh2006
+TRIFLOXYSTROBIN,,,,3,NUMERIC,JFCRF food_group_detail:11900,Source MRL 3 mg/kg | Basis Aa2023
+TRIFLUMIZOLE,,,,1,NUMERIC,JFCRF food_group_detail:11900,Source MRL 1 mg/kg | Basis Ab2019
+TRIFLUMURON,,,,0.02,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.02 mg/kg | Basis Bh2006
+TRIFLURALIN,,,,0.05,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.05 mg/kg | Basis Ag2006
+WARFARIN,,,,0.001,NUMERIC,JFCRF food_group_detail:11900,Source MRL 0.001 mg/kg | Basis Bh2006
