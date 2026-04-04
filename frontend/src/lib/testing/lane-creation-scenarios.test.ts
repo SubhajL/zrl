@@ -16,4 +16,17 @@ describe('lane creation scenario support filters', () => {
       ),
     ).toBe(true);
   });
+
+  it('treats korea durian as supported live coverage', () => {
+    expect(
+      LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'durian-korea-air',
+      ),
+    ).toBe(true);
+    expect(
+      UNSUPPORTED_LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'durian-korea-air',
+      ),
+    ).toBe(false);
+  });
 });

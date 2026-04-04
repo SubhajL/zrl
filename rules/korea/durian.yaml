@@ -1,0 +1,61 @@
+# Source checked: 2026-04-04
+# Primary sources:
+# - https://www.qia.go.kr/plant/imQua/plant_fruit_cond.jsp
+# - https://www.foodsafetykorea.go.kr/residue/prd/mrls/list.do
+# Notes:
+# - The current QIA fruit import-conditions page lists Thai durian in the
+#   general importable-fruit table, requiring phytosanitary certification but
+#   not a special VHT/MB treatment path.
+# - The current MFDS residue page exposes direct durian rows under commodity
+#   code ap105051059 and applies 0.01 mg/kg when no specific pesticide MRL is
+#   established.
+# - The companion CSV snapshots the full current direct durian row set returned
+#   by MFDS on 2026-04-04: 3 explicit rows plus the official fallback rule.
+market: KOREA
+product: DURIAN
+version: 1
+effectiveDate: 2026-04-04
+requiredDocuments:
+  - Phytosanitary Certificate
+  - MRL Test Results
+  - GAP Certificate
+  - Export License
+  - Commercial Invoice
+  - Grading Report
+  - Product Photos
+  - Packing List
+  - Temperature Log
+  - SLA Summary
+  - Excursion Report
+  - Handoff Signatures
+  - Transport Document
+  - Delivery Note
+completenessWeights:
+  regulatory: 0.4
+  quality: 0.25
+  coldChain: 0.2
+  chainOfCustody: 0.15
+metadata:
+  coverageState: FULL_EXHAUSTIVE
+  sourceQuality: PRIMARY_ONLY
+  retrievedAt: 2026-04-04
+  commodityCode: ap105051059
+  nonPesticideChecks:
+    - type: PHYTO_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: QIA fruit import conditions
+      note: QIA lists Thai durian in the general importable-fruit table with phytosanitary certificate attachment and no special treatment row.
+    - type: GAP_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: Exporter orchard and packinghouse eligibility controls
+      note: ZRL operational baseline; not a QIA special import-condition requirement.
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
+substancesFile: ./durian-substances.csv
