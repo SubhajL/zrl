@@ -1,21 +1,15 @@
-# Source: Japan JFCRF MRL Database (db.ffcr.or.jp) + Thai durian residue monitoring data
-# Commodity: Durian (ドリアン) — individual classification, tropical fruit (inedible peel)
-# Verified: 2026-04-03
-# Official PLS default MRL when no specific row exists: 0.01 mg/kg
-# Thai MRL values from Thailand DOA pesticide registration database
-# Note: Japan MRLs use mango proxy where durian-specific JFCRF values are unverifiable (no API)
-# Key references:
-# - Frontiers study on Krungching durian agrochemical usage (2021)
-# - Thai FDA food safety study: PMC4434230 (durian residue monitoring)
-# - Japan MHLW 2021 warning on Thai durian pesticide residues
-name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
-Carbendazim,カルベンダジム,10605-21-7,5,0.5,JFCRF db.ffcr.or.jp,Highest-volume Thai durian pesticide (4691 kg/yr Krungching)
-Abamectin,アバメクチン,71751-41-2,0.02,0.01,JFCRF db.ffcr.or.jp,Second-highest volume (2690 kg/yr); PLS default
-Metalaxyl,メタラキシル,57837-19-1,1,0.2,JFCRF db.ffcr.or.jp,Detected in Thai durian monitoring
-Dimethoate,ジメトエート,60-51-5,1,0.01,JFCRF db.ffcr.or.jp,Detected in 13 durian samples (Thai FDA study); PLS default
-Dichlorvos,ジクロルボス,62-73-7,0.1,0.01,JFCRF db.ffcr.or.jp,Exceeded MRL in Thai durian sample (25.9 ppb); PLS default
-Chlorpyrifos,クロルピリホス,2921-88-2,0.5,0.01,JFCRF db.ffcr.or.jp,Common organophosphate; 50x stringency ratio
-Cypermethrin,シペルメトリン,52315-07-8,2,0.2,JFCRF db.ffcr.or.jp,Common pyrethroid; 10x stringency ratio
-Imidacloprid,イミダクロプリド,138261-41-3,1,0.2,JFCRF db.ffcr.or.jp,Neonicotinoid; 5x stringency ratio
-Profenofos,プロフェノホス,41198-08-7,0.5,0.05,JFCRF db.ffcr.or.jp,Organophosphate; 10x stringency ratio
-Thiabendazole,チアベンダゾール,148-79-8,10,3,JFCRF db.ffcr.or.jp,Post-harvest fungicide; 3.3x stringency ratio
+# Source checked: 2026-04-04
+# Primary-source basis:
+# - MAFF import-condition database search result for ドリアン (Durio zibethinus) / 生果実
+# - CAA residue standards page: Japan positive-list framework and MRL reference surface
+# - MHLW residue standards page / Notification No. 497: 0.01 mg/kg uniform fallback when no specific MRL exists
+# Supporting numeric source:
+# - JFCRF food_group_detail:11900 (その他の果実, parent bucket listing durian by name)
+# - JFCRF food_group_detail:25839 (その他の果実(アセロラを除く。), durian-applicable specific bucket)
+# - JFCRF glossary: ※ = no more than physiological level contained naturally
+# Scope:
+# - Exhaustive explicit row set for the durian-applicable JFCRF commodity snapshot retrieved on 2026-04-04
+# - Official explicit row count: 1
+# - All other unlisted pesticides remain subject to Japan's 0.01 mg/kg positive-list fallback
+name,aliases,cas,thaiMrl,destinationMrl,destinationLimitType,sourceRef,note
+GIBBERELLIN,ジベレリン,,,0,PHYSIOLOGICAL_LEVEL,JFCRF food_group_detail:25839,Source qualifier ※ = no more than physiological level contained naturally
