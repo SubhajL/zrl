@@ -1,7 +1,8 @@
 # Source: Korea MFDS Food Safety Korea (foodsafetykorea.go.kr)
 # Food code: ap105050006 (Mango / 망고)
-# Extracted: 2026-04-03
+# Extracted: 2026-04-04
 # Official fallback MRL when no specific row exists: 0.01 mg/kg
+# Current commodity-specific snapshot row count: 64
 # CAS numbers from MFDS infoView.do pesticide records
 name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
 Glufosinate(ammonium),글루포시네이트,53369-07-6,,0.05,MFDS foodView:ap105050006,0.05 | 2021-06-29 개정고시 변경

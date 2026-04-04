@@ -617,6 +617,136 @@ describe('RulesEngineService', () => {
     );
   });
 
+  it('evaluateLane treats a non-detect Japan mango row as a zero-tolerance hard stop', () => {
+    const definition = buildDefinition({
+      market: 'JAPAN',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+      substances: [
+        {
+          name: 'ETHYLENE DIBROMIDE (EDB)',
+          aliases: [],
+          cas: null,
+          thaiMrl: null,
+          destinationMrl: 0,
+          destinationLimitType: 'NON_DETECT',
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'JFCRF food_group_detail:11600',
+          note: 'Source limit N.D.; encoded operationally as 0 mg/kg.',
+        },
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: 'ETHYLENE DIBROMIDE (EDB)',
+              valueMgKg: 0.001,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'FAIL',
+        valid: false,
+        hasUnknowns: false,
+        results: [
+          expect.objectContaining({
+            substance: 'ETHYLENE DIBROMIDE (EDB)',
+            limitMgKg: 0,
+            passed: false,
+            status: 'FAIL',
+            limitSource: 'SPECIFIC',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('evaluateLane leaves physiological-level Japan mango rows as unknown rather than inventing a numeric threshold', () => {
+    const definition = buildDefinition({
+      market: 'JAPAN',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+      substances: [
+        {
+          name: 'GIBBERELLIN',
+          aliases: [],
+          cas: null,
+          thaiMrl: null,
+          destinationMrl: 0,
+          destinationLimitType: 'PHYSIOLOGICAL_LEVEL',
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'JFCRF food_group_detail:11600',
+          note: 'Source symbol ※ means no more than physiological level contained naturally.',
+        },
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: 'GIBBERELLIN',
+              valueMgKg: 0.5,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'PASS',
+        valid: true,
+        hasUnknowns: true,
+        results: [
+          expect.objectContaining({
+            substance: 'GIBBERELLIN',
+            limitMgKg: null,
+            passed: false,
+            status: 'UNKNOWN',
+            limitSource: 'SPECIFIC',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('notifies lane owners when an uploaded certification is already expired', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
     const notifyLaneOwner = jest.fn().mockResolvedValue([

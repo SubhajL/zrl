@@ -206,6 +206,7 @@ export interface LaneRuleSnapshot {
       cas: string | null;
       thaiMrl: number | null;
       destinationMrl: number;
+      destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
       stringencyRatio: number | null;
       riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
     }>;
@@ -297,6 +298,7 @@ export interface LaneRuleSnapshotPayload {
     cas: string | null;
     thaiMrl: number | null;
     destinationMrl: number;
+    destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
     stringencyRatio: number | null;
     riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
   }>;

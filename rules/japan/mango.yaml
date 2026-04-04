@@ -1,3 +1,20 @@
+# Source checked: 2026-04-04
+# Primary sources:
+# - https://www.maff.go.jp/pps/j/law/houki/kokuji_joken/kokuji_joken_23_html_23.html
+# - https://www.caa.go.jp/en/policy/standards_evaluation/residues_of_pesticides/
+# - https://www.caa.go.jp/en/policy/standards_evaluation/residues_of_pesticides/assets/r04.pdf
+# - https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/shokuhin/zanryu/index_00016.html
+# Supporting sources:
+# - https://db.ffcr.or.jp/
+# - https://www.maff.go.jp/j/shokusan/export/attach/pdf/zannou_kisei-741.pdf
+# Notes:
+# - MAFF's Thailand mango standard covers seven named cultivars and requires
+#   Thai NPPO phytosanitary certification plus vapor-heat treatment.
+# - The current CSV snapshots the full 191-row JFCRF mango commodity table as
+#   retrieved on 2026-04-04.
+# - CAA/MHLW point users to the JFCRF MRL search system, so the pesticide
+#   side of this pack is truthfully PRIMARY_PLUS_SECONDARY rather than
+#   PRIMARY_ONLY.
 market: JAPAN
 product: MANGO
 version: 1
@@ -24,24 +41,39 @@ completenessWeights:
   coldChain: 0.2
   chainOfCustody: 0.15
 metadata:
-  coverageState: CURATED_HIGH_RISK
-  sourceQuality: PRIMARY_ONLY
-  retrievedAt: 2026-04-03
+  coverageState: FULL_EXHAUSTIVE
+  sourceQuality: PRIMARY_PLUS_SECONDARY
+  retrievedAt: 2026-04-04
   commodityCode:
   nonPesticideChecks:
     - type: PHYTO_CERT
       status: REQUIRED
-      parameters: {}
-      sourceRef: Thailand DOA phytosanitary export workflow
+      parameters:
+        issuingAuthority: Thai NPPO
+        mustStateFruitFlyFree: true
+        mustStateTreatmentPerformed: true
+      sourceRef: MAFF Plant Protection Station Thailand mango standard
+      note: Certificate must state fruit-fly freedom and that the prescribed vapor-heat treatment was performed.
     - type: VHT
       status: REQUIRED
       parameters:
-        requiredCertificate: true
-      sourceRef: MAFF quarantine path
+        minCoreTemperatureC: 47
+        minHoldMinutes: 20
+        alternateAllowedVariety: Nang Klang Wan
+        alternateMinCoreTemperatureC: 46.5
+        alternateMinHoldMinutes: 10
+        registeredProductionAreaRequired: true
+        maffVerificationRequired: true
+        packagingSealRequired: true
+        allowedVarieties: Kio Savoy|Chok Anan|Nang Klang Wan|Nam Dok Mai|Pim Saen Daeng|Mahachanok|Rad
+      sourceRef: MAFF Plant Protection Station Thailand mango standard
+      note: Default treatment is 47C for 20 minutes; Nang Klang Wan also has an alternate 46.5C for 10 minutes treatment path.
     - type: GAP_CERT
       status: REQUIRED
-      parameters: {}
-      sourceRef: Exporter compliance baseline
+      parameters:
+        zrlOperationalBaseline: true
+      sourceRef: ZRL exporter compliance baseline
+      note: Operational orchard and packinghouse evidence requirement retained by ZRL; not a MAFF import condition.
 labPolicy:
   enforcementMode: FULL_PESTICIDE
   requiredArtifactType: MRL_TEST

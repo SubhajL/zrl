@@ -78,6 +78,26 @@ function parseCsvNumber(value: string, context: string): number {
   return parsed;
 }
 
+function parseDestinationLimitType(
+  value: string | undefined,
+  context: string,
+): 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL' | undefined {
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (
+    normalized !== 'NUMERIC' &&
+    normalized !== 'NON_DETECT' &&
+    normalized !== 'PHYSIOLOGICAL_LEVEL'
+  ) {
+    throw new Error(`Invalid ${context}.`);
+  }
+
+  return normalized;
+}
+
 function parseRuleSubstancesCsv(
   source: string,
   context: string,
@@ -132,6 +152,10 @@ function parseRuleSubstancesCsv(
       destinationMrl: parseCsvNumber(
         record['destinationMrl'] ?? '',
         `${context} row ${index + 2} destinationMrl`,
+      ),
+      destinationLimitType: parseDestinationLimitType(
+        record['destinationLimitType'],
+        `${context} row ${index + 2} destinationLimitType`,
       ),
       sourceRef: record['sourceRef']?.trim() || null,
       note: record['note']?.trim() || null,

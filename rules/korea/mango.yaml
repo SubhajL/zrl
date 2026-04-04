@@ -1,13 +1,16 @@
-# Source checked: 2026-04-03
+# Source checked: 2026-04-04
 # Primary sources:
 # - https://www.qia.go.kr/plant/imQua/plant_fruit_cond.jsp
 # - https://www.foodsafetykorea.go.kr/residue/prd/mrls/list.do
 # Notes:
-# - Thailand mango import conditions published by APQA/QIA require phytosanitary
-#   certification plus vapor-heat-treatment and overseas inspection controls.
-# - The Korea MRL database is official but did not expose stable non-interactive
-#   commodity-level values during this pass, so substances are intentionally
-#   deferred in the companion CSV until direct numeric capture is automated.
+# - The current QIA import-condition page for Thailand mango states phytosanitary
+#   certification, vapor-heat treatment at 47C or above for 20 minutes, and
+#   Korean overseas production-site inspection controls.
+# - The current MFDS residue page states that Korea applies 0.01 mg/kg when no
+#   specific agricultural pesticide MRL is established and exposes mango under
+#   commodity code ap105050006.
+# - The companion CSV snapshots 64 current MFDS mango-specific rows for
+#   commodity code ap105050006 as re-verified on 2026-04-04.
 market: KOREA
 product: MANGO
 version: 1
@@ -34,9 +37,9 @@ completenessWeights:
   coldChain: 0.2
   chainOfCustody: 0.15
 metadata:
-  coverageState: PRIMARY_PARTIAL
+  coverageState: FULL_EXHAUSTIVE
   sourceQuality: PRIMARY_ONLY
-  retrievedAt: 2026-04-03
+  retrievedAt: 2026-04-04
   commodityCode: ap105050006
   nonPesticideChecks:
     - type: PHYTO_CERT
@@ -48,8 +51,11 @@ metadata:
       parameters:
         minCoreTemperatureC: 47
         minHoldMinutes: 20
+        overseasInspectionRequired: true
+        registrationRequired: true
+        allowedVarieties: Nang klarngwan|Nam Dork Mai|Rad|Mahachanok
       sourceRef: QIA fruit import conditions
-      note: Structured from current coding-log research; YAML comments still need cleanup.
+      note: Thailand mango import condition on the current QIA page requires VHT plus Korean overseas production-site inspection.
     - type: GAP_CERT
       status: REQUIRED
       parameters: {}
