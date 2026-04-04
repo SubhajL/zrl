@@ -1,8 +1,18 @@
 import {
+  RuleCoverageState,
   RuleLabEnforcementMode,
   RuleMarket,
+  RuleNonPesticideCheckStatus,
+  RuleNonPesticideCheckType,
   RuleProduct,
   RuleRiskLevel,
+  RuleSourceQuality,
+} from './rules-engine.types';
+import type {
+  RuleMetadata,
+  RuleMetadataParameterValue,
+  RuleSetDefinition,
+  RuleSnapshotPayload,
 } from './rules-engine.types';
 
 function assertObject(
@@ -48,6 +58,21 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | null {
   return typeof value === 'number' && !Number.isNaN(value) ? value : null;
+}
+
+function assertScalarMetadataValue(
+  value: unknown,
+  context: string,
+): RuleMetadataParameterValue {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value;
+  }
+
+  throw new Error(`Invalid ${context}.`);
 }
 
 export function normalizeRuleMarket(value: string): RuleMarket {
@@ -108,37 +133,7 @@ export function parseEffectiveDate(value: string | Date): Date {
 export function buildRuleDefinition(
   raw: unknown,
   sourcePath: string,
-): {
-  market: RuleMarket;
-  product: RuleProduct;
-  version: number;
-  effectiveDate: Date;
-  sourcePath: string;
-  requiredDocuments: string[];
-  completenessWeights: {
-    regulatory: number;
-    quality: number;
-    coldChain: number;
-    chainOfCustody: number;
-  };
-  labPolicy?: {
-    enforcementMode: RuleLabEnforcementMode;
-    requiredArtifactType: 'MRL_TEST';
-    acceptedUnits: string[];
-    defaultDestinationMrlMgKg: number | null;
-  };
-  substances: Array<{
-    name: string;
-    aliases: string[];
-    cas: string | null;
-    thaiMrl: number | null;
-    destinationMrl: number;
-    stringencyRatio: number | null;
-    riskLevel: RuleRiskLevel | null;
-    sourceRef: string | null;
-    note: string | null;
-  }>;
-} {
+): RuleSetDefinition {
   const record = assertObject(raw, 'rule definition');
   const market = normalizeRuleMarket(
     assertString(record['market'], 'rule definition market'),
@@ -162,6 +157,61 @@ export function buildRuleDefinition(
     record['completenessWeights'],
     'completenessWeights',
   );
+  const metadataRecord = assertObject(record['metadata'], 'metadata');
+  const nonPesticideChecks = (
+    metadataRecord['nonPesticideChecks'] === undefined
+      ? []
+      : assertArray(metadataRecord['nonPesticideChecks'], 'nonPesticideChecks')
+  ).map((check, index) => {
+    const checkRecord = assertObject(
+      check,
+      `metadata.nonPesticideChecks[${index}]`,
+    );
+    const parametersRecord =
+      checkRecord['parameters'] === undefined
+        ? {}
+        : assertObject(
+            checkRecord['parameters'],
+            `metadata.nonPesticideChecks[${index}].parameters`,
+          );
+
+    return {
+      type: assertString(
+        checkRecord['type'],
+        `metadata.nonPesticideChecks[${index}].type`,
+      ) as RuleNonPesticideCheckType,
+      status: assertString(
+        checkRecord['status'],
+        `metadata.nonPesticideChecks[${index}].status`,
+      ) as RuleNonPesticideCheckStatus,
+      parameters: Object.fromEntries(
+        Object.entries(parametersRecord).map(([key, value]) => [
+          key,
+          assertScalarMetadataValue(
+            value,
+            `metadata.nonPesticideChecks[${index}].parameters.${key}`,
+          ),
+        ]),
+      ),
+      sourceRef: readString(checkRecord['sourceRef']),
+      note: readString(checkRecord['note']),
+    };
+  });
+  const metadata: RuleMetadata = {
+    coverageState: assertString(
+      metadataRecord['coverageState'],
+      'metadata.coverageState',
+    ) as RuleCoverageState,
+    sourceQuality: assertString(
+      metadataRecord['sourceQuality'],
+      'metadata.sourceQuality',
+    ) as RuleSourceQuality,
+    retrievedAt: parseEffectiveDate(
+      metadataRecord['retrievedAt'] as string | Date,
+    ),
+    commodityCode: readString(metadataRecord['commodityCode']),
+    nonPesticideChecks,
+  };
   const labPolicyRecord =
     record['labPolicy'] === undefined
       ? null
@@ -259,42 +309,15 @@ export function buildRuleDefinition(
         'completenessWeights.chainOfCustody',
       ),
     },
+    metadata,
     labPolicy,
     substances,
   };
 }
 
-export function buildRuleSnapshotPayload(definition: {
-  market: RuleMarket;
-  product: RuleProduct;
-  version: number;
-  effectiveDate: Date;
-  sourcePath: string;
-  requiredDocuments: string[];
-  completenessWeights: {
-    regulatory: number;
-    quality: number;
-    coldChain: number;
-    chainOfCustody: number;
-  };
-  labPolicy?: {
-    enforcementMode: RuleLabEnforcementMode;
-    requiredArtifactType: 'MRL_TEST';
-    acceptedUnits: string[];
-    defaultDestinationMrlMgKg: number | null;
-  };
-  substances: Array<{
-    name: string;
-    aliases: string[];
-    cas: string | null;
-    thaiMrl: number | null;
-    destinationMrl: number;
-    stringencyRatio: number | null;
-    riskLevel: RuleRiskLevel | null;
-    sourceRef: string | null;
-    note: string | null;
-  }>;
-}) {
+export function buildRuleSnapshotPayload(
+  definition: RuleSetDefinition,
+): RuleSnapshotPayload {
   return {
     market: definition.market,
     product: definition.product,
@@ -303,6 +326,7 @@ export function buildRuleSnapshotPayload(definition: {
     sourcePath: definition.sourcePath,
     requiredDocuments: definition.requiredDocuments,
     completenessWeights: definition.completenessWeights,
+    metadata: definition.metadata,
     labPolicy: definition.labPolicy,
     substances: definition.substances,
   };
@@ -329,6 +353,19 @@ export function adaptLaneSnapshotToRulePayload(snapshot: {
       coldChain: number;
       chainOfCustody: number;
     };
+    metadata?: {
+      coverageState: RuleCoverageState;
+      sourceQuality: RuleSourceQuality;
+      retrievedAt: Date | string;
+      commodityCode?: string | null;
+      nonPesticideChecks?: Array<{
+        type: RuleNonPesticideCheckType;
+        status: RuleNonPesticideCheckStatus;
+        parameters?: Record<string, RuleMetadataParameterValue>;
+        sourceRef?: string | null;
+        note?: string | null;
+      }>;
+    };
     labPolicy?: {
       enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';
       requiredArtifactType: 'MRL_TEST';
@@ -354,6 +391,32 @@ export function adaptLaneSnapshotToRulePayload(snapshot: {
     requiredDocuments: snapshot.rules.requiredDocuments ?? [],
     completenessWeights:
       snapshot.rules.completenessWeights ?? DEFAULT_COMPLETENESS_WEIGHTS,
+    metadata:
+      snapshot.rules.metadata === undefined
+        ? {
+            coverageState: RuleCoverageState.CURATED_HIGH_RISK,
+            sourceQuality: RuleSourceQuality.SECONDARY_ONLY,
+            retrievedAt: snapshot.effectiveDate,
+            commodityCode: null,
+            nonPesticideChecks: [],
+          }
+        : {
+            coverageState: snapshot.rules.metadata.coverageState,
+            sourceQuality: snapshot.rules.metadata.sourceQuality,
+            retrievedAt: parseEffectiveDate(
+              snapshot.rules.metadata.retrievedAt,
+            ),
+            commodityCode: snapshot.rules.metadata.commodityCode ?? null,
+            nonPesticideChecks: (
+              snapshot.rules.metadata.nonPesticideChecks ?? []
+            ).map((check) => ({
+              type: check.type,
+              status: check.status,
+              parameters: check.parameters ?? {},
+              sourceRef: check.sourceRef ?? null,
+              note: check.note ?? null,
+            })),
+          },
     labPolicy: snapshot.rules.labPolicy,
     substances: (snapshot.rules.substances ?? []).map((substance) => ({
       aliases: [] as string[],

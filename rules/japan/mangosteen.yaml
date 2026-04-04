@@ -33,6 +33,26 @@ completenessWeights:
   quality: 0.25
   coldChain: 0.2
   chainOfCustody: 0.15
+metadata:
+  coverageState: PROXY_MIXED
+  sourceQuality: PRIMARY_PLUS_SECONDARY
+  retrievedAt: 2026-04-03
+  commodityCode:
+  nonPesticideChecks:
+    - type: PHYTO_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: Thailand DOA phytosanitary export workflow
+    - type: VHT
+      status: INFORMATIONAL
+      parameters:
+        exempt: true
+      sourceRef: 2023 mangosteen exemption path
+      note: Exempt from VHT per current cited source chain.
+    - type: GAP_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: Exporter compliance baseline
 labPolicy:
   enforcementMode: FULL_PESTICIDE
   requiredArtifactType: MRL_TEST

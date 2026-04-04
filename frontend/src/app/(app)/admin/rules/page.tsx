@@ -3,8 +3,19 @@
 import * as React from 'react';
 import { Download, Plus, Search, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { DestinationMarket, MrlSubstance, RiskLevel } from '@/lib/types';
-import { MARKET_FLAGS, MARKET_LABELS } from '@/lib/types';
+import type {
+  DestinationMarket,
+  MrlSubstance,
+  RiskLevel,
+  RuleMetadata,
+  RuleSnapshot,
+} from '@/lib/types';
+import {
+  MARKET_FLAGS,
+  MARKET_LABELS,
+  PRODUCT_EMOJI,
+  PRODUCT_LABELS,
+} from '@/lib/types';
 import { DataTable, type Column } from '@/components/zrl/data-table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +50,25 @@ const RISK_FILTER_LABELS: Record<RiskFilter, string> = {
   HIGH: 'High',
   MEDIUM: 'Medium',
   LOW: 'Low',
+};
+
+const COVERAGE_BADGE_VARIANT: Record<
+  RuleMetadata['coverageState'],
+  'default' | 'secondary' | 'warning' | 'info'
+> = {
+  FULL_EXHAUSTIVE: 'default',
+  PRIMARY_PARTIAL: 'info',
+  CURATED_HIGH_RISK: 'warning',
+  PROXY_MIXED: 'secondary',
+};
+
+const SOURCE_BADGE_VARIANT: Record<
+  RuleMetadata['sourceQuality'],
+  'default' | 'secondary' | 'warning'
+> = {
+  PRIMARY_ONLY: 'default',
+  PRIMARY_PLUS_SECONDARY: 'warning',
+  SECONDARY_ONLY: 'secondary',
 };
 
 const SUBSTANCE_COLUMNS: readonly Column<MrlSubstance>[] = [
@@ -130,6 +160,7 @@ export default function RulesAdminPage() {
   const selectedVersions = (data?.versions ?? []).filter(
     (version) => version.market === selectedMarket,
   );
+  const selectedRulePacks = data?.rulesetsByMarket[selectedMarket] ?? [];
   const latestVersion = selectedVersions[0]?.version ?? '--';
 
   const filteredSubstances = React.useMemo(() => {
@@ -213,6 +244,28 @@ export default function RulesAdminPage() {
         )}
 
         <section className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rule Pack Metadata</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedRulePacks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No supported rule packs are available for the selected market yet.
+                </p>
+              ) : (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {selectedRulePacks.map((ruleset) => (
+                    <RulePackCard
+                      key={`${ruleset.market}-${ruleset.product}`}
+                      ruleset={ruleset}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -296,6 +349,88 @@ export default function RulesAdminPage() {
             </CardContent>
           </Card>
         </section>
+      </div>
+    </div>
+  );
+}
+
+function RulePackCard({ ruleset }: { ruleset: RuleSnapshot }) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">
+            {PRODUCT_EMOJI[ruleset.product]} {PRODUCT_LABELS[ruleset.product]} pack
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Effective {new Date(ruleset.effectiveDate).toISOString().slice(0, 10)}
+          </p>
+        </div>
+        <Badge variant="outline">v{ruleset.version}</Badge>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Badge variant={COVERAGE_BADGE_VARIANT[ruleset.metadata.coverageState]}>
+          {ruleset.metadata.coverageState}
+        </Badge>
+        <Badge variant={SOURCE_BADGE_VARIANT[ruleset.metadata.sourceQuality]}>
+          {ruleset.metadata.sourceQuality}
+        </Badge>
+      </div>
+
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="font-medium text-muted-foreground">Retrieved</dt>
+          <dd>{new Date(ruleset.metadata.retrievedAt).toISOString().slice(0, 10)}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-muted-foreground">Commodity code</dt>
+          <dd>{ruleset.metadata.commodityCode ?? '-'}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-muted-foreground">Required documents</dt>
+          <dd>{ruleset.requiredDocuments.length}</dd>
+        </div>
+        <div>
+          <dt className="font-medium text-muted-foreground">Tracked substances</dt>
+          <dd>{ruleset.substances.length}</dd>
+        </div>
+      </dl>
+
+      <div className="mt-4 space-y-2">
+        <p className="text-sm font-medium text-muted-foreground">
+          Non-pesticide checks
+        </p>
+        {ruleset.metadata.nonPesticideChecks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No structured checks recorded.</p>
+        ) : (
+          ruleset.metadata.nonPesticideChecks.map((check) => (
+            <div
+              key={`${ruleset.product}-${check.type}-${check.status}`}
+              className="rounded-lg bg-muted/40 p-3"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{check.type}</Badge>
+                <Badge variant="secondary">{check.status}</Badge>
+              </div>
+              {Object.keys(check.parameters).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  {Object.entries(check.parameters).map(([key, value]) => (
+                    <span key={key} className="font-mono text-xs">
+                      {key}: {String(value)}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(check.sourceRef ?? check.note) && (
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {check.sourceRef && <p>Source: {check.sourceRef}</p>}
+                  {check.note && <p>Note: {check.note}</p>}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

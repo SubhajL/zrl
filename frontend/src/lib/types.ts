@@ -165,7 +165,31 @@ export interface RuleSnapshot {
     readonly coldChain: number;
     readonly chainOfCustody: number;
   };
+  readonly metadata: RuleMetadata;
   readonly substances: readonly RuleSnapshotSubstance[];
+}
+
+export interface RuleMetadata {
+  readonly coverageState:
+    | 'FULL_EXHAUSTIVE'
+    | 'PRIMARY_PARTIAL'
+    | 'CURATED_HIGH_RISK'
+    | 'PROXY_MIXED';
+  readonly sourceQuality:
+    | 'PRIMARY_ONLY'
+    | 'PRIMARY_PLUS_SECONDARY'
+    | 'SECONDARY_ONLY';
+  readonly retrievedAt: string;
+  readonly commodityCode: string | null;
+  readonly nonPesticideChecks: readonly RuleNonPesticideCheck[];
+}
+
+export interface RuleNonPesticideCheck {
+  readonly type: 'PHYTO_CERT' | 'VHT' | 'GAP_CERT' | 'COLD_CHAIN';
+  readonly status: 'REQUIRED' | 'CONDITIONAL' | 'INFORMATIONAL';
+  readonly parameters: Readonly<Record<string, string | number | boolean>>;
+  readonly sourceRef: string | null;
+  readonly note: string | null;
 }
 
 export interface RuleSnapshotSubstance {

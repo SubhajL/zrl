@@ -33,6 +33,27 @@ completenessWeights:
   quality: 0.25
   coldChain: 0.2
   chainOfCustody: 0.15
+metadata:
+  coverageState: PRIMARY_PARTIAL
+  sourceQuality: PRIMARY_ONLY
+  retrievedAt: 2026-04-03
+  commodityCode: ap105050006
+  nonPesticideChecks:
+    - type: PHYTO_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: QIA fruit import conditions
+    - type: VHT
+      status: REQUIRED
+      parameters:
+        minCoreTemperatureC: 47
+        minHoldMinutes: 20
+      sourceRef: QIA fruit import conditions
+      note: Structured from current coding-log research; YAML comments still need cleanup.
+    - type: GAP_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: Exporter orchard and packinghouse eligibility controls
 labPolicy:
   enforcementMode: FULL_PESTICIDE
   requiredArtifactType: MRL_TEST

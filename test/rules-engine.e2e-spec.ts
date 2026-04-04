@@ -81,6 +81,24 @@ describe('RulesEngineController (e2e)', () => {
         coldChain: 0.2,
         chainOfCustody: 0.15,
       },
+      metadata: {
+        coverageState: 'CURATED_HIGH_RISK',
+        sourceQuality: 'PRIMARY_ONLY',
+        retrievedAt: new Date('2026-04-03'),
+        commodityCode: null,
+        nonPesticideChecks: [
+          {
+            type: 'VHT',
+            status: 'REQUIRED',
+            parameters: {
+              minCoreTemperatureC: 47,
+              minHoldMinutes: 20,
+            },
+            sourceRef: 'MAFF quarantine guidance',
+            note: null,
+          },
+        ],
+      },
       substances: [
         {
           name: 'Chlorpyrifos',
@@ -113,6 +131,7 @@ describe('RulesEngineController (e2e)', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     process.env['CERTIFICATION_EXPIRY_WORKER_ENABLED'] = 'false';
+    process.env['PROOF_PACK_WORKER_ENABLED'] = 'false';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -278,6 +297,24 @@ describe('RulesEngineController (e2e)', () => {
         acceptedUnits: ['mg/kg', 'ppm'],
         defaultDestinationMrlMgKg: 0.01,
       },
+      metadata: {
+        coverageState: 'PRIMARY_PARTIAL',
+        sourceQuality: 'PRIMARY_ONLY',
+        retrievedAt: new Date('2026-04-03'),
+        commodityCode: 'ap105050006',
+        nonPesticideChecks: [
+          {
+            type: 'VHT',
+            status: 'REQUIRED',
+            parameters: {
+              minCoreTemperatureC: 47,
+              minHoldMinutes: 20,
+            },
+            sourceRef: 'QIA fruit import conditions',
+            note: null,
+          },
+        ],
+      },
       substances: [
         {
           name: 'Acetamiprid',
@@ -305,6 +342,15 @@ describe('RulesEngineController (e2e)', () => {
             enforcementMode: string;
             defaultDestinationMrlMgKg: number;
           };
+          metadata: {
+            coverageState: string;
+            sourceQuality: string;
+            commodityCode: string | null;
+            nonPesticideChecks: Array<{
+              type: string;
+              status: string;
+            }>;
+          };
           substances: Array<{
             name: string;
             thaiMrl: number | null;
@@ -317,6 +363,19 @@ describe('RulesEngineController (e2e)', () => {
           expect.objectContaining({
             enforcementMode: 'FULL_PESTICIDE',
             defaultDestinationMrlMgKg: 0.01,
+          }),
+        );
+        expect(body.metadata).toEqual(
+          expect.objectContaining({
+            coverageState: 'PRIMARY_PARTIAL',
+            sourceQuality: 'PRIMARY_ONLY',
+            commodityCode: 'ap105050006',
+            nonPesticideChecks: [
+              expect.objectContaining({
+                type: 'VHT',
+                status: 'REQUIRED',
+              }),
+            ],
           }),
         );
         expect(body.substances[0].name).toBe('Acetamiprid');
