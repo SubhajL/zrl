@@ -10,6 +10,51 @@ jest.mock('next/navigation', () => ({
 }));
 
 describe('LaneCreationWizard', () => {
+  async function advanceToRouteStep(
+    user: ReturnType<typeof userEvent.setup>,
+  ): Promise<void> {
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+  }
+
+  async function advanceToReviewStepWithColdChain(
+    user: ReturnType<typeof userEvent.setup>,
+    {
+      coldChainMode,
+      deviceId,
+      dataFrequencySeconds,
+    }: {
+      coldChainMode: 'Logger' | 'Telemetry';
+      deviceId: string;
+      dataFrequencySeconds: string;
+    },
+  ): Promise<void> {
+    render(<LaneCreationWizard />);
+
+    await user.click(screen.getByTestId('product-card-MANGO'));
+    await user.type(screen.getByLabelText(/variety/i), 'Nam Doc Mai');
+    await user.type(screen.getByLabelText(/quantity/i), '5000');
+    await user.type(screen.getByLabelText(/harvest date/i), '2026-03-28');
+    await user.type(screen.getByLabelText(/origin province/i), 'Chachoengsao');
+    await user.click(
+      screen.getByRole('button', { name: /next: destination/i }),
+    );
+    await user.click(screen.getByTestId('market-card-JAPAN'));
+    await user.click(screen.getByRole('button', { name: /next: route/i }));
+    await user.click(screen.getByRole('button', { name: coldChainMode }));
+    await user.type(screen.getByLabelText(/carrier/i), 'Thai Airways Cargo');
+    await user.type(screen.getByLabelText(/device id/i), deviceId);
+    await user.type(
+      screen.getByLabelText(/data frequency \(seconds\)/i),
+      dataFrequencySeconds,
+    );
+    await user.click(screen.getByRole('button', { name: /next: review/i }));
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
@@ -176,6 +221,144 @@ describe('LaneCreationWizard', () => {
     expect(
       screen.getByRole('button', { name: 'Telemetry' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows device and frequency inputs for logger mode', async () => {
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await advanceToRouteStep(user);
+    await user.click(screen.getByRole('button', { name: 'Logger' }));
+
+    expect(screen.getByLabelText(/device id/i)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/data frequency \(seconds\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/logger mode requires readings every 300 to 900 seconds/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows device and frequency inputs for telemetry mode', async () => {
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await advanceToRouteStep(user);
+    await user.click(screen.getByRole('button', { name: 'Telemetry' }));
+
+    expect(screen.getByLabelText(/device id/i)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/data frequency \(seconds\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/telemetry mode requires readings every 60 seconds or less/i),
+    ).toBeInTheDocument();
+  });
+
+  it('hides device and frequency inputs for manual mode', async () => {
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await advanceToRouteStep(user);
+
+    expect(screen.queryByLabelText(/device id/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/data frequency \(seconds\)/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('blocks next review when logger config is incomplete', async () => {
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await advanceToRouteStep(user);
+    await user.click(screen.getByRole('button', { name: 'Logger' }));
+
+    const nextReviewButton = screen.getByRole('button', {
+      name: /next: review/i,
+    });
+    expect(nextReviewButton).toBeDisabled();
+    expect(
+      screen.getByText(/device id is required for logger and telemetry modes/i),
+    ).toBeInTheDocument();
+  });
+
+  it('blocks next review when telemetry frequency exceeds 60 seconds', async () => {
+    const user = userEvent.setup();
+    render(<LaneCreationWizard />);
+
+    await advanceToRouteStep(user);
+    await user.click(screen.getByRole('button', { name: 'Telemetry' }));
+    await user.type(screen.getByLabelText(/device id/i), 'telemetry-1');
+    await user.type(
+      screen.getByLabelText(/data frequency \(seconds\)/i),
+      '120',
+    );
+
+    const nextReviewButton = screen.getByRole('button', {
+      name: /next: review/i,
+    });
+    expect(nextReviewButton).toBeDisabled();
+    expect(
+      screen.getByText(/telemetry mode frequency must be 60 seconds or less/i),
+    ).toBeInTheDocument();
+  });
+
+  it('includes cold-chain config details in the review summary', async () => {
+    const user = userEvent.setup();
+
+    await advanceToReviewStepWithColdChain(user, {
+      coldChainMode: 'Logger',
+      deviceId: 'logger-1',
+      dataFrequencySeconds: '600',
+    });
+
+    expect(screen.getByTestId('lane-review-field-device-id')).toHaveTextContent(
+      'logger-1',
+    );
+    expect(
+      screen.getByTestId('lane-review-field-data-frequency-seconds'),
+    ).toHaveTextContent('600 sec');
+  });
+
+  it('submits telemetry cold-chain config in the lane create payload', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        lane: {
+          id: 'lane-db-telemetry-1',
+        },
+      }),
+    });
+
+    const user = userEvent.setup();
+
+    await advanceToReviewStepWithColdChain(user, {
+      coldChainMode: 'Telemetry',
+      deviceId: 'telemetry-1',
+      dataFrequencySeconds: '30',
+    });
+    await user.click(screen.getByRole('button', { name: /create lane/i }));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/zrl/lanes',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+
+    const [, requestInit] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(JSON.parse(String(requestInit.body))).toEqual(
+      expect.objectContaining({
+        coldChainMode: 'TELEMETRY',
+        coldChainConfig: {
+          mode: 'TELEMETRY',
+          deviceId: 'telemetry-1',
+          dataFrequencySeconds: 30,
+        },
+      }),
+    );
+    expect(mockPush).toHaveBeenCalledWith('/lanes/lane-db-telemetry-1');
   });
 
   it('submits a real lane creation request and redirects to the lane detail page', async () => {
