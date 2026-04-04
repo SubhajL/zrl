@@ -299,6 +299,20 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('JAPAN');
     expect(definition.product).toBe('DURIAN');
     expect(definition.sourcePath).toBe('rules/japan/durian.yaml');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_PLUS_SECONDARY');
+    expect(definition.metadata.commodityCode).toBe('25839');
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'PHYTO_CERT',
+          status: 'REQUIRED',
+        }),
+      ]),
+    );
+    expect(definition.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-04',
+    );
     expect(definition.labPolicy).toMatchObject({
       enforcementMode: 'FULL_PESTICIDE',
       requiredArtifactType: 'MRL_TEST',
@@ -307,14 +321,15 @@ describe('RuleLoaderService', () => {
     expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
     expect(definition.requiredDocuments).toContain('MRL Test Results');
     expect(definition.requiredDocuments).not.toContain('VHT Certificate');
-    expect(definition.substances).toHaveLength(10);
+    expect(definition.substances).toHaveLength(1);
     expect(definition.substances[0]).toMatchObject({
-      name: 'Carbendazim',
-      aliases: ['カルベンダジム'],
-      cas: '10605-21-7',
-      thaiMrl: 5,
-      destinationMrl: 0.5,
-      sourceRef: 'JFCRF db.ffcr.or.jp',
+      name: 'GIBBERELLIN',
+      aliases: ['ジベレリン'],
+      cas: null,
+      thaiMrl: null,
+      destinationMrl: 0,
+      destinationLimitType: 'PHYSIOLOGICAL_LEVEL',
+      sourceRef: 'JFCRF food_group_detail:25839',
     });
   });
 
