@@ -99,6 +99,43 @@ const DEFAULT_CHECKPOINTS = [
   { seq: 4, name: 'Destination Arrival' },
 ] as const;
 
+function getColdChainConfigError(
+  mode: ColdChainMode,
+  deviceId: string,
+  dataFrequencySeconds: string,
+): string | null {
+  if (mode === 'Manual') {
+    return null;
+  }
+
+  if (deviceId.trim().length === 0) {
+    return 'Device ID is required for logger and telemetry modes.';
+  }
+
+  if (dataFrequencySeconds.trim().length === 0) {
+    return 'Data frequency is required for logger and telemetry modes.';
+  }
+
+  const parsedFrequency = Number.parseInt(dataFrequencySeconds, 10);
+  if (
+    !Number.isInteger(parsedFrequency) ||
+    parsedFrequency <= 0 ||
+    parsedFrequency.toString() !== dataFrequencySeconds.trim()
+  ) {
+    return 'Data frequency must be a positive integer in seconds.';
+  }
+
+  if (mode === 'Logger' && (parsedFrequency < 300 || parsedFrequency > 900)) {
+    return 'Logger mode frequency must be between 300 and 900 seconds.';
+  }
+
+  if (mode === 'Telemetry' && parsedFrequency > 60) {
+    return 'Telemetry mode frequency must be 60 seconds or less.';
+  }
+
+  return null;
+}
+
 // ── Component ──
 
 export default function LaneCreationWizard() {
@@ -125,6 +162,9 @@ export default function LaneCreationWizard() {
   const [carrier, setCarrier] = React.useState('');
   const [coldChainMode, setColdChainMode] =
     React.useState<ColdChainMode>('Manual');
+  const [coldChainDeviceId, setColdChainDeviceId] = React.useState('');
+  const [coldChainDataFrequencySeconds, setColdChainDataFrequencySeconds] =
+    React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -142,9 +182,19 @@ export default function LaneCreationWizard() {
     currentStep < WIZARD_STEPS.length - 1
       ? WIZARD_STEPS[currentStep + 1].label
       : null;
+  const coldChainConfigError = getColdChainConfigError(
+    coldChainMode,
+    coldChainDeviceId,
+    coldChainDataFrequencySeconds,
+  );
 
   async function handleCreateLane() {
     if (selectedProduct === null || selectedMarket === null) {
+      return;
+    }
+
+    if (coldChainConfigError !== null) {
+      setSubmitError(coldChainConfigError);
       return;
     }
 
@@ -193,9 +243,19 @@ export default function LaneCreationWizard() {
               carrier: carrier.trim().length > 0 ? carrier.trim() : undefined,
             },
             coldChainMode: coldChainMode.toUpperCase(),
-            coldChainConfig: {
-              mode: coldChainMode.toUpperCase(),
-            },
+            coldChainConfig:
+              coldChainMode === 'Manual'
+                ? {
+                    mode: coldChainMode.toUpperCase(),
+                  }
+                : {
+                    mode: coldChainMode.toUpperCase(),
+                    deviceId: coldChainDeviceId.trim(),
+                    dataFrequencySeconds: Number.parseInt(
+                      coldChainDataFrequencySeconds,
+                      10,
+                    ),
+                  },
           }),
         },
       );
@@ -271,6 +331,13 @@ export default function LaneCreationWizard() {
           onCarrierChange={setCarrier}
           coldChainMode={coldChainMode}
           onColdChainModeChange={setColdChainMode}
+          coldChainDeviceId={coldChainDeviceId}
+          onColdChainDeviceIdChange={setColdChainDeviceId}
+          coldChainDataFrequencySeconds={coldChainDataFrequencySeconds}
+          onColdChainDataFrequencySecondsChange={
+            setColdChainDataFrequencySeconds
+          }
+          coldChainConfigError={coldChainConfigError}
         />
       )}
 
@@ -288,6 +355,8 @@ export default function LaneCreationWizard() {
           transportMode={transportMode}
           carrier={carrier}
           coldChainMode={coldChainMode}
+          coldChainDeviceId={coldChainDeviceId}
+          coldChainDataFrequencySeconds={coldChainDataFrequencySeconds}
         />
       )}
 
@@ -320,7 +389,8 @@ export default function LaneCreationWizard() {
             onClick={() => setCurrentStep((s) => s + 1)}
             disabled={
               (currentStep === 0 && !selectedProduct) ||
-              (currentStep === 1 && !selectedMarket)
+              (currentStep === 1 && !selectedMarket) ||
+              (currentStep === 2 && coldChainConfigError !== null)
             }
           >
             Next: {nextStepLabel}
@@ -336,7 +406,11 @@ export default function LaneCreationWizard() {
               onClick={() => {
                 void handleCreateLane();
               }}
-              disabled={!selectedProduct || !selectedMarket}
+              disabled={
+                !selectedProduct ||
+                !selectedMarket ||
+                coldChainConfigError !== null
+              }
             >
               {isSubmitting ? 'Creating...' : 'Create Lane'}
               {!isSubmitting && <Check />}
@@ -620,6 +694,11 @@ interface StepRouteProps {
   readonly onCarrierChange: (v: string) => void;
   readonly coldChainMode: ColdChainMode;
   readonly onColdChainModeChange: (m: ColdChainMode) => void;
+  readonly coldChainDeviceId: string;
+  readonly onColdChainDeviceIdChange: (v: string) => void;
+  readonly coldChainDataFrequencySeconds: string;
+  readonly onColdChainDataFrequencySecondsChange: (v: string) => void;
+  readonly coldChainConfigError: string | null;
 }
 
 function StepRoute({
@@ -629,6 +708,11 @@ function StepRoute({
   onCarrierChange,
   coldChainMode,
   onColdChainModeChange,
+  coldChainDeviceId,
+  onColdChainDeviceIdChange,
+  coldChainDataFrequencySeconds,
+  onColdChainDataFrequencySecondsChange,
+  coldChainConfigError,
 }: StepRouteProps) {
   return (
     <div className="space-y-6">
@@ -689,6 +773,48 @@ function StepRoute({
               ))}
             </div>
           </div>
+
+          {coldChainMode !== 'Manual' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="coldChainDeviceId">Device ID</Label>
+                <Input
+                  id="coldChainDeviceId"
+                  placeholder="e.g., logger-mango-jp-01"
+                  value={coldChainDeviceId}
+                  onChange={(e) => onColdChainDeviceIdChange(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="coldChainDataFrequencySeconds">
+                  Data Frequency (seconds)
+                </Label>
+                <Input
+                  id="coldChainDataFrequencySeconds"
+                  type="number"
+                  min={coldChainMode === 'Logger' ? 300 : 1}
+                  max={coldChainMode === 'Logger' ? 900 : 60}
+                  placeholder={coldChainMode === 'Logger' ? '600' : '30'}
+                  value={coldChainDataFrequencySeconds}
+                  onChange={(e) =>
+                    onColdChainDataFrequencySecondsChange(e.target.value)
+                  }
+                />
+                <p className="text-sm text-muted-foreground">
+                  {coldChainMode === 'Logger'
+                    ? 'Logger mode requires readings every 300 to 900 seconds.'
+                    : 'Telemetry mode requires readings every 60 seconds or less.'}
+                </p>
+              </div>
+            </>
+          )}
+
+          {coldChainConfigError && (
+            <p className="text-sm font-medium text-destructive">
+              {coldChainConfigError}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -735,6 +861,8 @@ interface StepReviewProps {
   readonly transportMode: TransportModeOption;
   readonly carrier: string;
   readonly coldChainMode: ColdChainMode;
+  readonly coldChainDeviceId: string;
+  readonly coldChainDataFrequencySeconds: string;
 }
 
 function StepReview({
@@ -750,6 +878,8 @@ function StepReview({
   transportMode,
   carrier,
   coldChainMode,
+  coldChainDeviceId,
+  coldChainDataFrequencySeconds,
 }: StepReviewProps) {
   // Compute completeness from filled fields
   const filledFields = [
@@ -804,33 +934,74 @@ function StepReview({
           <dl className="divide-y">
             <ReviewRow
               label="Product"
+              testId="lane-review-field-product"
               value={
                 selectedProduct
                   ? `${PRODUCT_EMOJI[selectedProduct]} ${PRODUCT_LABELS[selectedProduct]}`
                   : '—'
               }
             />
-            <ReviewRow label="Variety" value={variety || '—'} />
+            <ReviewRow
+              label="Variety"
+              value={variety || '—'}
+              testId="lane-review-field-variety"
+            />
             <ReviewRow
               label="Quantity"
               value={quantity ? `${quantity} kg` : '—'}
+              testId="lane-review-field-quantity"
             />
             <ReviewRow label="Harvest Date" value={harvestDate || '—'} />
-            <ReviewRow label="Origin Province" value={originProvince || '—'} />
+            <ReviewRow
+              label="Origin Province"
+              value={originProvince || '—'}
+              testId="lane-review-field-origin-province"
+            />
             <ReviewRow label="Grade" value={grade} />
             <ReviewRow label="GAP Certificate" value={gapCertificate || '—'} />
             <ReviewRow label="Batch ID" value={batchId} mono />
             <ReviewRow
               label="Destination"
+              testId="lane-review-field-destination"
               value={
                 selectedMarket
                   ? `${MARKET_FLAGS[selectedMarket]} ${MARKET_LABELS[selectedMarket]}`
                   : '—'
               }
             />
-            <ReviewRow label="Transport Mode" value={transportMode} />
-            <ReviewRow label="Carrier" value={carrier || '—'} />
-            <ReviewRow label="Cold-chain Mode" value={coldChainMode} />
+            <ReviewRow
+              label="Transport Mode"
+              value={transportMode}
+              testId="lane-review-field-transport-mode"
+            />
+            <ReviewRow
+              label="Carrier"
+              value={carrier || '—'}
+              testId="lane-review-field-carrier"
+            />
+            <ReviewRow
+              label="Cold-chain Mode"
+              value={coldChainMode}
+              testId="lane-review-field-cold-chain-mode"
+            />
+            {coldChainMode !== 'Manual' && (
+              <>
+                <ReviewRow
+                  label="Device ID"
+                  value={coldChainDeviceId || '—'}
+                  testId="lane-review-field-device-id"
+                />
+                <ReviewRow
+                  label="Data Frequency"
+                  value={
+                    coldChainDataFrequencySeconds
+                      ? `${coldChainDataFrequencySeconds} sec`
+                      : '—'
+                  }
+                  testId="lane-review-field-data-frequency-seconds"
+                />
+              </>
+            )}
           </dl>
         </CardContent>
       </Card>
@@ -842,15 +1013,22 @@ function ReviewRow({
   label,
   value,
   mono = false,
+  testId,
 }: {
   readonly label: string;
   readonly value: string;
   readonly mono?: boolean;
+  readonly testId?: string;
 }) {
   return (
     <div className="flex items-center justify-between py-3 text-sm">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn('font-medium', mono && 'font-mono')}>{value}</dd>
+      <dd
+        className={cn('font-medium', mono && 'font-mono')}
+        data-testid={testId}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
