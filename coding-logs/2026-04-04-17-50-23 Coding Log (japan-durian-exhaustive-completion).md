@@ -356,3 +356,87 @@ LOW
 - No API, schema, or migration changes.
 - Backout is reverting the durian YAML/CSV/spec/docs slice only.
 - Main operational caveat is interpretive, not technical: reviewers should expect a one-row explicit CSV because the rule pack relies on the existing 0.01 mg/kg fallback for all other pesticides.
+
+## Implementation (2026-04-04 19:34:00 ICT) - playwright-lane-creation-harness
+
+- Goal: reconnect the previously local-only Playwright lane-creation harness to the current repo state so it can be submitted as a coherent PR instead of sitting as untracked helper/spec/script files.
+- What changed:
+  - `frontend/playwright.config.ts`
+    - Changed the default local browser base URL from the stale `3300` port to `3400`.
+    - Added a local-only `webServer` that launches `bash ../scripts/run-local-playwright.sh --serve`, reuses an already-running local stack, and is disabled in CI or when `PLAYWRIGHT_SKIP_WEBSERVER=1`.
+    - Passed `FRONTEND_PORT` / `BACKEND_PORT` through the Playwright config so the wrapper and browser URL stay aligned.
+  - `frontend/package.json`
+    - Added `test:e2e:list` so the Playwright config and spec discovery can be validated without booting the local stack.
+  - `package.json`
+    - Added explicit `test:e2e:backend`, `test:e2e:playwright`, and `test:e2e:playwright:list` entrypoints so backend Jest e2e and browser Playwright e2e are no longer conflated at the root.
+  - `frontend/e2e/helpers/lane-wizard.ts`
+    - Landed the previously local-only helper that drives exporter login, wizard completion, review-step assertions, and lane-detail assertions against the current lane wizard UI.
+  - `frontend/e2e/lane-creation-matrix.spec.ts`
+    - Landed the previously local-only matrix spec that exercises live-supported fruit/market pairs as create-success cases and unsupported pairs as missing-rule failures.
+  - `frontend/src/lib/testing/lane-creation-scenarios.ts`
+    - Landed the scenario catalog that derives supported vs unsupported pairs from the actual `rules/` files on disk and carries the cold-chain device/frequency inputs used by the current wizard.
+  - `scripts/run-local-playwright.sh`
+    - Landed the previously local-only wrapper that builds, migrates, seeds, starts backend/frontend on `3401/3400`, waits for readiness, and tears both down when Playwright exits.
+  - `docs/PROGRESS.md`
+    - Recorded the harness restoration and validation state.
+- TDD evidence:
+  - Tests added/changed:
+    - `frontend/e2e/lane-creation-matrix.spec.ts`
+    - `frontend/e2e/helpers/lane-wizard.ts`
+    - `frontend/src/lib/testing/lane-creation-scenarios.ts`
+  - RED:
+    - No fresh RED run was captured in this turn because the failure mode was missing wiring around untracked local files, not a committed failing test on `main`. Reproducing the exact RED state would have required intentionally removing the local harness files and config entrypoints first. Existing repo evidence before this restoration was the historical `ERR_CONNECTION_REFUSED` / missing local orchestration documented in the April 3 Playwright coding logs.
+  - GREEN:
+    - Command: `npm run test:e2e:playwright:list`
+    - Command: `cd frontend && npx playwright test e2e/lane-creation-matrix.spec.ts --workers=1 --grep 'creates lane for mango-japan-air'`
+- Tests run:
+  - `bash -n scripts/run-local-playwright.sh` ✅
+  - `npm run test:e2e:playwright:list` ✅
+  - `cd frontend && npm run lint` ✅
+  - `cd frontend && npm run typecheck` ✅
+  - `cd frontend && npx playwright test e2e/lane-creation-matrix.spec.ts --workers=1 --grep 'creates lane for mango-japan-air'` ✅
+- Wiring verification evidence:
+  - Local self-starting Playwright is now registered in `frontend/playwright.config.ts` through `webServer.command = 'bash ../scripts/run-local-playwright.sh --serve'`.
+  - Root browser-e2e entrypoints now route through `package.json` `test:e2e:playwright*`, which delegate into `frontend/` without changing the existing backend Jest e2e alias.
+  - The matrix spec is discovered by Playwright via `frontend/playwright.config.ts:testDir`, and it pulls its runtime scenarios from `frontend/src/lib/testing/lane-creation-scenarios.ts`.
+  - The wrapper bootstraps the runtime expected by the browser flow by generating Prisma client, applying migrations, seeding, building both apps, then starting backend/frontend before the browser hits `/login`.
+- Behavior changes and risk notes:
+  - Local `cd frontend && npm run test:e2e` is now self-starting by default instead of assuming a manually started app stack.
+  - CI behavior remains unchanged because the new `webServer` path is disabled when `CI` is set and the workflow still provides `PLAYWRIGHT_BASE_URL`.
+  - Residual risk: the repo still has mixed broader topology defaults outside this harness slice (`3000/3001` in some runtime and CI paths), so this PR restores the harness without fully standardizing every app default.
+- Follow-ups / known gaps:
+  - Submit this harness as its own PR before resuming `JAPAN/MANGOSTEEN`.
+  - A future topology-hardening pass can unify the remaining `3000/3001` defaults repo-wide if that is still desired.
+
+## Review (2026-04-04 19:38:00 ICT) - working-tree (Playwright harness scope)
+
+### Reviewed
+- Repo: /Users/subhajlimanond/dev/zrl
+- Branch: main
+- Scope: working tree (`frontend/playwright.config.ts`, `frontend/package.json`, `package.json`, `frontend/e2e/helpers/lane-wizard.ts`, `frontend/e2e/lane-creation-matrix.spec.ts`, `frontend/src/lib/testing/lane-creation-scenarios.ts`, `scripts/run-local-playwright.sh`, `docs/PROGRESS.md`)
+- Commands Run: `git diff -- frontend/playwright.config.ts frontend/package.json package.json docs/PROGRESS.md 'coding-logs/2026-04-04-17-50-23 Coding Log (japan-durian-exhaustive-completion).md'`; `git diff --no-index -- /dev/null frontend/e2e/helpers/lane-wizard.ts`; `git diff --no-index -- /dev/null frontend/e2e/lane-creation-matrix.spec.ts`; `git diff --no-index -- /dev/null frontend/src/lib/testing/lane-creation-scenarios.ts`; `git diff --no-index -- /dev/null scripts/run-local-playwright.sh`; `bash -n scripts/run-local-playwright.sh`; `npm run test:e2e:playwright:list`; `cd frontend && npm run lint`; `cd frontend && npm run typecheck`; `cd frontend && npx playwright test e2e/lane-creation-matrix.spec.ts --workers=1 --grep 'creates lane for mango-japan-air'`
+
+### Findings
+CRITICAL
+- No findings.
+
+HIGH
+- No findings.
+
+MEDIUM
+- No findings.
+
+LOW
+- No findings.
+
+### Open Questions / Assumptions
+- Assumed the harness PR should restore only the local Playwright bootstrap and lane-matrix files, not the broader repo-wide `3000/3001 -> 3400/3401` topology migration described in earlier planning logs.
+- Assumed deriving supported scenarios from rule-file existence is the intended contract for now, even though it does not inspect pack quality metadata such as `coverageState`.
+
+### Recommended Tests / Validation
+- Keep the focused green scenario (`mango-japan-air`) as the minimum smoke before submission.
+- Optional follow-up after merge: run the full `frontend/e2e/lane-creation-matrix.spec.ts` suite locally once, since the matrix is now self-starting.
+
+### Rollout Notes
+- Local browser E2E behavior changes; CI behavior remains unchanged because the Playwright `webServer` path is disabled under `CI`.
+- Backout is reverting the harness wiring plus the newly tracked e2e helper/spec/scenario/script files.

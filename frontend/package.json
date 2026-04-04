@@ -11,6 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install --with-deps chromium",
+    "test:e2e:list": "PLAYWRIGHT_SKIP_WEBSERVER=1 playwright test --list",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "typegen": "next typegen",
