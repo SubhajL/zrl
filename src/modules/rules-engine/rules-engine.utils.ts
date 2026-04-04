@@ -267,8 +267,10 @@ export function buildRuleDefinition(
         substanceRecord['destinationMrl'],
         `substances[${index}].destinationMrl`,
       );
+      const destinationLimitType =
+        readString(substanceRecord['destinationLimitType']) ?? 'NUMERIC';
       const stringencyRatio =
-        thaiMrl === null
+        thaiMrl === null || destinationLimitType !== 'NUMERIC'
           ? null
           : computeStringencyRatio(thaiMrl, destinationMrl);
 
@@ -278,6 +280,10 @@ export function buildRuleDefinition(
         cas,
         thaiMrl,
         destinationMrl,
+        destinationLimitType: destinationLimitType as
+          | 'NUMERIC'
+          | 'NON_DETECT'
+          | 'PHYSIOLOGICAL_LEVEL',
         stringencyRatio,
         riskLevel:
           stringencyRatio === null ? null : classifyRiskLevel(stringencyRatio),
@@ -377,6 +383,7 @@ export function adaptLaneSnapshotToRulePayload(snapshot: {
       cas: string | null;
       thaiMrl: number | null;
       destinationMrl: number;
+      destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
       stringencyRatio: number | null;
       riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
     }>;
@@ -422,6 +429,7 @@ export function adaptLaneSnapshotToRulePayload(snapshot: {
       aliases: [] as string[],
       sourceRef: null as string | null,
       note: null as string | null,
+      destinationLimitType: 'NUMERIC' as const,
       ...substance,
     })),
   };

@@ -197,6 +197,10 @@ export interface RuleSnapshotSubstance {
   readonly cas: string;
   readonly thaiMrl: number;
   readonly destinationMrl: number;
+  readonly destinationLimitType?:
+    | 'NUMERIC'
+    | 'NON_DETECT'
+    | 'PHYSIOLOGICAL_LEVEL';
   readonly stringencyRatio: number;
   readonly riskLevel: RiskLevel;
 }

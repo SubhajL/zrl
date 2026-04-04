@@ -82,19 +82,33 @@ describe('RulesEngineController (e2e)', () => {
         chainOfCustody: 0.15,
       },
       metadata: {
-        coverageState: 'CURATED_HIGH_RISK',
-        sourceQuality: 'PRIMARY_ONLY',
-        retrievedAt: new Date('2026-04-03'),
+        coverageState: 'FULL_EXHAUSTIVE',
+        sourceQuality: 'PRIMARY_PLUS_SECONDARY',
+        retrievedAt: new Date('2026-04-04'),
         commodityCode: null,
         nonPesticideChecks: [
+          {
+            type: 'PHYTO_CERT',
+            status: 'REQUIRED',
+            parameters: {
+              issuingAuthority: 'Thai NPPO',
+              mustStateFruitFlyFree: true,
+              mustStateTreatmentPerformed: true,
+            },
+            sourceRef: 'MAFF Plant Protection Station Thailand mango standard',
+            note: null,
+          },
           {
             type: 'VHT',
             status: 'REQUIRED',
             parameters: {
               minCoreTemperatureC: 47,
               minHoldMinutes: 20,
+              alternateAllowedVariety: 'Nang Klang Wan',
+              alternateMinCoreTemperatureC: 46.5,
+              alternateMinHoldMinutes: 10,
             },
-            sourceRef: 'MAFF quarantine guidance',
+            sourceRef: 'MAFF Plant Protection Station Thailand mango standard',
             note: null,
           },
         ],
@@ -216,10 +230,33 @@ describe('RulesEngineController (e2e)', () => {
           market: string;
           product: string;
           version: number;
+          metadata: {
+            coverageState: string;
+            sourceQuality: string;
+            retrievedAt: string;
+            nonPesticideChecks: Array<{
+              type: string;
+              parameters: Record<string, string | number | boolean>;
+            }>;
+          };
         };
         expect(body.market).toBe('JAPAN');
         expect(body.product).toBe('MANGO');
         expect(body.version).toBe(1);
+        expect(body.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+        expect(body.metadata.sourceQuality).toBe('PRIMARY_PLUS_SECONDARY');
+        expect(body.metadata.retrievedAt).toContain('2026-04-04');
+        const phytoCheck = body.metadata.nonPesticideChecks.find(
+          (check) => check.type === 'PHYTO_CERT',
+        );
+        const vhtCheck = body.metadata.nonPesticideChecks.find(
+          (check) => check.type === 'VHT',
+        );
+        expect(phytoCheck).toBeDefined();
+        expect(vhtCheck?.parameters.minCoreTemperatureC).toBe(47);
+        expect(vhtCheck?.parameters.alternateAllowedVariety).toBe(
+          'Nang Klang Wan',
+        );
       });
   });
 
@@ -298,9 +335,9 @@ describe('RulesEngineController (e2e)', () => {
         defaultDestinationMrlMgKg: 0.01,
       },
       metadata: {
-        coverageState: 'PRIMARY_PARTIAL',
+        coverageState: 'FULL_EXHAUSTIVE',
         sourceQuality: 'PRIMARY_ONLY',
-        retrievedAt: new Date('2026-04-03'),
+        retrievedAt: new Date('2026-04-04'),
         commodityCode: 'ap105050006',
         nonPesticideChecks: [
           {
@@ -309,6 +346,9 @@ describe('RulesEngineController (e2e)', () => {
             parameters: {
               minCoreTemperatureC: 47,
               minHoldMinutes: 20,
+              overseasInspectionRequired: true,
+              registrationRequired: true,
+              allowedVarieties: 'Nang klarngwan|Nam Dork Mai|Rad|Mahachanok',
             },
             sourceRef: 'QIA fruit import conditions',
             note: null,
@@ -367,7 +407,7 @@ describe('RulesEngineController (e2e)', () => {
         );
         expect(body.metadata).toEqual(
           expect.objectContaining({
-            coverageState: 'PRIMARY_PARTIAL',
+            coverageState: 'FULL_EXHAUSTIVE',
             sourceQuality: 'PRIMARY_ONLY',
             commodityCode: 'ap105050006',
             nonPesticideChecks: [

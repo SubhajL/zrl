@@ -165,32 +165,83 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('JAPAN');
     expect(definition.product).toBe('MANGO');
     expect(definition.sourcePath).toBe('rules/japan/mango.yaml');
-    expect(definition.metadata.coverageState).toBe('CURATED_HIGH_RISK');
-    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_PLUS_SECONDARY');
     expect(definition.metadata.commodityCode).toBeNull();
-    expect(definition.metadata.nonPesticideChecks).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'VHT',
-          status: 'REQUIRED',
-        }),
-      ]),
+    expect(definition.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-04',
     );
+    const phytoCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'PHYTO_CERT',
+    );
+    const vhtCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'VHT',
+    );
+    const gapCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'GAP_CERT',
+    );
+
+    expect(phytoCheck).toMatchObject({
+      status: 'REQUIRED',
+      parameters: {
+        issuingAuthority: 'Thai NPPO',
+        mustStateFruitFlyFree: true,
+        mustStateTreatmentPerformed: true,
+      },
+    });
+    expect(vhtCheck).toMatchObject({
+      status: 'REQUIRED',
+      parameters: {
+        minCoreTemperatureC: 47,
+        minHoldMinutes: 20,
+        alternateAllowedVariety: 'Nang Klang Wan',
+        alternateMinCoreTemperatureC: 46.5,
+        alternateMinHoldMinutes: 10,
+        registeredProductionAreaRequired: true,
+        maffVerificationRequired: true,
+        packagingSealRequired: true,
+        allowedVarieties:
+          'Kio Savoy|Chok Anan|Nang Klang Wan|Nam Dok Mai|Pim Saen Daeng|Mahachanok|Rad',
+      },
+    });
+    expect(gapCheck?.status).toBe('REQUIRED');
+    expect(gapCheck?.note).toContain('not a MAFF import condition');
     expect(definition.labPolicy).toMatchObject({
       enforcementMode: 'FULL_PESTICIDE',
       requiredArtifactType: 'MRL_TEST',
       defaultDestinationMrlMgKg: 0.01,
     });
-    expect(definition.substances).toHaveLength(12);
-    expect(definition.substances[0]).toMatchObject({
-      name: 'Chlorpyrifos',
-      aliases: ['クロルピリホス'],
-      cas: '2921-88-2',
-      thaiMrl: 0.5,
-      destinationMrl: 0.01,
-      stringencyRatio: 50,
-      riskLevel: 'CRITICAL',
-      sourceRef: 'JFCRF db.ffcr.or.jp',
+    expect(definition.substances).toHaveLength(191);
+    const acetamiprid = definition.substances.find(
+      (substance) => substance.name === 'ACETAMIPRID',
+    );
+    const edb = definition.substances.find(
+      (substance) => substance.name === 'ETHYLENE DIBROMIDE (EDB)',
+    );
+    expect(acetamiprid).toMatchObject({
+      aliases: [],
+      cas: null,
+      thaiMrl: null,
+      destinationMrl: 1,
+      destinationLimitType: 'NUMERIC',
+      stringencyRatio: null,
+      riskLevel: null,
+      sourceRef: 'JFCRF food_group_detail:11600',
+    });
+    expect(edb).toMatchObject({
+      destinationMrl: 0,
+      destinationLimitType: 'NON_DETECT',
+      sourceRef: 'JFCRF food_group_detail:11600',
+    });
+    expect(edb?.note).toContain('N.D.');
+    expect(
+      definition.substances.find(
+        (substance) => substance.name === 'GIBBERELLIN',
+      ),
+    ).toMatchObject({
+      destinationMrl: 0,
+      destinationLimitType: 'PHYSIOLOGICAL_LEVEL',
+      sourceRef: 'JFCRF food_group_detail:11600',
     });
   });
 
@@ -203,7 +254,7 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('KOREA');
     expect(definition.product).toBe('MANGO');
     expect(definition.sourcePath).toBe('rules/korea/mango.yaml');
-    expect(definition.metadata.coverageState).toBe('PRIMARY_PARTIAL');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
     expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
     expect(definition.metadata.commodityCode).toBe('ap105050006');
     expect(definition.metadata.nonPesticideChecks).toEqual(
@@ -214,12 +265,15 @@ describe('RuleLoaderService', () => {
           parameters: {
             minCoreTemperatureC: 47,
             minHoldMinutes: 20,
+            overseasInspectionRequired: true,
+            registrationRequired: true,
+            allowedVarieties: 'Nang klarngwan|Nam Dork Mai|Rad|Mahachanok',
           },
         }),
       ]),
     );
     expect(definition.metadata.retrievedAt.toISOString()).toContain(
-      '2026-04-03',
+      '2026-04-04',
     );
     expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
     expect(definition.labPolicy).toMatchObject({
@@ -227,7 +281,7 @@ describe('RuleLoaderService', () => {
       requiredArtifactType: 'MRL_TEST',
       defaultDestinationMrlMgKg: 0.01,
     });
-    expect(definition.substances.length).toBeGreaterThan(50);
+    expect(definition.substances).toHaveLength(64);
     expect(definition.substances[0]).toMatchObject({
       name: 'Glufosinate(ammonium)',
       aliases: ['글루포시네이트'],
@@ -313,6 +367,36 @@ describe('RuleLoaderService', () => {
       destinationMrl: 0.5,
       sourceRef: 'JFCRF db.ffcr.or.jp; Sci. Rep. 2026',
     });
+  });
+
+  it('loads the repository eu mango rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/eu/mango.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('EU');
+    expect(definition.product).toBe('MANGO');
+    expect(definition.sourcePath).toBe('rules/eu/mango.yaml');
+    expect(definition.metadata.coverageState).toBe('PRIMARY_PARTIAL');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBeNull();
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'PHYTO_CERT',
+          status: 'REQUIRED',
+        }),
+      ]),
+    );
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'DOCUMENT_ONLY',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: null,
+    });
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.requiredDocuments).toContain('MRL Test Results');
+    expect(definition.substances).toHaveLength(0);
   });
 
   it('refreshes cached rules automatically when the backing yaml changes', async () => {

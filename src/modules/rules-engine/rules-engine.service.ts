@@ -776,12 +776,16 @@ export class RulesEngineService {
 
     for (const substance of snapshot.substances) {
       const measured = this.findMeasuredResult(resultByKey, substance);
+      const limitType = substance.destinationLimitType ?? 'NUMERIC';
       if (measured === null) {
         validationResults.push({
           substance: substance.name,
           cas: substance.cas,
           valueMgKg: null,
-          limitMgKg: substance.destinationMrl,
+          limitMgKg:
+            limitType === 'PHYSIOLOGICAL_LEVEL'
+              ? null
+              : substance.destinationMrl,
           passed: false,
           status: 'UNKNOWN',
           riskLevel: substance.riskLevel,
@@ -791,6 +795,19 @@ export class RulesEngineService {
       }
 
       pushMeasuredKeys(measured);
+      if (limitType === 'PHYSIOLOGICAL_LEVEL') {
+        validationResults.push({
+          substance: substance.name,
+          cas: substance.cas,
+          valueMgKg: measured.valueMgKg,
+          limitMgKg: null,
+          passed: false,
+          status: 'UNKNOWN',
+          riskLevel: substance.riskLevel,
+          limitSource: 'SPECIFIC',
+        });
+        continue;
+      }
       const passed = measured.valueMgKg <= substance.destinationMrl;
       validationResults.push({
         substance: substance.name,

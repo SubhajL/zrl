@@ -1,0 +1,6 @@
+# Source checked: 2026-04-03
+# Official MRL source system:
+# https://ec.europa.eu/food/plant/pesticides/eu-pesticides-database/public/?event=homepage&language=EN
+# Numeric rows intentionally deferred until stable product-level extraction is
+# available from the official EU database.
+name,cas,thaiMrl,destinationMrl
