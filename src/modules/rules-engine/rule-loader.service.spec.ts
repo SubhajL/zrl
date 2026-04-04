@@ -395,6 +395,71 @@ describe('RuleLoaderService', () => {
     );
   });
 
+  it('loads the repository korea mangosteen rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/korea/mangosteen.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('KOREA');
+    expect(definition.product).toBe('MANGOSTEEN');
+    expect(definition.sourcePath).toBe('rules/korea/mangosteen.yaml');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBe('ap105051360');
+    expect(definition.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-05',
+    );
+    const phytoCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'PHYTO_CERT',
+    );
+    expect(phytoCheck).toMatchObject({
+      type: 'PHYTO_CERT',
+      status: 'REQUIRED',
+      parameters: {
+        treatmentType: 'METHYL_BROMIDE_FUMIGATION',
+        treatmentRequired: true,
+        certificateMustStateTreatmentDetails: true,
+        overseasInspectionRequired: true,
+        registrationRequired: true,
+      },
+    });
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.requiredDocuments).toContain('MRL Test Results');
+    expect(definition.requiredDocuments).not.toContain('VHT Certificate');
+    expect(definition.substances).toHaveLength(3);
+    expect(definition.substances).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Imidacloprid',
+          aliases: ['이미다클로프리드'],
+          thaiMrl: null,
+          destinationMrl: 0.4,
+          sourceRef: 'MFDS foodView:ap105051360',
+        }),
+        expect.objectContaining({
+          name: 'Carbofuran',
+          aliases: ['카보퓨란'],
+          thaiMrl: null,
+          destinationMrl: 2,
+          sourceRef: 'MFDS foodView:ap105051360',
+        }),
+        expect.objectContaining({
+          name: '3-Hydroxycarbofuran',
+          aliases: [],
+          thaiMrl: null,
+          destinationMrl: 2,
+          sourceRef: 'MFDS foodView:ap105051360',
+        }),
+      ]),
+    );
+  });
+
   it('loads the repository japan mangosteen rule file', async () => {
     const definition = await loadRuleDefinitionFromFile(
       resolve(process.cwd(), 'rules/japan/mangosteen.yaml'),
