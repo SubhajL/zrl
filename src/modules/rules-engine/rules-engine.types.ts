@@ -72,6 +72,62 @@ export const RuleLabLimitSource = {
 export type RuleLabLimitSource =
   (typeof RuleLabLimitSource)[keyof typeof RuleLabLimitSource];
 
+export const RuleCoverageState = {
+  FULL_EXHAUSTIVE: 'FULL_EXHAUSTIVE',
+  PRIMARY_PARTIAL: 'PRIMARY_PARTIAL',
+  CURATED_HIGH_RISK: 'CURATED_HIGH_RISK',
+  PROXY_MIXED: 'PROXY_MIXED',
+} as const;
+
+export type RuleCoverageState =
+  (typeof RuleCoverageState)[keyof typeof RuleCoverageState];
+
+export const RuleSourceQuality = {
+  PRIMARY_ONLY: 'PRIMARY_ONLY',
+  PRIMARY_PLUS_SECONDARY: 'PRIMARY_PLUS_SECONDARY',
+  SECONDARY_ONLY: 'SECONDARY_ONLY',
+} as const;
+
+export type RuleSourceQuality =
+  (typeof RuleSourceQuality)[keyof typeof RuleSourceQuality];
+
+export const RuleNonPesticideCheckType = {
+  PHYTO_CERT: 'PHYTO_CERT',
+  VHT: 'VHT',
+  GAP_CERT: 'GAP_CERT',
+  COLD_CHAIN: 'COLD_CHAIN',
+} as const;
+
+export type RuleNonPesticideCheckType =
+  (typeof RuleNonPesticideCheckType)[keyof typeof RuleNonPesticideCheckType];
+
+export const RuleNonPesticideCheckStatus = {
+  REQUIRED: 'REQUIRED',
+  CONDITIONAL: 'CONDITIONAL',
+  INFORMATIONAL: 'INFORMATIONAL',
+} as const;
+
+export type RuleNonPesticideCheckStatus =
+  (typeof RuleNonPesticideCheckStatus)[keyof typeof RuleNonPesticideCheckStatus];
+
+export type RuleMetadataParameterValue = string | number | boolean;
+
+export interface RuleNonPesticideCheck {
+  type: RuleNonPesticideCheckType;
+  status: RuleNonPesticideCheckStatus;
+  parameters: Record<string, RuleMetadataParameterValue>;
+  sourceRef: string | null;
+  note: string | null;
+}
+
+export interface RuleMetadata {
+  coverageState: RuleCoverageState;
+  sourceQuality: RuleSourceQuality;
+  retrievedAt: Date;
+  commodityCode: string | null;
+  nonPesticideChecks: RuleNonPesticideCheck[];
+}
+
 export interface RuleLabPolicy {
   enforcementMode: RuleLabEnforcementMode;
   requiredArtifactType: 'MRL_TEST';
@@ -99,6 +155,7 @@ export interface RuleSetDefinition {
   sourcePath: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  metadata: RuleMetadata;
   labPolicy?: RuleLabPolicy;
   substances: RuleSubstanceDefinition[];
 }
@@ -147,6 +204,7 @@ export interface RuleSnapshotPayload {
   sourcePath: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  metadata: RuleMetadata;
   labPolicy?: RuleLabPolicy;
   substances: RuleSubstanceDefinition[];
 }
@@ -345,6 +403,19 @@ export interface RuleDefinitionSource {
   substancesFile?: string;
   requiredDocuments: string[];
   completenessWeights: RuleCompletenessWeights;
+  metadata?: {
+    coverageState: RuleCoverageState;
+    sourceQuality: RuleSourceQuality;
+    retrievedAt: string | Date;
+    commodityCode?: string | null;
+    nonPesticideChecks?: Array<{
+      type: RuleNonPesticideCheckType;
+      status: RuleNonPesticideCheckStatus;
+      parameters?: Record<string, RuleMetadataParameterValue>;
+      sourceRef?: string | null;
+      note?: string | null;
+    }>;
+  };
   labPolicy?: {
     enforcementMode: RuleLabEnforcementMode;
     requiredArtifactType?: 'MRL_TEST';

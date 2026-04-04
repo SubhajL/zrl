@@ -24,6 +24,17 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
+        'metadata:',
+        '  coverageState: CURATED_HIGH_RISK',
+        '  sourceQuality: PRIMARY_ONLY',
+        '  retrievedAt: 2026-04-04',
+        '  commodityCode: mango-jp-manual',
+        '  nonPesticideChecks:',
+        '    - type: VHT',
+        '      status: REQUIRED',
+        '      parameters:',
+        '        minCoreTemperatureC: 47',
+        '        minHoldMinutes: 20',
         'substances:',
         '  - name: Chlorpyrifos',
         '    cas: 2921-88-2',
@@ -39,6 +50,24 @@ describe('RuleLoaderService', () => {
     expect(definition).not.toBeNull();
     expect(definition?.market).toBe('JAPAN');
     expect(definition?.product).toBe('MANGO');
+    expect(definition?.metadata).toMatchObject({
+      coverageState: 'CURATED_HIGH_RISK',
+      sourceQuality: 'PRIMARY_ONLY',
+      commodityCode: 'mango-jp-manual',
+    });
+    expect(definition?.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-04',
+    );
+    expect(definition?.metadata.nonPesticideChecks).toEqual([
+      expect.objectContaining({
+        type: 'VHT',
+        status: 'REQUIRED',
+        parameters: {
+          minCoreTemperatureC: 47,
+          minHoldMinutes: 20,
+        },
+      }),
+    ]);
     expect(definition?.substances[0]).toMatchObject({
       name: 'Chlorpyrifos',
       cas: '2921-88-2',
@@ -67,6 +96,12 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
+        'metadata:',
+        '  coverageState: CURATED_HIGH_RISK',
+        '  sourceQuality: PRIMARY_ONLY',
+        '  retrievedAt: 2026-03-01',
+        '  commodityCode:',
+        '  nonPesticideChecks: []',
         'substances:',
         '  - name: Chlorpyrifos',
         '    cas: 2921-88-2',
@@ -93,6 +128,12 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
+        'metadata:',
+        '  coverageState: CURATED_HIGH_RISK',
+        '  sourceQuality: PRIMARY_ONLY',
+        '  retrievedAt: 2026-03-02',
+        '  commodityCode:',
+        '  nonPesticideChecks: []',
         'substances:',
         '  - name: Chlorpyrifos',
         '    cas: 2921-88-2',
@@ -124,6 +165,17 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('JAPAN');
     expect(definition.product).toBe('MANGO');
     expect(definition.sourcePath).toBe('rules/japan/mango.yaml');
+    expect(definition.metadata.coverageState).toBe('CURATED_HIGH_RISK');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBeNull();
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'VHT',
+          status: 'REQUIRED',
+        }),
+      ]),
+    );
     expect(definition.labPolicy).toMatchObject({
       enforcementMode: 'FULL_PESTICIDE',
       requiredArtifactType: 'MRL_TEST',
@@ -151,6 +203,24 @@ describe('RuleLoaderService', () => {
     expect(definition.market).toBe('KOREA');
     expect(definition.product).toBe('MANGO');
     expect(definition.sourcePath).toBe('rules/korea/mango.yaml');
+    expect(definition.metadata.coverageState).toBe('PRIMARY_PARTIAL');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBe('ap105050006');
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'VHT',
+          status: 'REQUIRED',
+          parameters: {
+            minCoreTemperatureC: 47,
+            minHoldMinutes: 20,
+          },
+        }),
+      ]),
+    );
+    expect(definition.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-03',
+    );
     expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
     expect(definition.labPolicy).toMatchObject({
       enforcementMode: 'FULL_PESTICIDE',
@@ -264,6 +334,12 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
+        'metadata:',
+        '  coverageState: CURATED_HIGH_RISK',
+        '  sourceQuality: PRIMARY_ONLY',
+        '  retrievedAt: 2026-03-01',
+        '  commodityCode:',
+        '  nonPesticideChecks: []',
         'substancesFile: ./mango-substances.csv',
         '',
       ].join('\n'),
@@ -318,6 +394,17 @@ describe('RuleLoaderService', () => {
         '  quality: 0.25',
         '  coldChain: 0.2',
         '  chainOfCustody: 0.15',
+        'metadata:',
+        '  coverageState: PRIMARY_PARTIAL',
+        '  sourceQuality: PRIMARY_ONLY',
+        '  retrievedAt: 2026-04-03',
+        '  commodityCode: ap105050006',
+        '  nonPesticideChecks:',
+        '    - type: VHT',
+        '      status: REQUIRED',
+        '      parameters:',
+        '        minCoreTemperatureC: 47',
+        '        minHoldMinutes: 20',
         'labPolicy:',
         '  enforcementMode: FULL_PESTICIDE',
         '  requiredArtifactType: MRL_TEST',

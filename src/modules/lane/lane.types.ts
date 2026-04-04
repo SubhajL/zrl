@@ -175,6 +175,26 @@ export interface LaneRuleSnapshot {
       coldChain: number;
       chainOfCustody: number;
     };
+    metadata?: {
+      coverageState:
+        | 'FULL_EXHAUSTIVE'
+        | 'PRIMARY_PARTIAL'
+        | 'CURATED_HIGH_RISK'
+        | 'PROXY_MIXED';
+      sourceQuality:
+        | 'PRIMARY_ONLY'
+        | 'PRIMARY_PLUS_SECONDARY'
+        | 'SECONDARY_ONLY';
+      retrievedAt: Date | string;
+      commodityCode?: string | null;
+      nonPesticideChecks?: Array<{
+        type: 'PHYTO_CERT' | 'VHT' | 'GAP_CERT' | 'COLD_CHAIN';
+        status: 'REQUIRED' | 'CONDITIONAL' | 'INFORMATIONAL';
+        parameters?: Record<string, string | number | boolean>;
+        sourceRef?: string | null;
+        note?: string | null;
+      }>;
+    };
     labPolicy?: {
       enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';
       requiredArtifactType: 'MRL_TEST';
@@ -248,6 +268,23 @@ export interface LaneRuleSnapshotPayload {
     quality: number;
     coldChain: number;
     chainOfCustody: number;
+  };
+  metadata: {
+    coverageState:
+      | 'FULL_EXHAUSTIVE'
+      | 'PRIMARY_PARTIAL'
+      | 'CURATED_HIGH_RISK'
+      | 'PROXY_MIXED';
+    sourceQuality: 'PRIMARY_ONLY' | 'PRIMARY_PLUS_SECONDARY' | 'SECONDARY_ONLY';
+    retrievedAt: Date;
+    commodityCode: string | null;
+    nonPesticideChecks: Array<{
+      type: 'PHYTO_CERT' | 'VHT' | 'GAP_CERT' | 'COLD_CHAIN';
+      status: 'REQUIRED' | 'CONDITIONAL' | 'INFORMATIONAL';
+      parameters: Record<string, string | number | boolean>;
+      sourceRef: string | null;
+      note: string | null;
+    }>;
   };
   labPolicy?: {
     enforcementMode: 'DOCUMENT_ONLY' | 'FULL_PESTICIDE';

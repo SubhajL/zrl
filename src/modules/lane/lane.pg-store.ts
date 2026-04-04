@@ -353,6 +353,8 @@ export class PrismaLaneStore implements LaneStore {
             sourcePath: input.ruleSnapshot.sourcePath,
             requiredDocuments: input.ruleSnapshot.requiredDocuments,
             completenessWeights: input.ruleSnapshot.completenessWeights,
+            metadata: input.ruleSnapshot.metadata,
+            labPolicy: input.ruleSnapshot.labPolicy,
             substances: input.ruleSnapshot.substances,
           }),
           input.ruleSnapshot.effectiveDate,

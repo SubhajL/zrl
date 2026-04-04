@@ -37,6 +37,8 @@ interface RuleSnapshotRow extends QueryResultRow {
     sourcePath?: string;
     requiredDocuments?: string[];
     completenessWeights?: RuleSnapshotPayload['completenessWeights'];
+    metadata?: RuleSnapshotPayload['metadata'];
+    labPolicy?: RuleSnapshotPayload['labPolicy'];
     substances?: RuleSnapshotPayload['substances'];
   };
 }
@@ -181,6 +183,17 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
                     coldChain: 0.2,
                     chainOfCustody: 0.15,
                   },
+                  metadata: ruleSnapshotResult.rows[0].rules.metadata ?? {
+                    coverageState: 'CURATED_HIGH_RISK',
+                    sourceQuality: 'SECONDARY_ONLY',
+                    retrievedAt:
+                      ruleSnapshotResult.rows[0].effective_date instanceof Date
+                        ? ruleSnapshotResult.rows[0].effective_date
+                        : new Date(ruleSnapshotResult.rows[0].effective_date),
+                    commodityCode: null,
+                    nonPesticideChecks: [],
+                  },
+                  labPolicy: ruleSnapshotResult.rows[0].rules.labPolicy,
                   substances: ruleSnapshotResult.rows[0].rules.substances ?? [],
                 },
         };
