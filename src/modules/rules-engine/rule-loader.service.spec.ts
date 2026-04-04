@@ -409,30 +409,12 @@ describe('RuleLoaderService', () => {
     );
   });
 
-  it('loads the repository japan longan rule file', async () => {
-    const definition = await loadRuleDefinitionFromFile(
-      resolve(process.cwd(), 'rules/japan/longan.yaml'),
-      resolve(process.cwd(), 'rules'),
-    );
+  it('does not load a repository japan longan rule file', async () => {
+    const service = new RuleLoaderService(resolve(process.cwd(), 'rules'));
 
-    expect(definition.market).toBe('JAPAN');
-    expect(definition.product).toBe('LONGAN');
-    expect(definition.labPolicy).toMatchObject({
-      enforcementMode: 'FULL_PESTICIDE',
-      requiredArtifactType: 'MRL_TEST',
-      defaultDestinationMrlMgKg: 0.01,
-    });
-    expect(definition.requiredDocuments).toContain('VHT Certificate');
-    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
-    expect(definition.substances).toHaveLength(10);
-    expect(definition.substances[0]).toMatchObject({
-      name: 'Carbendazim',
-      aliases: ['カルベンダジム'],
-      cas: '10605-21-7',
-      thaiMrl: 1,
-      destinationMrl: 0.5,
-      sourceRef: 'JFCRF db.ffcr.or.jp; Sci. Rep. 2026',
-    });
+    await expect(
+      service.getRuleDefinition('JAPAN', 'LONGAN'),
+    ).resolves.toBeNull();
   });
 
   it('loads the repository eu mango rule file', async () => {
