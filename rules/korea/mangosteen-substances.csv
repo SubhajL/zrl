@@ -1,0 +1,9 @@
+# Source: Korea MFDS Food Safety Korea (foodsafetykorea.go.kr)
+# Food code: ap105051360 (Mangosteen / 망고스틴)
+# Extracted: 2026-04-05
+# Official fallback MRL when no specific row exists: 0.01 mg/kg
+# Current commodity-specific snapshot row count: 3
+name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
+Imidacloprid,이미다클로프리드,,,0.4,MFDS foodView:ap105051360,0.4†
+Carbofuran,카보퓨란,,,2.0,MFDS foodView:ap105051360,2.0†
+3-Hydroxycarbofuran,,,,2.0,MFDS foodView:ap105051360,2.0†
