@@ -158,9 +158,9 @@ describe('RulesAdminPage', () => {
               chainOfCustody: 0.15,
             },
             metadata: {
-              coverageState: 'PRIMARY_PARTIAL',
+              coverageState: 'FULL_EXHAUSTIVE',
               sourceQuality: 'PRIMARY_ONLY',
-              retrievedAt: '2026-04-03T00:00:00.000Z',
+              retrievedAt: '2026-04-04T00:00:00.000Z',
               commodityCode: 'ap105050006',
               nonPesticideChecks: [
                 {
@@ -169,6 +169,9 @@ describe('RulesAdminPage', () => {
                   parameters: {
                     minCoreTemperatureC: 47,
                     minHoldMinutes: 20,
+                    overseasInspectionRequired: true,
+                    registrationRequired: true,
+                    allowedVarieties: 'Nang klarngwan|Nam Dork Mai|Rad|Mahachanok',
                   },
                   sourceRef: 'QIA fruit import conditions',
                   note: null,
@@ -226,9 +229,9 @@ describe('RulesAdminPage', () => {
               chainOfCustody: 0.15,
             },
             metadata: {
-              coverageState: 'PRIMARY_PARTIAL',
+              coverageState: 'FULL_EXHAUSTIVE',
               sourceQuality: 'PRIMARY_ONLY',
-              retrievedAt: '2026-04-03T00:00:00.000Z',
+              retrievedAt: '2026-04-04T00:00:00.000Z',
               commodityCode: 'ap105050006',
               nonPesticideChecks: [
                 {
@@ -237,9 +240,12 @@ describe('RulesAdminPage', () => {
                   parameters: {
                     minCoreTemperatureC: 47,
                     minHoldMinutes: 20,
+                    overseasInspectionRequired: true,
+                    registrationRequired: true,
+                    allowedVarieties: 'Nang klarngwan|Nam Dork Mai|Rad|Mahachanok',
                   },
                   sourceRef: 'QIA fruit import conditions',
-                  note: 'Structured from coding log',
+                  note: 'Thailand mango import condition on the current QIA page requires VHT plus Korean overseas production-site inspection.',
                 },
               ],
             },
@@ -261,13 +267,19 @@ describe('RulesAdminPage', () => {
           name: /mango pack/i,
         }),
       ).toBeInTheDocument();
-      expect(screen.getByText('PRIMARY_PARTIAL')).toBeInTheDocument();
+      expect(screen.getByText('FULL_EXHAUSTIVE')).toBeInTheDocument();
       expect(screen.getByText('PRIMARY_ONLY')).toBeInTheDocument();
       expect(screen.getByText('Commodity code')).toBeInTheDocument();
       expect(screen.getByText('ap105050006')).toBeInTheDocument();
       expect(screen.getByText('VHT')).toBeInTheDocument();
       expect(screen.getByText(/minCoreTemperatureC: 47/i)).toBeInTheDocument();
       expect(screen.getByText(/minHoldMinutes: 20/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/overseasInspectionRequired: true/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/registrationRequired: true/i),
+      ).toBeInTheDocument();
     });
   });
 });

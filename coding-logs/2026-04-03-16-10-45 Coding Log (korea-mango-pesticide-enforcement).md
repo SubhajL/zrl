@@ -466,3 +466,138 @@ Implement Korea mango pesticide enforcement by keeping QIA import-condition docu
   - No live-DB e2e test (e2e is mocked at service layer, but unit tests cover enforcement logic end-to-end)
   - Admin substances API still requires non-nullable `cas`/`thaiMrl` via `RuleSubstanceInput` — intentional for manual admin entries
   - Other Korea products (mangosteen, durian, longan) not yet implemented
+
+## Review (2026-04-04 11:14 +07) - system
+
+### Reviewed
+
+- Repo: /Users/subhajlimanond/dev/zrl
+- Branch: main
+- Scope: rules-engine market-rule precision review (Japan x4, Korea mango)
+- Commands Run: git rev-parse --show-toplevel; git branch --show-current; git status --porcelain=v1; git log -n 10 --oneline --decorate; git log/blame on rule files; focused rule-loader Jest run; direct reads of rules/_.yaml, rules/_-substances.csv, rule-loader/rules-engine/frontend harness files, docs/PROGRESS.md, coding logs
+- Sources: AGENTS.md; rules/AGENTS.md; src/AGENTS.md; test/AGENTS.md; docs/PROGRESS.md; src/modules/rules-engine/rule-loader.service.spec.ts; frontend/src/lib/testing/lane-creation-scenarios.ts; frontend/e2e/lane-creation-matrix.spec.ts; coding-logs for Korea mango + Japan mango/durian/mangosteen/longan
+
+### High-Level Assessment
+
+- The implemented market-rule surface is real and runtime-relevant, not just planned. The repo currently supports six on-disk YAML rule packs: EU/MANGO, JAPAN/MANGO, JAPAN/DURIAN, JAPAN/MANGOSTEEN, JAPAN/LONGAN, and KOREA/MANGO.
+- The live frontend matrix derives support from actual rule-file existence, so these pairs directly affect runtime test behavior.
+- Precision is uneven across the five reviewed combinations. KOREA/MANGO is the closest to an official, commodity-specific, threshold-backed pack because it carries 64 MFDS mango rows with explicit source annotations and dedicated enforcement logic.
+- The Japan packs are implemented and tested, but several of their own logs and CSV headers acknowledge curated subsets, proxy thresholds, or secondary-source operational claims. They are good operational rule packs, not yet 100% exhaustive regulatory datasets.
+- Repo traceability is also slightly inconsistent: git history supports PR mapping for Japan #67/#68/#69/#71, but the KOREA/MANGO PR number is not cleanly represented by commit metadata even though the file history points to commit/PR #66.
+
+### Strengths
+
+- Runtime rule loading is backed by repository YAML/CSV files and covered by focused loader tests.
+- The frontend live-scenario harness uses actual on-disk rule support instead of a hardcoded allowlist.
+- Korea mango enforcement includes explicit fallback/default-limit semantics and nullable comparator handling instead of inventing Thai values.
+- Japan x4 packs capture the main document-policy split correctly at a high level: mango/longan include VHT, durian/mangosteen do not.
+
+### Key Risks / Gaps (severity ordered)
+
+HIGH
+
+- Japan durian thresholds are not exact commodity-specific Japan limits yet. rules/japan/durian-substances.csv explicitly says Japan MRLs use a mango proxy where durian-specific JFCRF values are unverifiable. Impact: the current numeric checks may reject or allow based on proxy values rather than exact durian entries.
+- Japan mangosteen thresholds are not exact commodity-specific Japan limits yet. rules/japan/mangosteen-substances.csv uses multiple “Japan mango MRL proxy” rows, and rules/japan/mangosteen.yaml cites FreshPlaza for the VHT exemption path instead of a primary Japanese government notice. Impact: both pesticide precision and quarantine-proof provenance are short of “100% correct”.
+- Japan longan operational policy is not fully primary-source grounded. rules/japan/longan.yaml uses an academic host-status paper plus a study article, but the repo does not cite a primary MAFF/MHLW import-condition page for Thai longan VHT. Several numeric rows also appear to rely on mango proxy values. Impact: the “VHT required” conclusion is plausible, but not yet documented to primary-source standard inside the rule pack.
+
+MEDIUM
+
+- Japan mango is implemented and internally consistent, but its own log says the 12 rows are only the highest-risk substances and not the full Japan mango MRL list. Impact: “FULL_PESTICIDE” in code is exhaustive only relative to the curated file, not exhaustive relative to the full commodity database.
+- KOREA/MANGO is strongest on numeric precision, but rules/korea/mango.yaml still contains stale note text saying the official database did not expose stable commodity-level values and that substances were deferred, while the companion CSV now contains 64 populated rows. Impact: source comments and actual data state have drifted, which weakens reviewer confidence.
+- PR traceability for KOREA/MANGO is muddy. git log for rules/korea/mango.yaml points to commit 4feea6e / PR #66, but the commit message is “remove EU mango test that references uncommitted rule files”, not a Korea mango enforcement description. Impact: auditability of the user-facing PR mapping table is weaker than for Japan #67/#68/#69/#71.
+- docs/PROGRESS.md has not been updated with the April 3 rule-authoring batch, so the codebase and human progress log are out of sync for this workstream.
+
+LOW
+
+- rules/AGENTS.md current-state text is stale; it omits several now-present rule files.
+- The current coding-log pointer still targets the Korea mango log only, even though the broader rule-authoring batch spans multiple later logs.
+
+### Nit-Picks / Nitty Gritty
+
+- JAPAN/MANGO lacks source-comment headers in YAML while the later Japan files include them. This is a documentation consistency gap, not a runtime bug.
+- “FULL_PESTICIDE” overstates certainty when the backing CSV is knowingly curated or proxy-based. The engine behavior is fine; the naming/metadata layer is what over-claims exhaustiveness.
+- The table PR mapping should be generated from git history or a release manifest instead of maintained manually.
+
+### Tactical Improvements (1–3 days)
+
+1. Add a per-rule metadata block such as `coverage: FULL_OFFICIAL | CURATED_HIGH_RISK | PROXY_MIXED` and `sourceQuality: PRIMARY_ONLY | PRIMARY_PLUS_SECONDARY` to every YAML pack.
+2. Fix the stale Korea mango YAML comments so the file accurately describes the now-populated 64-row MFDS CSV.
+3. Update docs/PROGRESS.md with the April 3 rule-authoring batch and note the exact implemented combos.
+4. Add a small manifest file mapping market/product packs to commit SHA and PR number so tables like the user’s can be generated instead of hand-maintained.
+
+### Strategic Improvements (1–6 weeks)
+
+1. Build a commodity-specific evidence capture workflow for each rule pack: archived source URL, retrieval date, commodity code, screenshot/HTML snapshot, parser version, and reviewer signoff.
+2. Split regulatory-document policy from pesticide-threshold completeness. A pack should be able to be “operationally supported” while still marked “threshold coverage partial”.
+3. Create a reproducible extraction pipeline for official commodity MRL tables, including regression tests that compare row counts and hashes against checked-in CSV outputs.
+4. Add exhaustive cross-check tests that fail if a rule pack contains proxy-derived rows without explicit `limitSource=PROXY` metadata.
+
+### Big Architectural Changes (only if justified)
+
+- Proposal: promote rule packs from plain YAML/CSV to a provenance-aware rule registry with pack metadata, source artifacts, extraction manifests, and coverage states.
+  - Pros:
+    - makes “100% correct and exhaustive” measurable instead of implied
+    - separates operational readiness from regulatory completeness
+    - improves auditability for future compliance reviews
+  - Cons:
+    - more authoring overhead
+    - requires schema/API updates for metadata exposure
+  - Migration Plan:
+    - add optional metadata fields first
+    - backfill existing six packs without changing enforcement behavior
+    - make UI/tests surface coverage state
+    - later require metadata for new packs only
+  - Tests/Rollout:
+    - loader tests for new metadata
+    - fixture validation on every rule pack
+    - no enforcement-path change until metadata adoption is complete
+
+### Open Questions / Assumptions
+
+- Assumed the review target is current repository truth, not external regulatory truth beyond what is cited in the repo.
+- Assumed the user’s “100% correct and exhaustive” standard means primary-source, commodity-specific, no proxy thresholds, and complete published MRL coverage for the commodity.
+
+
+## Review (2026-04-04 17:34 ICT) - working-tree korea-mango admin sync scope
+
+### Reviewed
+
+- Repo: `/Users/subhajlimanond/dev/zrl`
+- Branch: `main`
+- Scope: working tree, limited to `frontend/src/app/(app)/admin/rules/page.test.tsx` and `coding-logs/2026-04-03-16-10-45 Coding Log (korea-mango-pesticide-enforcement).md`
+- Commit SHA reviewed against: `e47940f`
+- Commands Run:
+  - `git diff -- 'frontend/src/app/(app)/admin/rules/page.test.tsx' 'coding-logs/2026-04-03-16-10-45 Coding Log (korea-mango-pesticide-enforcement).md'`
+  - `cd frontend && npm test -- --runInBand --runTestsByPath 'src/app/(app)/admin/rules/page.test.tsx'`
+  - `cd frontend && npm run lint`
+
+### Findings
+
+CRITICAL
+
+- No findings.
+
+HIGH
+
+- No findings.
+
+MEDIUM
+
+- No findings.
+
+LOW
+
+- No findings.
+
+### Open Questions / Assumptions
+
+- Assumed this PR is intentionally limited to test/log sync for the already-merged Korea mango metadata refresh.
+
+### Recommended Tests / Validation
+
+- None beyond the focused admin rules page test and standard frontend lint already run for this small sync.
+
+### Rollout Notes
+
+- Test/docs-only sync.
+- No runtime behavior change.
