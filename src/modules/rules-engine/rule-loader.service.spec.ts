@@ -341,21 +341,72 @@ describe('RuleLoaderService', () => {
 
     expect(definition.market).toBe('JAPAN');
     expect(definition.product).toBe('MANGOSTEEN');
+    expect(definition.sourcePath).toBe('rules/japan/mangosteen.yaml');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_PLUS_SECONDARY');
+    expect(definition.metadata.commodityCode).toBe('11900');
+    expect(definition.metadata.retrievedAt.toISOString()).toContain(
+      '2026-04-04',
+    );
+    const phytoCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'PHYTO_CERT',
+    );
+    const vhtCheck = definition.metadata.nonPesticideChecks.find(
+      (check) => check.type === 'VHT',
+    );
+    expect(phytoCheck).toMatchObject({
+      type: 'PHYTO_CERT',
+      status: 'REQUIRED',
+    });
+    expect(vhtCheck).toMatchObject({
+      type: 'VHT',
+      status: 'REQUIRED',
+      parameters: {
+        minRelativeHumidityPercent: 50,
+        maxRelativeHumidityPercent: 80,
+        minCoreTemperatureC: 46,
+        minHoldMinutes: 58,
+        minCoolingMinutes: 60,
+      },
+    });
     expect(definition.labPolicy).toMatchObject({
       enforcementMode: 'FULL_PESTICIDE',
       requiredArtifactType: 'MRL_TEST',
       defaultDestinationMrlMgKg: 0.01,
     });
     expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
-    expect(definition.requiredDocuments).not.toContain('VHT Certificate');
-    expect(definition.substances).toHaveLength(11);
+    expect(definition.requiredDocuments).toContain('VHT Certificate');
+    expect(definition.requiredDocuments).toContain('MRL Test Results');
+    expect(definition.substances).toHaveLength(247);
     expect(definition.substances[0]).toMatchObject({
-      name: 'Chlorothalonil',
-      aliases: ['クロロタロニル'],
-      cas: '1897-45-6',
-      destinationMrl: 0.01,
-      sourceRef: 'JFCRF db.ffcr.or.jp; Phopin 2017 JSFA',
+      name: '1-NAPHTHALENEACETIC ACID',
+      destinationMrl: 0.7,
+      destinationLimitType: 'NUMERIC',
+      sourceRef: 'JFCRF food_group_detail:11900',
     });
+    expect(definition.substances).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'ETHYLENE DIBROMIDE (EDB)',
+          destinationMrl: 0,
+          destinationLimitType: 'NON_DETECT',
+          sourceRef: 'JFCRF food_group_detail:11900',
+        }),
+        expect.objectContaining({
+          name: 'CARBARYL',
+          destinationMrl: 30,
+          destinationLimitType: 'NUMERIC',
+          note: 'Source MRL 30 mg/kg | Source note except fig | Basis Aa2020',
+        }),
+      ]),
+    );
+    expect(definition.substances).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'GIBBERELLIN',
+        }),
+      ]),
+    );
   });
 
   it('loads the repository japan longan rule file', async () => {

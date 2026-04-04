@@ -1,20 +1,22 @@
-# Source checked: 2026-04-03
+# Source checked: 2026-04-04
 # Primary sources:
-# - https://db.ffcr.or.jp/front/?lng=en (JFCRF MRL Database)
-# - https://www.freshplaza.com/asia/article/9549428/ (VHT exemption 2023)
-# - https://pubmed.ncbi.nlm.nih.gov/25195422/ (Nonhost status study)
+# - https://www.maff.go.jp/pps/j/law/houki/saisoku/saisoku_107_html_107.html
+#   (Thai fresh mangosteen phytosanitary implementation rule)
+# - https://db.ffcr.or.jp/front/?lng=en (JFCRF MRL Database / 11900 export)
 # Notes:
-# - Japan exempted Thai mangosteen from VHT in 2023 (JTEPA gazette)
-# - Scientific basis: mangosteen confirmed nonhost for B. dorsalis
-#   (pericarp hardness + latex secretion block fruit fly infestation)
-# - Standard phytosanitary certificate from Thailand DOA is sufficient
-# - Mangosteen (マンゴスチン) is individually classified, not grouped
+# - The prior VHT-exemption claim was incorrect. MAFF's current mangosteen rule
+#   requires steam-heat treatment plus phytosanitary certificate / label control.
+# - The pesticide side uses the full 11900 "Other Fruits" export because that is
+#   the official JFCRF bucket used for mangosteen-applicable explicit rows.
+# - One explicit row in the export is excluded from this pack: GIBBERELLIN,
+#   because the source note scopes it to acerola only.
 market: JAPAN
 product: MANGOSTEEN
 version: 1
-effectiveDate: 2026-04-03
+effectiveDate: 2026-04-04
 requiredDocuments:
   - Phytosanitary Certificate
+  - VHT Certificate
   - MRL Test Results
   - Export License
   - Commercial Invoice
@@ -34,25 +36,35 @@ completenessWeights:
   coldChain: 0.2
   chainOfCustody: 0.15
 metadata:
-  coverageState: PROXY_MIXED
+  coverageState: FULL_EXHAUSTIVE
   sourceQuality: PRIMARY_PLUS_SECONDARY
-  retrievedAt: 2026-04-03
-  commodityCode:
+  retrievedAt: 2026-04-04
+  commodityCode: '11900'
   nonPesticideChecks:
     - type: PHYTO_CERT
       status: REQUIRED
-      parameters: {}
-      sourceRef: Thailand DOA phytosanitary export workflow
-    - type: VHT
-      status: INFORMATIONAL
       parameters:
-        exempt: true
-      sourceRef: 2023 mangosteen exemption path
-      note: Exempt from VHT per current cited source chain.
+        requiresCertificateLabel: true
+        destinationMarking: FOR JAPAN
+        minInspectionSamplePercent: 5
+      sourceRef: https://www.maff.go.jp/pps/j/law/houki/saisoku/saisoku_107_html_107.html
+      note: MAFF requires phytosanitary certificate or certificate-label control for treated Thai mangosteen consignments.
+    - type: VHT
+      status: REQUIRED
+      parameters:
+        minRelativeHumidityPercent: 50
+        maxRelativeHumidityPercent: 80
+        rampTargetTemperatureC: 43
+        minCoreTemperatureC: 46
+        minHoldMinutes: 58
+        minCoolingMinutes: 60
+      sourceRef: https://www.maff.go.jp/pps/j/law/houki/saisoku/saisoku_107_html_107.html
+      note: Steam-heat treatment must reach 46C core temperature and hold for 58 minutes, then cool by ventilation for at least 60 minutes.
     - type: GAP_CERT
       status: REQUIRED
       parameters: {}
       sourceRef: Exporter compliance baseline
+      note: ZRL operational baseline; not a MAFF import-condition requirement.
 labPolicy:
   enforcementMode: FULL_PESTICIDE
   requiredArtifactType: MRL_TEST
