@@ -1,0 +1,10 @@
+# Source: Korea MFDS Food Safety Korea (foodsafetykorea.go.kr)
+# Food code: ap105051059 (Durian / 두리안)
+# Extracted: 2026-04-04
+# Official fallback MRL when no specific row exists: 0.01 mg/kg
+# Current commodity-specific snapshot row count: 3
+# CAS numbers from MFDS infoView.do pesticide records
+name,aliases,cas,thaiMrl,destinationMrl,sourceRef,note
+Carbaryl : NAC,카바릴,63-25-2,,30,MFDS foodView:ap105051059,30†
+Chlorpyrifos,클로르피리포스,2921-88-2,,0.4,MFDS foodView:ap105051059,0.4†
+Clothianidin,클로티아니딘,210880-92-5,,0.9,MFDS foodView:ap105051059,0.9†
