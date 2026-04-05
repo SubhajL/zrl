@@ -141,7 +141,11 @@ export interface RuleSubstanceDefinition {
   cas: string | null;
   thaiMrl: number | null;
   destinationMrl: number;
-  destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
+  destinationLimitType?:
+    | 'NUMERIC'
+    | 'NON_DETECT'
+    | 'PHYSIOLOGICAL_LEVEL'
+    | 'NO_NUMERIC_LIMIT';
   stringencyRatio: number | null;
   riskLevel: RuleRiskLevel | null;
   sourceRef: string | null;
@@ -429,7 +433,11 @@ export interface RuleDefinitionSource {
     cas?: string | null;
     thaiMrl?: number | null;
     destinationMrl: number;
-    destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
+    destinationLimitType?:
+      | 'NUMERIC'
+      | 'NON_DETECT'
+      | 'PHYSIOLOGICAL_LEVEL'
+      | 'NO_NUMERIC_LIMIT';
     sourceRef?: string | null;
     note?: string | null;
   }>;

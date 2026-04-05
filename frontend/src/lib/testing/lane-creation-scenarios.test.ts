@@ -29,4 +29,30 @@ describe('lane creation scenario support filters', () => {
       ),
     ).toBe(false);
   });
+
+  it('treats korea longan as unsupported live coverage', () => {
+    expect(
+      LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'longan-korea-truck',
+      ),
+    ).toBe(false);
+    expect(
+      UNSUPPORTED_LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'longan-korea-truck',
+      ),
+    ).toBe(true);
+  });
+
+  it('treats eu mango as supported live coverage', () => {
+    expect(
+      LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'mango-eu-air',
+      ),
+    ).toBe(true);
+    expect(
+      UNSUPPORTED_LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'mango-eu-air',
+      ),
+    ).toBe(false);
+  });
 });

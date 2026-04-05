@@ -81,7 +81,12 @@ function parseCsvNumber(value: string, context: string): number {
 function parseDestinationLimitType(
   value: string | undefined,
   context: string,
-): 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL' | undefined {
+):
+  | 'NUMERIC'
+  | 'NON_DETECT'
+  | 'PHYSIOLOGICAL_LEVEL'
+  | 'NO_NUMERIC_LIMIT'
+  | undefined {
   if (value === undefined || value.trim() === '') {
     return undefined;
   }
@@ -90,7 +95,8 @@ function parseDestinationLimitType(
   if (
     normalized !== 'NUMERIC' &&
     normalized !== 'NON_DETECT' &&
-    normalized !== 'PHYSIOLOGICAL_LEVEL'
+    normalized !== 'PHYSIOLOGICAL_LEVEL' &&
+    normalized !== 'NO_NUMERIC_LIMIT'
   ) {
     throw new Error(`Invalid ${context}.`);
   }

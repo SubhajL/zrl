@@ -283,7 +283,8 @@ export function buildRuleDefinition(
         destinationLimitType: destinationLimitType as
           | 'NUMERIC'
           | 'NON_DETECT'
-          | 'PHYSIOLOGICAL_LEVEL',
+          | 'PHYSIOLOGICAL_LEVEL'
+          | 'NO_NUMERIC_LIMIT',
         stringencyRatio,
         riskLevel:
           stringencyRatio === null ? null : classifyRiskLevel(stringencyRatio),
@@ -383,7 +384,11 @@ export function adaptLaneSnapshotToRulePayload(snapshot: {
       cas: string | null;
       thaiMrl: number | null;
       destinationMrl: number;
-      destinationLimitType?: 'NUMERIC' | 'NON_DETECT' | 'PHYSIOLOGICAL_LEVEL';
+      destinationLimitType?:
+        | 'NUMERIC'
+        | 'NON_DETECT'
+        | 'PHYSIOLOGICAL_LEVEL'
+        | 'NO_NUMERIC_LIMIT';
       stringencyRatio: number | null;
       riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | null;
     }>;
