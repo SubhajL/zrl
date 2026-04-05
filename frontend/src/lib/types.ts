@@ -200,7 +200,8 @@ export interface RuleSnapshotSubstance {
   readonly destinationLimitType?:
     | 'NUMERIC'
     | 'NON_DETECT'
-    | 'PHYSIOLOGICAL_LEVEL';
+    | 'PHYSIOLOGICAL_LEVEL'
+    | 'NO_NUMERIC_LIMIT';
   readonly stringencyRatio: number;
   readonly riskLevel: RiskLevel;
 }

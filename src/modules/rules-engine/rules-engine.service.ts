@@ -795,7 +795,10 @@ export class RulesEngineService {
       }
 
       pushMeasuredKeys(measured);
-      if (limitType === 'PHYSIOLOGICAL_LEVEL') {
+      if (
+        limitType === 'PHYSIOLOGICAL_LEVEL' ||
+        limitType === 'NO_NUMERIC_LIMIT'
+      ) {
         validationResults.push({
           substance: substance.name,
           cas: substance.cas,
