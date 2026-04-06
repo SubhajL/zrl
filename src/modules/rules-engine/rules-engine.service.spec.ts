@@ -22,6 +22,13 @@ function buildDefinition(
       coldChain: 0.2,
       chainOfCustody: 0.15,
     },
+    metadata: {
+      coverageState: 'FULL_EXHAUSTIVE',
+      sourceQuality: 'PRIMARY_ONLY',
+      retrievedAt: new Date('2026-03-01'),
+      commodityCode: null,
+      nonPesticideChecks: [],
+    },
     labPolicy: {
       enforcementMode: 'DOCUMENT_ONLY',
       requiredArtifactType: 'MRL_TEST',
@@ -731,9 +738,10 @@ describe('RulesEngineService', () => {
 
     expect(result.labValidation).toEqual(
       expect.objectContaining({
-        status: 'PASS',
-        valid: true,
+        status: 'BLOCKED',
+        valid: false,
         hasUnknowns: true,
+        blockingReasons: ['NON_NUMERIC_LIMIT_REVIEW_REQUIRED'],
         results: [
           expect.objectContaining({
             substance: 'GIBBERELLIN',
@@ -796,9 +804,10 @@ describe('RulesEngineService', () => {
 
     expect(result.labValidation).toEqual(
       expect.objectContaining({
-        status: 'PASS',
-        valid: true,
+        status: 'BLOCKED',
+        valid: false,
         hasUnknowns: true,
+        blockingReasons: ['NON_NUMERIC_LIMIT_REVIEW_REQUIRED'],
         results: [
           expect.objectContaining({
             substance: 'Bicyclopyrone',
@@ -809,6 +818,90 @@ describe('RulesEngineService', () => {
           }),
         ],
       }),
+    );
+  });
+
+  it('evaluateLane keeps definite exceedances as failures even when another row requires non-numeric review', () => {
+    const definition = buildDefinition({
+      market: 'EU',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+      substances: [
+        {
+          name: 'Chlorpyrifos',
+          aliases: [],
+          cas: '2921-88-2',
+          thaiMrl: null,
+          destinationMrl: 0.01,
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'EC EU Pesticides Database product/76',
+          note: null,
+        },
+        {
+          name: 'Bicyclopyrone',
+          aliases: [],
+          cas: null,
+          thaiMrl: null,
+          destinationMrl: 0,
+          destinationLimitType: 'NO_NUMERIC_LIMIT',
+          stringencyRatio: null,
+          riskLevel: null,
+          sourceRef: 'EC EU Pesticides Database product/76',
+          note: 'Official mango row has no published numeric MRL.',
+        },
+      ],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'lab-results.json',
+        metadata: {
+          results: [
+            {
+              substance: 'Chlorpyrifos',
+              valueMgKg: 0.2,
+            },
+            {
+              substance: 'Bicyclopyrone',
+              valueMgKg: 0.3,
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'FAIL',
+        valid: false,
+        hasUnknowns: true,
+        blockingReasons: ['NON_NUMERIC_LIMIT_REVIEW_REQUIRED'],
+      }),
+    );
+    expect(result.labValidation?.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          substance: 'Chlorpyrifos',
+          status: 'FAIL',
+        }),
+        expect.objectContaining({
+          substance: 'Bicyclopyrone',
+          status: 'UNKNOWN',
+        }),
+      ]),
     );
   });
 

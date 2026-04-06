@@ -596,6 +596,50 @@ describe('RuleLoaderService', () => {
     );
   });
 
+  it('loads the repository eu durian rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/eu/durian.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('EU');
+    expect(definition.product).toBe('DURIAN');
+    expect(definition.sourcePath).toBe('rules/eu/durian.yaml');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBe('0163100');
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'PHYTO_CERT',
+          status: 'REQUIRED',
+        }),
+      ]),
+    );
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.requiredDocuments).toContain('MRL Test Results');
+    expect(definition.substances).toHaveLength(516);
+    expect(definition.substances).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Acetamiprid (R)',
+          destinationMrl: 0.01,
+          destinationLimitType: 'NUMERIC',
+        }),
+        expect.objectContaining({
+          name: 'Bicyclopyrone (sum of bicyclopyrone and its structurally related metabolites determined as the sum of the common moieties 2-(2- methoxyethoxymethyl)-6-(trifluoromethyl) pyridine-3-carboxylic acid (SYN503780) and (2-(2-hydroxyethoxymethyl)-6- (trifluoromethyl)pyridine-3-carboxylic acid (CSCD686480), expressed as bicyclopyrone)',
+          destinationMrl: 0,
+          destinationLimitType: 'NO_NUMERIC_LIMIT',
+        }),
+      ]),
+    );
+  });
+
   it('refreshes cached rules automatically when the backing yaml changes', async () => {
     const rulesDir = mkdtempSync(join(tmpdir(), 'zrl-rules-'));
     const mangoDir = join(rulesDir, 'japan');

@@ -55,4 +55,17 @@ describe('lane creation scenario support filters', () => {
       ),
     ).toBe(false);
   });
+
+  it('treats eu durian as supported live coverage', () => {
+    expect(
+      LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'durian-eu-sea',
+      ),
+    ).toBe(true);
+    expect(
+      UNSUPPORTED_LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'durian-eu-sea',
+      ),
+    ).toBe(false);
+  });
 });

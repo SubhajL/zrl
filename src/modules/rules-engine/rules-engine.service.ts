@@ -753,8 +753,13 @@ export class RulesEngineService {
 
     const results = this.parseLabResults(latestLabArtifact.metadata);
     const blockingReasons: string[] = [];
+    const addBlockingReason = (reason: string) => {
+      if (!blockingReasons.includes(reason)) {
+        blockingReasons.push(reason);
+      }
+    };
     if (enforcementMode === 'FULL_PESTICIDE' && results.length === 0) {
-      blockingReasons.push('MRL_RESULTS_REQUIRED');
+      addBlockingReason('MRL_RESULTS_REQUIRED');
     }
 
     const resultByKey = new Map<string, ParsedLabResult>();
@@ -799,6 +804,7 @@ export class RulesEngineService {
         limitType === 'PHYSIOLOGICAL_LEVEL' ||
         limitType === 'NO_NUMERIC_LIMIT'
       ) {
+        addBlockingReason('NON_NUMERIC_LIMIT_REVIEW_REQUIRED');
         validationResults.push({
           substance: substance.name,
           cas: substance.cas,
@@ -870,6 +876,16 @@ export class RulesEngineService {
     );
 
     if (blockingReasons.length > 0) {
+      if (hasFailures) {
+        return {
+          status: 'FAIL',
+          valid: false,
+          hasUnknowns,
+          blockingReasons,
+          results: validationResults,
+        };
+      }
+
       return {
         status: 'BLOCKED',
         valid: false,

@@ -1,0 +1,526 @@
+# Source: European Commission EU Pesticides Database backend API
+# Endpoint: https://ec.europa.eu/food/plant/pesticides/eu-pesticides-database/backend/api/product/83/mrls?lang=EN
+# Product: Durians (Durio zibethinus)
+# Product code: 0163100
+# Extracted: 2026-04-06
+# Raw Commission row count: 519
+# Merged unique operational row count: 516
+# Explicit no-numeric-MRL row count: 13
+# Official default fallback when no specific durian row exists: 0.01 mg/kg (Regulation (EC) No 396/2005 Article 18(1)(b); see Commission database footnotes such as Fosetyl).
+name,aliases,cas,thaiMrl,destinationMrl,destinationLimitType,sourceRef,note
+1-methyl-3-(trifluoromethyl)-1H-pyrazole-4-carboxamide (PAM),,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL. | Footnotes: mrl will not apply || Official Commission durian entry has no published numeric MRL. | Footnotes: No MRLs are applicable until individual products have been identified and listed within this category
+1-methylcyclopropene,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"1-Naphthylacetamide and 1-naphthylacetic acid (sum of 1-naphthylacetamide and 1-naphthylacetic acid and its salts, expressed as 1-naphythlacetic acid)",,,,0.06,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.06*
+"1,1-dichloro-2,2-bis(4-ethylphenyl)ethane (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"1,2-dibromoethane (ethylene dibromide) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"1,2-dichloroethane (ethylene dichloride) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"1,3-Dichloropropene",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"1,4-dimethylnaphthalene (R),(F)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,"Footnotes: There is evidence that 1,4-dimethylnaphthalene could naturally occur in some plant compounds. Based on currently available monitoring data a temporary MRL is set at a value of 0.05 mg/kg pending the submission of further monitoring data to confirm it. When reviewing the MRL, the Commission will take into account the information, if it is submitted by 2 August 2024, or, if that information is not submitted by that date, the lack of it."
+"2-amino-4-methoxy-6-(trifluormethyl)-1,3,5-triazine (AMTT), resulting from the use of tritosulfuron (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+2-naphthyloxyacetic acid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"2-phenylphenol (sum of 2-phenylphenol and its conjugates, expressed as 2-phenylphenol) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"2,4-D (sum of 2,4-D, its salts, its esters and its conjugates, expressed as 2,4-D)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+"2,4-DB (sum of 2,4-DB, its salts, its esters and its conjugates, expressed as 2,4-DB) (R)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"2,4,5-T (sum of 2,4,5-T, its salts and esters, expressed as 2,4,5-T) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"2,5-dichlorobenzoic acid methylester (sum of 2,5-dichlorobenzoic acid and its ester expressed as 2,5-dichlorobenzoic acid methylester)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+3-decen-2-one,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+6-Benzyladenine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"8-hydroxyquinoline (sum of 8-hydroxyquinoline and its salts, expressed as 8-hydroxyquinoline)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Abamectin (sum of avermectin B1a, avermectin B1b and delta-8,9 isomer of avermectin B1a, expressed as avermectin B1a) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Acephate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Acequinocyl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Acetamiprid (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Acetochlor,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Acibenzolar-S-methyl (sum of acibenzolar-S-methyl and acibenzolar acid (free and conjugated), expressed as acibenzolar-S-methyl)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Aclonifen,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Acrinathrin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Alachlor,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Aldicarb (sum of aldicarb, its sulfoxide and its sulfone, expressed as aldicarb)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Aldrin and Dieldrin (Aldrin and dieldrin combined expressed as dieldrin) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Ametoctradin (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Amidosulfuron (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Aminopyralid (sum of aminopyralid, its salts and its conjugates, expressed as aminopyralid) (R)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Amisulbrom,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Amitraz (amitraz including the metabolites containing the 2,4 -dimethylaniline moiety expressed as amitraz)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Amitrole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Anilazine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Anthraquinone (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Aramite (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Asulam,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Atrazine (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Azadirachtin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Azimsulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Azinphos-ethyl (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Azinphos-methyl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Azocyclotin and Cyhexatin (sum of azocyclotin and cyhexatin expressed as cyhexatin),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Azoxystrobin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Barban (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Beflubutamid,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Benalaxyl including other mixtures of constituent isomers including benalaxyl-M (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Benfluralin (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Bensulfuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bentazone (Sum of bentazone, its salts and 6-hydroxy (free and conjugated) and 8-hydroxy bentazone (free and conjugated), expressed as bentazone) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+"Benthiavalicarb (Benthiavalicarb-isopropyl(KIF-230 R-L) and its enantiomer (KIF-230 S-D) and its diastereomers(KIF-230 S-L and KIF-230 R-D), expressed as benthiavalicarb-isopropyl) (A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Benzalkonium chloride (mixture of alkylbenzyldimethylammonium chlorides with alkyl chain lengths of C8, C10, C12, C14, C16 and C18)",,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Footnotes: These MRLs shall be reviewed by [[smartdate]]. Reassessment of data may lead to modification of MRLs.
+Benzovindiflupyr,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bicyclopyrone (sum of bicyclopyrone and its structurally related metabolites determined as the sum of the common moieties 2-(2- methoxyethoxymethyl)-6-(trifluoromethyl) pyridine-3-carboxylic acid (SYN503780) and (2-(2-hydroxyethoxymethyl)-6- (trifluoromethyl)pyridine-3-carboxylic acid (CSCD686480), expressed as bicyclopyrone)",,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Bifenazate (sum of bifenazate plus bifenazate-diazene expressed as bifenazate) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bifenox (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bifenthrin (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Biphenyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bispyribac (sum of bispyribac, its salts and its esters, expressed as bispyribac)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bitertanol (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bixafen (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bone oil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Boscalid (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bromadiolone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bromide ion,,,,20,NUMERIC,EC EU Pesticides Database product/83,Display MRL 20.0
+Bromophos-ethyl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bromopropylate (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bromoxynil and its salts, expressed as bromoxynil",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Bromuconazole (sum of diasteroisomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Bupirimate (R),(F),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Buprofezin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Butralin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Butylate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cadusafos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Camphechlor (Toxaphene) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Captafol (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Captan (Sum of captan and THPI, expressed as captan) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Carbaryl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Carbendazim and benomyl (sum of benomyl and carbendazim expressed as carbendazim) (R),,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Carbetamide (sum of carbetamide and its S isomer),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Carbofuran (sum of carbofuran (including any carbofuran generated from carbosulfan, benfuracarb or furathiocarb) and 3-OH carbofuran expressed as carbofuran) (R)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Carbon monoxide,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Carbon tetrachloride,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+"Carboxin (carboxin plus its metabolites carboxin sulfoxide and oxycarboxin (carboxin sulfone), expressed as carboxin)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+"Carfentrazone-ethyl (sum of carfentrazone-ethyl and carfentrazone, expressed as carfentrazone-ethyl) (R)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Cartap,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Chlorantraniliprole (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorate (A),,,,0.3,NUMERIC,EC EU Pesticides Database product/83,
+Chlorbenside (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorbufam (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Chlordane (sum of cis- and trans-chlordane) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlordecone (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,
+Chlorfenapyr,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorfenson (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorfenvinphos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Chloridazon (sum of chloridazon and chloridazon-desphenyl, expressed as chloridazon) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+"Chlormequat (sum of chlormequat and its salts, expressed as chlormequat-chloride)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorobenzilate (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Chloropicrin,,,,0.005,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.005*
+Chlorothalonil (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorotoluron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chloroxuron (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorpropham (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorpyrifos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Chlorpyrifos-methyl (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorsulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorthal-dimethyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlorthiamid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chlozolinate (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Chromafenozide,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cinidon-ethyl (sum of cinidon ethyl and its E-isomer),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Clethodim (sum of Sethoxydim and Clethodim including degradation products calculated as Sethoxydim),,,,0.1,NUMERIC,EC EU Pesticides Database product/83,
+"Clodinafop and its S-isomers and their salts, expressed as clodinafop (F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Clofentezine (R),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Clomazone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Clopyralid,,,,0.5,NUMERIC,EC EU Pesticides Database product/83,
+Clothianidin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Copper compounds (Copper),,,,20,NUMERIC,EC EU Pesticides Database product/83,Display MRL 20.0
+Coumaphos,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Cyanamide including salts expressed as cyanamide,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyantraniliprole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyazofamid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyclanilide (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Cyclaniliprole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Cycloxydim including degradation and reaction products which can be determined as 3-(3-thianyl)glutaric acid S-dioxide (BH 517-TGSO2) and/or 3-hydroxy-3-(3-thianyl)glutaric acid S-dioxide (BH 517-5-OH-TGSO2) or derivatives thereof, calculated in total as cycloxydim",,,,0.09,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.09*
+"Cyflufenamid (sum of cyflufenamid (Z-isomer) and its E-isomer, expressed as cyflufenamid) (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyflumetofen (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyfluthrin (cyfluthrin including other mixtures of constituent isomers (sum of isomers)) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cyhalofop-butyl,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Cymoxanil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Cypermethrin (cypermethrin including other mixtures of constituent isomers (sum of isomers)) (F),,,,1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 1.0
+Cyproconazole (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+"Cyprodinil (R),(F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Cyromazine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dalapon,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+"Daminozide (sum of daminozide and 1,1-dimethyl-hydrazine (UDHM), expressed as daminozide)",,,,0.06,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.06*
+"DDT (sum of p,p´-DDT, o,p´-DDT, p-p´-DDE and p,p´-TDE (DDD) expressed as DDT) (F)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Deltamethrin (cis-deltamethrin) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Denatonium benzoate (sum of denatonium and its salts, expressed as denatonium benzoate)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Desmedipham,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Di-allate (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Diazinon (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dicamba,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Dichlobenil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Dichlorprop (Sum of dichlorprop (including dichlorprop-P), its salts, esters and conjugates, expressed as dichlorprop) (R)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Dichlorvos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dicloran,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Dicofol (sum of p, p´ and o,p´ isomers) (F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Didecyldimethylammonium chloride (mixture of alkyl-quaternary ammonium salts with alkyl chain lengths of C8, C10 and C12)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Footnotes: These MRLs shall be reviewed by [[smartdate]]. Reassessment of data may lead to modification of MRLs.
+Diethofencarb,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Difenacoum,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Difenoconazole,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,
+"Diflubenzuron (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Diflufenican (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Difluoroacetic acid (DFA),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Dimethachlor,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dimethenamid including other mixtures of constituent isomers including dimethenamid-P (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dimethipin,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Dimethoate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dimethomorph (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Dimoxystrobin (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Diniconazole (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Dinocap (sum of dinocap isomers and their corresponding phenols expressed as dinocap) (Where only meptyldinocap or its corresponding phenol are detected but none of the other components constituting dinocap (including their corresponding phenols), the MRLs and residue definition of meptyldinocap are to be applied.) (F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Dinoseb (sum of dinoseb, its salts, dinoseb-acetate and binapacryl, expressed as dinoseb)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Dinotefuran,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+"Dinoterb (sum of dinoterb, its salts and esters, expressed as dinoterb)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dioxathion (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Diphenylamine,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Diquat,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Disulfoton (sum of disulfoton, disulfoton sulfoxide and disulfoton sulfone expressed as disulfoton) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dithianon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Dithiocarbamates (dithiocarbamates expressed as CS2, including maneb, mancozeb, metiram, propineb, thiram and ziram)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Diuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+DNOC,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dodemorph,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Dodine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Emamectin B1a and its salts, expressed as emamectin B1a (free base) (R),(F)",,,,0.002,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.002*
+Endosulfan (sum of alpha- and beta-isomers and endosulfan-sulphate expressed as endosulfan) (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Endrin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Epoxiconazole (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+EPTC (ethyl dipropylthiocarbamate),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ethalfluralin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ethametsulfuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ethephon,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Ethion,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Ethirimol (R),(F),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Ethofumesate (Sum of ethofumesate, 2-keto–ethofumesate, open-ring-2-keto-ethofumesate and its conjugate, expressed as ethofumesate)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Ethoprophos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ethoxyquin (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Ethoxysulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ethylene oxide (sum of ethylene oxide and 2-chloro-ethanol expressed as ethylene oxide) (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Etofenprox (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Etoxazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Etridiazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Famoxadone (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenamidone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenamiphos (sum of fenamiphos and its sulphoxide and sulphone expressed as fenamiphos),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenarimol,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Fenazaquin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenbuconazole (sum of constituent enantiomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenbutatin oxide (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenchlorphos (sum of fenchlorphos and fenchlorphos oxon expressed as fenchlorphos),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenhexamid (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenitrothion,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenoxaprop-P,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,
+Fenoxycarb,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fenpicoxamid (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenpropathrin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fenpropidin (sum of fenpropidin and its salts, expressed as fenpropidin) (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fenpropimorph (sum of isomers) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fenpyrazamine (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fenpyroximate (R),(F),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fenthion (fenthion and its oxigen analogue, their sulfoxides and sulfone expressed as parent) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fentin (fentin including its salts, expressed as triphenyltin cation) (F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Fenvalerate (any ratio of constituent isomers (RR, SS, RS & SR) including esfenvalerate) (R),(F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Fipronil (sum fipronil + sulfone metabolite (MB46136) expressed as fipronil) (F),,,,0.005,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.005*
+Flazasulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Flonicamid (sum of flonicamid, TFNA and TFNG expressed as flonicamid) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Florasulam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Florpyrauxifen-benzyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fluazifop-P (sum of all the constituent isomers of fluazifop, its esters and its conjugates, expressed as fluazifop)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluazinam (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flubendiamide (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flucycloxuron (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flucythrinate (flucythrinate including other mixtures of constituent isomers (sum of isomers)) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fludioxonil (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flufenacet (sum of all compounds containing the N fluorophenyl-N-isopropyl moiety expressed as flufenacet),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Flufenoxuron (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flufenzin,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Flumequine,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Flumetralin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flumioxazine,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Fluometuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluopicolide,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluopyram (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluoride ion,,,,0.2,NUMERIC,EC EU Pesticides Database product/83,"Footnotes: The European Food Safety Authority identified some information on toxicological data of plant metabolites as unavailable. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by [Office of Publication: please insert date 2 years after publication], or, if that information is not submitted by that date, the lack of it. || Footnotes: The European Food Safety Authority identified some information on analytical methods as unavailable. Occurrence data show that a lower MRL than 0.2 mg/kg is currently not achievable. Further data are necessary to monitor this level over time in view of its possible reduction. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by 29 July 2024, or, if that information is not submitted by that date, the lack of it."
+Fluoroglycofene,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluoxastrobin (sum of fluoxastrobin and its Z-isomer) (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flupyradifurone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flupyrsulfuron-methyl,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Fluquinconazole (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flurochloridone (sum of cis- and trans- isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Fluroxypyr (sum of fluroxypyr, its salts, its esters, and its conjugates, expressed as fluroxypyr) (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flurprimidole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flurtamone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Flusilazole (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flutianil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flutolanil (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Flutriafol,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluvalinate (sum of isomers) resulting from the use of tau-fluvalinate (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fluxapyroxad (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Folpet (sum of folpet and phtalimide, expressed as folpet) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Fomesafen,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Foramsulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Forchlorfenuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Formetanate: Sum of formetanate and its salts expressed as formetanate (hydrochloride),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Formothion,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Fosetyl,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL. | Footnotes: The MRL for phosphonic acid applies and the default value of 0.01 mg/kg according to Article 18(1)(b) of Regulation (EC) no 396/2005 does not apply
+Fosthiazate,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Fuberidazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Furfural,,,,1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 1.0
+"Glufosinate (sum of glufosinate isomers, its salts and its metabolites 3-[hydroxy(methyl)phosphinoyl]propionic acid (MPP) and N-acetyl-glufosinate (NAG), expressed as glufosinate)",,,,0.1,NUMERIC,EC EU Pesticides Database product/83,
+Glyphosate,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+"Guazatine (guazatine acetate, sum of components)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+"Halauxifen-methyl (sum of halauxifen-methyl and X11393729 (halauxifen), expressed as halauxifen-methyl)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Halosulfuron methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Haloxyfop (Sum of haloxyfop, its esters, salts and conjugates expressed as haloxyfop (sum of the R- and S- isomers at any ratio)) (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Heptachlor (sum of heptachlor and heptachlor epoxide expressed as heptachlor) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,
+Hexachlorobenzene (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Hexachlorocyclohexane (HCH), alpha-isomer (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Hexachlorocyclohexane (HCH), beta-isomer (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Hexaconazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Hexythiazox (any ratio of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Hydrogen cyanide (cyanides expressed as hydrogen cyanide),,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Hymexazol,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Imazalil (any ratio of constituent isomers) (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Imazamox (Sum of imazamox and its salts, expressed as imazamox)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Imazapic,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Imazapyr,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Imazaquin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Imazosulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Imidacloprid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Indolylacetic acid,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Indolylbutyric acid,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Indoxacarb (sum of indoxacarb and its R enantiomer) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Iodosulfuron-methyl (sum of iodosulfuron-methyl and its salts, expressed as iodosulfuron-methyl)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Ioxynil (sum of ioxynil and its salts, expressed as ioxynil)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ipconazole (sum of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Iprodione (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Iprovalicarb,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Isofetamid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Isoprothiolane,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Isoproturon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Isopyrazam (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Isoxaben,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Isoxaflutole (sum of isoxaflutole and its diketonitrile-metabolite, expressed as isoxaflutole)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Kresoxim-methyl (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Lactofen,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Lambda-cyhalothrin (includes gamma-cyhalothrin) (sum of R,S and S,R isomers) (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,"Display MRL 0.01* | Footnotes: The European Food Safety Authority identified some information on certain metabolites (compounds Ia, IV and gamma-lactone) formed under sterilization conditions as unavailable. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by 6 July 2020, or, if that information is not submitted by that date, the lack of it."
+Lenacil,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Lindane (Gamma-isomer of hexachlorocyclohexane (HCH)) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Linuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Lufenuron (any ratio of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Malathion (sum of malathion and malaoxon expressed as malathion),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Maleic hydrazide,,,,0.2,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.2*
+Mandestrobin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mandipropamid (any ratio of constituent isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"MCPA and MCPB (MCPA, MCPB including their salts, esters and conjugates expressed as MCPA) (R),(F)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Mecarbam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mecoprop (sum of mecoprop-p and mecoprop expressed as mecoprop),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Mefentrifluconazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mepanipyrim,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Mepiquat (sum of mepiquat and its salts, expressed as mepiquat chloride)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Mepronil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Meptyldinocap (sum of 2,4 DNOPC and 2,4 DNOP expressed as meptyldinocap)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mercury compounds (sum of mercury compounds expressed as mercury),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mesosulfuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mesotrione,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metaflumizone (sum of E- and Z- isomers),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Metalaxyl and metalaxyl-M (metalaxyl including other mixtures of constituent isomers including metalaxyl-M (sum of isomers)) (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metaldehyde,,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Metamitron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Metazachlor (Sum of metabolites 479M04, 479M08 and 479M16, expressed as metazachlor) (R)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Metconazole (sum of isomers) (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Methabenzthiazuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methacrifos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methamidophos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methidathion,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Methiocarb (sum of methiocarb and methiocarb sulfoxide and sulfone, expressed as methiocarb)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Methomyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methoprene,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Methoxychlor (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methoxyfenozide (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Methylisothiocyanate (resulting from the use of dazomet or metam),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metolachlor and S-metolachlor (metolachlor including other mixtures of constituent isomers including S-metolachlor (sum of isomers)),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metosulam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metrafenone (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Metribuzin,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Metsulfuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Mevinphos (sum of E- and Z-isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Milbemectin (sum of milbemycin A4 and milbemycin A3, expressed as milbemectin)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Molinate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Monocrotophos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Monolinuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Monuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Myclobutanil  (sum of  constituent isomers) (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Napropamide (sum  of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Nicosulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Nicotine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Nitrofen (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Novaluron (sum of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Omethoate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Orthosulfamuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oryzalin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxadiargyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxadiazon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxadixyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxamyl,,,,0.001,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.001*
+Oxasulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxathiapiprolin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxycarboxin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxydemeton-methyl (sum of oxydemeton-methyl and demeton-S-methylsulfone expressed as oxydemeton-methyl),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Oxyfluorfen (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Paclobutrazol (sum of constituent isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Paraffin oil (CAS 64742-54-7),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Paraquat,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Parathion (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Parathion-methyl (sum of Parathion-methyl and paraoxon-methyl expressed as Parathion-methyl),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Penconazole (sum of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Pencycuron (sum of pencycuron and pencycuron-PB-amine, expressed as pencycuron) (R),(F),(A)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Pendimethalin (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Penflufen (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Penoxsulam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Penthiopyrad (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Permethrin (sum of isomers) (F),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Pethoxamid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Petroleum oils (CAS 92062-35-6),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phenmedipham,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phenothrin (phenothrin including other mixtures of constituent isomers (sum of isomers)) (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Phenthoate,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+"Phorate (sum of phorate, its oxygen analogue and their sulfones expressed as phorate)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phosalone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phosmet,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phosphamidon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Phosphane and phosphide salts (sum of phosphane and phosphane generators (relevant phosphide salts), determined and expressed as phosphane)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Phosphonic acid and its salts expressed as phosphonic acid (R),,,,1.5,NUMERIC,EC EU Pesticides Database product/83,"Display MRL 1.5* | Footnotes: The European Food Safety Authority identified some information on monitoring data as unavailable. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by 28/10/2029, or, if that information is not submitted by that date, the lack of it. || Display MRL 1.5* | Footnotes: Monitoring data shows that setting the MRL at the limit of determination may currently not be achievable. Further data are necessary to monitor this level over time in view of its possible reduction. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by [[smartdate]], or, if that information is not submitted by that date, the lack of it."
+Phoxim (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Picloram, free and conjugated, expressed as picloram (R)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Picolinafen,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Picoxystrobin (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pirimicarb (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pirimiphos-methyl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Potassium permanganate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Prochloraz (sum of prochloraz, BTS 44595 (M201-04) and BTS 44596 (M201-03), expressed as prochloraz) (F)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,"Display MRL 0.03* | Footnotes: The European Food Safety Authority identified some information on residue trials in relation with the new residue definition as unavailable. When re-viewing the MRL, the Commission will take into account the information referred to in the first sentence, if it is submitted by 13 February 2022, or, if that information is not submitted by that date, the lack of it."
+Procymidone (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Profenofos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Profoxydim,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Prohexadione (prohexadione (acid) and its salts expressed as prohexadione-calcium),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Propachlor: oxalinic derivate of propachlor, expressed as propachlor",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Propamocarb (Sum of propamocarb and its salts, expressed as propamocarb) (R)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propanil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propargite (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propham,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propiconazole (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propineb (expressed as propilendiamine),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Propisochlor,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Propoxur,,,,0.005,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.005*
+"Propoxycarbazone (propoxycarbazone, its salts and 2-hydroxypropoxycarbazone expressed as propoxycarbazone) (A)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Propyzamide (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Proquinazid (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Prosulfocarb,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Prosulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Prothioconazole: prothioconazole-desthio (sum of isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pymetrozine (R),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Pyraclostrobin (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Pyraflufen-ethyl (Sum of pyraflufen-ethyl and pyraflufen, expressed as pyraflufen-ethyl)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Pyrasulfotole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyrazophos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyrethrins,,,,1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 1.0
+Pyridaben (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyridalyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Pyridate (sum of pyridate, its hydrolysis product CL 9673 (6-chloro-4-hydroxy-3-phenylpyridazin) and hydrolysable conjugates of CL 9673 expressed as pyridate)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Pyrimethanil (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyriofenone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyriproxyfen (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Pyroxsulam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Quinalphos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Quinclorac,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Quinmerac (sum of quinmerac and its metabolites BH 518-2 and BH 518-4 expressed as quinmerac) (R),,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Quinoclamine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Quinoxyfen (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Quintozene (sum of quintozene and pentachloro-aniline expressed as quintozene) (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Quizalofop (sum of quizalofop, its salts, its esters (including propaquizafop) and its conjugates, expressed as quizalofop (any ratio of constituent isomers))",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Repellants: Tall oil,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Resmethrin (resmethrin including other mixtures of consituent isomers (sum of isomers)) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Rimsulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Rotenone,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Saflufenacil (sum of saflufenacil, M800H11 and M800H35, expressed as saflufenacil) (R)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Sedaxane (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Silthiofam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Simazine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Sintofen,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Sodium 5-nitroguaiacolate, sodium o-nitrophenolate and sodium p-nitrophenolate (Sum of sodium 5-nitroguaiacolate, sodium o-nitrophenolate and sodium p-nitrophenolate, expressed as sodium 5-nitroguaiacolate)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+Sodium aluminium silicate,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Sodium hypochlorite,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Spinetoram (sum of spinetoram-J and spinetoram-L) (F),(A)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Spinosad (spinosad, sum of spinosyn A and spinosyn D) (F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Spirodiclofen (F),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Spiromesifen,,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Spirotetramat and spirotetramat-enol (sum of), expressed as spirotetramat (R)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Spiroxamine (sum of isomers) (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Streptomycin,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+Sulcotrione (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Sulfosulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Sulfoxaflor (sum of isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Sulfuryl fluoride,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Sum of diclofop-methyl, diclofop acid and its salts, expressed as diclofop-methyl (sum of isomers)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+"Sum of M4 and M6 (both free and conjugated), expressed as pinoxaden (R),(A)",,,,0.03,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.03*
+"Sum of metobromuron and 4-bromophenylurea, expressed as metobromuron",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Tebuconazole (R),,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Tebufenozide (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tebufenpyrad (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tecnazene (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Teflubenzuron (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tefluthrin (tefluthrin including other mixtures of constituent isomers (sum of isomers)) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Tembotrione (Sum of parent tembotrione (AE 0172747) and its metabolite M5 (4,6-dihydroxy tembotrione), expressed as tembotrione) (R)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+TEPP,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Tepraloxydim (sum of tepraloxydim and its metabolites that can be hydrolysed either to the moiety 3-(tetrahydro-pyran-4-yl)-glutaric acid or to the moiety 3-hydroxy-(tetrahydro-pyran-4-yl)-glutaric acid, expressed as tepraloxydim)",,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Terbufos,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Terbuthylazine (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tetraconazole (sum of constituent isomers) (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tetradifon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiabendazole (R),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiacloprid,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiamethoxam,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiencarbazone-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thifensulfuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiobencarb (4-chlorobenzyl methyl sulfone) (A),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiodicarb,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Thiophanate-methyl (R),,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Thiram (expressed as thiram),,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+Tolclofos-methyl (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Tolylfluanid (Sum of tolylfluanid and dimethylaminosulfotoluidide expressed as tolylfluanid) (R),(F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Topramezone (BAS 670H),,,,0.005,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.005*
+Tralkoxydim (sum of the constituent isomers of tralkoxydim),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tri-allate,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Triadimefon (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triadimenol (any ratio of constituent isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triasulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triazophos (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triazoxide,,,,0.001,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.001*
+Tribenuron-methyl,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Trichlorfon,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triclopyr,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tricyclazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tridemorph (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Trifloxystrobin (R),(F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triflumezopyrim,,,,0,NO_NUMERIC_LIMIT,EC EU Pesticides Database product/83,Official Commission durian entry has no published numeric MRL.
+"Triflumizole: Triflumizole and metabolite FM-6-1(N-(4-chloro-2-trifluoromethylphenyl)-n-propoxyacetamidine), expressed as Triflumizole (R),(F)",,,,0.02,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.02*
+Triflumuron (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Trifluralin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Triflusulfuron (6-(2,2,2-trifluoroethoxy)-1,3,5-triazine-2,4-diamine (IN-M7222))",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triforine,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Trimethyl-sulfonium cation, resulting from the use of glyphosate (F)",,,,0.05,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.05*
+"Trinexapac (sum of trinexapac (acid) and its salts, expressed as trinexapac)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Triticonazole,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Tritosulfuron,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Valifenalate (R),(A)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Vinclozolin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Warfarin,,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Z-13-hexadecen-11-yn-1-yl acetate (F),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+"Z,Z,Z,Z-7,13,16,19-docosatetraen-1-yl isobutyrate (F)",,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
+Ziram,,,,0.1,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.1*
+Zoxamide (sum of constituent isomers),,,,0.01,NUMERIC,EC EU Pesticides Database product/83,Display MRL 0.01*
