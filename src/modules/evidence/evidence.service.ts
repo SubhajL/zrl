@@ -25,11 +25,17 @@ import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import {
   DEFAULT_EVIDENCE_LIMIT,
   DEFAULT_EVIDENCE_PAGE,
+  EVIDENCE_DOCUMENT_ANALYSIS_PROVIDER,
+  EVIDENCE_DOCUMENT_CLASSIFIER,
   MAX_EVIDENCE_LIMIT,
 } from './evidence.constants';
 import type {
+  EvidenceDocumentAnalysisProvider,
+  EvidenceDocumentClassifier,
+  EvidenceArtifactAnalysisResponse,
   EvidenceArtifactRecord,
   EvidenceArtifactGraph,
+  EvidenceLaneRecord,
   EvidenceArtifactResponse,
   EvidenceGraphVerificationResult,
   EvidenceArtifactStore,
@@ -261,6 +267,10 @@ export class EvidenceService {
     private readonly hashingService: HashingService,
     private readonly auditService: AuditService,
     private readonly photoMetadataExtractor: EvidencePhotoMetadataExtractor,
+    @Inject(EVIDENCE_DOCUMENT_ANALYSIS_PROVIDER)
+    private readonly documentAnalysisProvider: EvidenceDocumentAnalysisProvider,
+    @Inject(EVIDENCE_DOCUMENT_CLASSIFIER)
+    private readonly documentClassifier: EvidenceDocumentClassifier,
     private readonly rulesEngineService: RulesEngineService,
     @Inject(LANE_RECONCILER)
     private readonly laneReconciler: LaneReconciler,
@@ -305,12 +315,8 @@ export class EvidenceService {
     const artifact = await this.requireArtifact(id);
     this.assertLaneAccess(artifact.exporterId, actor);
 
-    const storedObject = await this.objectStore.createReadStream(
-      artifact.filePath,
-    );
-    const computedHash = await this.hashingService.hashFile(storedObject);
-    const status =
-      computedHash === artifact.contentHash ? 'VERIFIED' : 'FAILED';
+    const { computedHash, status } =
+      await this.computeArtifactVerification(artifact);
 
     await this.store.runInTransaction(async (transactional) => {
       const updated = await transactional.updateArtifactVerificationStatus(
@@ -368,6 +374,15 @@ export class EvidenceService {
     });
 
     return { success: true as const };
+  }
+
+  async reanalyzeArtifact(id: string, actor: EvidenceRequestUser) {
+    const artifact = await this.requireArtifact(id);
+    this.assertLaneAccess(artifact.exporterId, actor);
+
+    await this.runArtifactAnalysis(artifact);
+
+    return await this.getArtifact(id, actor);
   }
 
   async getLaneGraph(laneId: string) {
@@ -657,6 +672,9 @@ export class EvidenceService {
         },
       );
 
+      await this.autoVerifyArtifactAfterUpload(artifact, actor);
+      await this.autoVerifyLaneGraphAfterUpload(lane.id, actor);
+      await this.autoAnalyzeArtifactAfterUpload(artifact, lane);
       await this.notifyCertificationAlertAfterUpload(lane, artifact);
       await this.realtimeEvents.publishEvidenceUploaded({
         laneId: artifact.laneId,
@@ -737,6 +755,63 @@ export class EvidenceService {
     }
   }
 
+  private async autoVerifyArtifactAfterUpload(
+    artifact: EvidenceArtifactRecord,
+    actor: EvidenceRequestUser,
+  ) {
+    try {
+      await this.verifyArtifact(artifact.id, actor);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown artifact verification error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Automatic artifact verification failed for artifact ${artifact.id}: ${message}`,
+        stack,
+      );
+    }
+  }
+
+  private async autoVerifyLaneGraphAfterUpload(
+    laneId: string,
+    actor: EvidenceRequestUser,
+  ) {
+    try {
+      await this.verifyLaneGraph(laneId, actor);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown lane graph verification error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Automatic lane graph verification failed for lane ${laneId}: ${message}`,
+        stack,
+      );
+    }
+  }
+
+  private async autoAnalyzeArtifactAfterUpload(
+    artifact: EvidenceArtifactRecord,
+    lane: EvidenceLaneRecord,
+  ) {
+    try {
+      await this.runArtifactAnalysis(artifact, lane);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown artifact analysis error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Automatic artifact analysis failed for artifact ${artifact.id}: ${message}`,
+        stack,
+      );
+    }
+  }
+
   private async requireArtifact(id: string) {
     const artifact = await this.store.findArtifactById(id);
     if (artifact === null) {
@@ -744,6 +819,102 @@ export class EvidenceService {
     }
 
     return artifact;
+  }
+
+  private async runArtifactAnalysis(
+    artifact: EvidenceArtifactRecord,
+    laneRecord?: EvidenceLaneRecord,
+  ) {
+    const availability = await this.documentAnalysisProvider.getAvailability();
+    if (!availability.available) {
+      return null;
+    }
+
+    const lane = laneRecord ?? (await this.store.findLaneById(artifact.laneId));
+    if (lane?.ruleSnapshot === null || lane?.ruleSnapshot === undefined) {
+      return null;
+    }
+
+    const storedObject = await this.objectStore.createReadStream(
+      artifact.filePath,
+    );
+    const chunks: Buffer[] = [];
+    for await (const chunk of storedObject as AsyncIterable<
+      string | Buffer | Uint8Array
+    >) {
+      chunks.push(
+        Buffer.isBuffer(chunk)
+          ? chunk
+          : typeof chunk === 'string'
+            ? Buffer.from(chunk, 'utf8')
+            : Buffer.from(chunk),
+      );
+    }
+
+    const tempDirectory = await mkdtemp(`${tmpdir()}/zrl-evidence-analysis-`);
+    const tempFilePath = `${tempDirectory}/${artifact.fileName}`;
+    try {
+      await writeFile(tempFilePath, Buffer.concat(chunks));
+      const extraction = await this.documentAnalysisProvider.extractText(
+        tempFilePath,
+        {
+          languages: ['eng', 'tha', 'jpn', 'kor'],
+        },
+      );
+      const classification = await this.documentClassifier.analyze({
+        artifactType: artifact.artifactType,
+        market: lane.ruleSnapshot.market,
+        product: lane.ruleSnapshot.product,
+        fileName: artifact.fileName,
+        mimeType: artifact.mimeType,
+        metadata: artifact.metadata,
+        ocrText: extraction.text,
+      });
+
+      return await this.store.createArtifactAnalysis({
+        artifactId: artifact.id,
+        laneId: artifact.laneId,
+        analyzerVersion: extraction.engine,
+        analysisStatus: classification.analysisStatus,
+        documentLabel: classification.documentLabel,
+        documentRole: classification.documentRole,
+        confidence: classification.confidence,
+        summaryText: classification.summaryText,
+        extractedFields: classification.extractedFields,
+        missingFieldKeys: classification.missingFieldKeys,
+        lowConfidenceFieldKeys: classification.lowConfidenceFieldKeys,
+        fieldCompleteness: classification.fieldCompleteness,
+        completedAt: new Date(),
+      });
+    } finally {
+      await rm(tempDirectory, { recursive: true, force: true }).catch(
+        () => undefined,
+      );
+    }
+  }
+
+  private async computeArtifactVerification(
+    artifact: EvidenceArtifactRecord,
+  ): Promise<{
+    computedHash: string | null;
+    status: 'VERIFIED' | 'FAILED';
+  }> {
+    try {
+      const storedObject = await this.objectStore.createReadStream(
+        artifact.filePath,
+      );
+      const computedHash = await this.hashingService.hashFile(storedObject);
+
+      return {
+        computedHash,
+        status: computedHash === artifact.contentHash ? 'VERIFIED' : 'FAILED',
+      };
+    } catch {
+      return {
+        computedHash: null,
+        status: 'FAILED',
+      };
+    }
   }
 
   private buildAutomaticLinks(
@@ -877,6 +1048,7 @@ export class EvidenceService {
     source: string;
     checkpointId: string | null;
     metadata: Record<string, unknown> | null;
+    latestAnalysis: EvidenceArtifactRecord['latestAnalysis'];
     uploadedAt: Date;
     updatedAt: Date;
   }): EvidenceArtifactResponse {
@@ -896,8 +1068,35 @@ export class EvidenceService {
       source: artifact.source as EvidenceArtifactResponse['source'],
       checkpointId: artifact.checkpointId,
       metadata: artifact.metadata,
+      latestAnalysis: this.mapArtifactAnalysis(artifact.latestAnalysis),
       createdAt: artifact.uploadedAt.toISOString(),
       updatedAt: artifact.updatedAt.toISOString(),
+    };
+  }
+
+  private mapArtifactAnalysis(
+    analysis: EvidenceArtifactRecord['latestAnalysis'],
+  ): EvidenceArtifactAnalysisResponse | null {
+    if (analysis === null) {
+      return null;
+    }
+
+    return {
+      id: analysis.id,
+      artifactId: analysis.artifactId,
+      analyzerVersion: analysis.analyzerVersion,
+      analysisStatus: analysis.analysisStatus,
+      documentLabel: analysis.documentLabel,
+      documentRole: analysis.documentRole,
+      confidence: analysis.confidence,
+      summaryText: analysis.summaryText,
+      extractedFields: analysis.extractedFields,
+      missingFieldKeys: analysis.missingFieldKeys,
+      lowConfidenceFieldKeys: analysis.lowConfidenceFieldKeys,
+      fieldCompleteness: analysis.fieldCompleteness,
+      completedAt: analysis.completedAt?.toISOString() ?? null,
+      createdAt: analysis.createdAt.toISOString(),
+      updatedAt: analysis.updatedAt.toISOString(),
     };
   }
 

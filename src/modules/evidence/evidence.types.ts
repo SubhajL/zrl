@@ -17,6 +17,12 @@ export type ArtifactSource =
 
 export type EvidenceVerificationStatus = 'PENDING' | 'VERIFIED' | 'FAILED';
 
+export type EvidenceArtifactAnalysisStatus =
+  | 'QUEUED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
+
 export type EvidenceArtifactType =
   | 'MRL_TEST'
   | 'VHT_CERT'
@@ -52,10 +58,55 @@ export interface EvidenceArtifactRecord {
   checkpointId: string | null;
   verificationStatus: EvidenceVerificationStatus;
   metadata: Record<string, unknown> | null;
+  latestAnalysis: EvidenceArtifactAnalysisRecord | null;
   uploadedBy: string;
   uploadedAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+}
+
+export interface EvidenceArtifactAnalysisRecord {
+  id: string;
+  artifactId: string;
+  analyzerVersion: string;
+  analysisStatus: EvidenceArtifactAnalysisStatus;
+  documentLabel: string | null;
+  documentRole: string | null;
+  confidence: string | null;
+  summaryText: string | null;
+  extractedFields: Record<string, unknown> | null;
+  missingFieldKeys: string[];
+  lowConfidenceFieldKeys: string[];
+  fieldCompleteness: EvidenceDocumentFieldCompleteness | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EvidenceDocumentFieldCompleteness {
+  supported: boolean;
+  documentMatrixVersion: number;
+  expectedFieldKeys: string[];
+  presentFieldKeys: string[];
+  missingFieldKeys: string[];
+  lowConfidenceFieldKeys: string[];
+  unsupportedFieldKeys: string[];
+}
+
+export interface CreateArtifactAnalysisInput {
+  artifactId: string;
+  laneId: string;
+  analyzerVersion: string;
+  analysisStatus: EvidenceArtifactAnalysisStatus;
+  documentLabel: string | null;
+  documentRole: string | null;
+  confidence: string | null;
+  summaryText: string | null;
+  extractedFields: Record<string, unknown> | null;
+  missingFieldKeys: string[];
+  lowConfidenceFieldKeys: string[];
+  fieldCompleteness: EvidenceDocumentFieldCompleteness | null;
+  completedAt: Date | null;
 }
 
 export interface EvidenceArtifactResponse {
@@ -72,6 +123,25 @@ export interface EvidenceArtifactResponse {
   source: ArtifactSource;
   checkpointId: string | null;
   metadata: Record<string, unknown> | null;
+  latestAnalysis: EvidenceArtifactAnalysisResponse | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvidenceArtifactAnalysisResponse {
+  id: string;
+  artifactId: string;
+  analyzerVersion: string;
+  analysisStatus: EvidenceArtifactAnalysisStatus;
+  documentLabel: string | null;
+  documentRole: string | null;
+  confidence: string | null;
+  summaryText: string | null;
+  extractedFields: Record<string, unknown> | null;
+  missingFieldKeys: string[];
+  lowConfidenceFieldKeys: string[];
+  fieldCompleteness: EvidenceDocumentFieldCompleteness | null;
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -180,6 +250,9 @@ export interface EvidenceArtifactStore {
   findArtifactGraphForLane(laneId: string): Promise<EvidenceArtifactGraph>;
   updateLaneCompletenessScore(laneId: string, score: number): Promise<void>;
   softDeleteArtifact(id: string): Promise<EvidenceArtifactRecord | null>;
+  createArtifactAnalysis(
+    input: CreateArtifactAnalysisInput,
+  ): Promise<EvidenceArtifactAnalysisRecord>;
 }
 
 export interface PutObjectFromFileInput {
@@ -205,4 +278,55 @@ export interface ExtractedPhotoMetadata {
 
 export interface EvidencePhotoMetadataExtractor {
   extract(filePath: string): Promise<ExtractedPhotoMetadata | null>;
+}
+
+export interface EvidenceDocumentAnalysisAvailability {
+  available: boolean;
+  engine: 'tesseract';
+  binaryPath: string | null;
+  preprocessingAvailable: boolean;
+  preprocessingEngine: 'ocrmypdf';
+  preprocessingBinaryPath: string | null;
+}
+
+export interface EvidenceDocumentTextExtractionOptions {
+  languages?: string[];
+}
+
+export interface EvidenceDocumentTextExtractionResult {
+  engine: 'tesseract';
+  text: string;
+  preprocessingApplied: boolean;
+}
+
+export interface EvidenceDocumentAnalysisProvider {
+  getAvailability(): Promise<EvidenceDocumentAnalysisAvailability>;
+  extractText(
+    filePath: string,
+    options?: EvidenceDocumentTextExtractionOptions,
+  ): Promise<EvidenceDocumentTextExtractionResult>;
+}
+
+export interface EvidenceDocumentClassificationResult {
+  analysisStatus: EvidenceArtifactAnalysisStatus;
+  documentLabel: string | null;
+  documentRole: string | null;
+  confidence: string | null;
+  summaryText: string;
+  extractedFields: Record<string, unknown>;
+  missingFieldKeys: string[];
+  lowConfidenceFieldKeys: string[];
+  fieldCompleteness: EvidenceDocumentFieldCompleteness;
+}
+
+export interface EvidenceDocumentClassifier {
+  analyze(input: {
+    artifactType: EvidenceArtifactType;
+    market: string;
+    product: string;
+    fileName: string;
+    mimeType: string;
+    metadata: Record<string, unknown> | null;
+    ocrText: string;
+  }): Promise<EvidenceDocumentClassificationResult>;
 }

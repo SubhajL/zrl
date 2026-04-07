@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/zrl/progress-bar';
 import { StatusDot } from '@/components/zrl/status-dot';
-import type { LaneDetail } from '@/lib/types';
+import type { CompletenessResult, LaneDetail } from '@/lib/types';
 import {
   PRODUCT_EMOJI,
   PRODUCT_LABELS,
@@ -14,6 +14,10 @@ import {
 
 export interface LaneHeaderProps {
   readonly lane: LaneDetail;
+  readonly completeness: CompletenessResult;
+  readonly onRunComplianceCheck?: () => Promise<void>;
+  readonly complianceCheckRunning?: boolean;
+  readonly compliancePanelOpen?: boolean;
 }
 
 function getTemperatureStatus(
@@ -24,9 +28,15 @@ function getTemperatureStatus(
   return 'success';
 }
 
-export function LaneHeader({ lane }: LaneHeaderProps) {
+export function LaneHeader({
+  lane,
+  completeness,
+  onRunComplianceCheck,
+  complianceCheckRunning = false,
+  compliancePanelOpen = true,
+}: LaneHeaderProps) {
   const variety = lane.batch?.variety ? ` (${lane.batch.variety})` : '';
-  const completeness = lane.completenessScore;
+  const completenessScore = lane.completenessScore;
   const tempStatus = getTemperatureStatus(lane);
 
   return (
@@ -53,13 +63,13 @@ export function LaneHeader({ lane }: LaneHeaderProps) {
       {/* Row 3: Completeness progress bar */}
       <div className="max-w-md">
         <ProgressBar
-          value={completeness}
+          value={completenessScore}
           label="Completeness"
           showPercentage
           tint={
-            completeness >= 80
+            completenessScore >= 80
               ? 'success'
-              : completeness >= 50
+              : completenessScore >= 50
                 ? 'warning'
                 : 'error'
           }
@@ -68,8 +78,30 @@ export function LaneHeader({ lane }: LaneHeaderProps) {
 
       {/* Row 4: Quick action buttons */}
       <div className="flex items-center gap-2">
-        <Button disabled={completeness < 95}>Generate Pack</Button>
+        <Button disabled={completenessScore < 95}>Generate Pack</Button>
         <Button variant="ghost">View Audit Trail</Button>
+        <Button
+          variant="outline"
+          onClick={() => void onRunComplianceCheck?.()}
+          disabled={
+            onRunComplianceCheck === undefined || complianceCheckRunning
+          }
+        >
+          {complianceCheckRunning
+            ? 'Running Compliance Check...'
+            : compliancePanelOpen
+              ? 'Run Compliance Check'
+              : 'Open Compliance Check'}
+        </Button>
+        <Badge
+          variant={
+            completeness.present === completeness.required
+              ? 'success'
+              : 'warning'
+          }
+        >
+          {completeness.present}/{completeness.required} docs present
+        </Badge>
       </div>
     </div>
   );

@@ -15,11 +15,15 @@ import { RulesEngineService } from '../rules-engine/rules-engine.service';
 import { NotificationModule } from '../notifications/notification.module';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
 import {
+  EVIDENCE_DOCUMENT_CLASSIFIER,
+  EVIDENCE_DOCUMENT_ANALYSIS_PROVIDER,
   EVIDENCE_OBJECT_STORE,
   EVIDENCE_PHOTO_METADATA_EXTRACTOR,
 } from './evidence.constants';
 import { CheckpointEvidenceController } from './checkpoint-evidence.controller';
 import { EvidenceController } from './evidence.controller';
+import { MatrixDrivenEvidenceDocumentClassifier } from './evidence.document-classifier';
+import { TesseractEvidenceDocumentAnalysisProvider } from './evidence.document-analysis';
 import { ExifPhotoMetadataExtractor } from './evidence.metadata';
 import { PrismaEvidenceStore } from './evidence.pg-store';
 import { EvidenceService } from './evidence.service';
@@ -59,6 +63,14 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
       useFactory: () => new ExifPhotoMetadataExtractor(),
     },
     {
+      provide: EVIDENCE_DOCUMENT_ANALYSIS_PROVIDER,
+      useFactory: () => new TesseractEvidenceDocumentAnalysisProvider(),
+    },
+    {
+      provide: EVIDENCE_DOCUMENT_CLASSIFIER,
+      useFactory: () => new MatrixDrivenEvidenceDocumentClassifier(),
+    },
+    {
       provide: PROOF_PACK_STORE,
       useClass: PrismaProofPackStore,
     },
@@ -70,6 +82,8 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         hashingService: HashingService,
         auditService: AuditService,
         photoMetadataExtractor: ExifPhotoMetadataExtractor,
+        documentAnalysisProvider: TesseractEvidenceDocumentAnalysisProvider,
+        documentClassifier: MatrixDrivenEvidenceDocumentClassifier,
         rulesEngineService: RulesEngineService,
         laneReconciler: LaneReconciler,
         realtimeEvents: RealtimeEventsService,
@@ -81,6 +95,8 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
           hashingService,
           auditService,
           photoMetadataExtractor,
+          documentAnalysisProvider,
+          documentClassifier,
           rulesEngineService,
           laneReconciler,
           realtimeEvents,
@@ -92,6 +108,8 @@ import { PROOF_PACK_STORE } from './proof-pack.types';
         HashingService,
         AuditService,
         EVIDENCE_PHOTO_METADATA_EXTRACTOR,
+        EVIDENCE_DOCUMENT_ANALYSIS_PROVIDER,
+        EVIDENCE_DOCUMENT_CLASSIFIER,
         RulesEngineService,
         LANE_RECONCILER,
         RealtimeEventsService,

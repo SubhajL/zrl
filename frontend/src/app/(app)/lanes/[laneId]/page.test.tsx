@@ -3,23 +3,37 @@ import userEvent from '@testing-library/user-event';
 
 import LaneDetailPage from './page';
 import { cookies, headers } from 'next/headers';
+import { useRouter } from 'next/navigation';
 import {
   loadLaneDetailPageData,
   type LaneDetailPageData,
 } from '@/lib/lane-detail-data';
+import { requestAppJson } from '@/lib/app-api';
 
 jest.mock('next/headers', () => ({
   headers: jest.fn(),
   cookies: jest.fn(),
 }));
 
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+}));
+
 jest.mock('@/lib/lane-detail-data', () => ({
   loadLaneDetailPageData: jest.fn(),
 }));
 
+jest.mock('@/lib/app-api', () => ({
+  requestAppJson: jest.fn(),
+  getErrorMessage: jest.requireActual('@/lib/app-api').getErrorMessage,
+}));
+
 const headersMock = jest.mocked(headers);
 const cookiesMock = jest.mocked(cookies);
+const useRouterMock = jest.mocked(useRouter);
 const loadLaneDetailPageDataMock = jest.mocked(loadLaneDetailPageData);
+const requestAppJsonMock = jest.mocked(requestAppJson);
+const routerRefreshMock = jest.fn();
 
 function buildPageData(): LaneDetailPageData {
   return {
@@ -63,6 +77,53 @@ function buildPageData(): LaneDetailPageData {
       required: 4,
       present: 3,
       missing: ['VHT Certificate'],
+      checklist: [
+        {
+          key: 'phyto-certificate',
+          label: 'Phytosanitary Certificate',
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: true,
+          present: true,
+          status: 'PRESENT',
+          artifactIds: ['artifact-1'],
+        },
+        {
+          key: 'vht-certificate',
+          label: 'VHT Certificate',
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: true,
+          present: false,
+          status: 'MISSING',
+          artifactIds: [],
+        },
+      ],
+      categories: [
+        {
+          category: 'REGULATORY',
+          weight: 0.4,
+          required: 2,
+          present: 1,
+          score: 0.5,
+        },
+      ],
+      labValidation: {
+        status: 'BLOCKED',
+        valid: false,
+        hasUnknowns: false,
+        blockingReasons: ['MRL_TEST_REQUIRED'],
+        results: [],
+      },
+      certificationAlerts: [
+        {
+          artifactType: 'PHYTO_CERT',
+          status: 'VALID',
+          expiresAt: '2026-12-31T00:00:00.000Z',
+          artifactId: 'artifact-1',
+          message: 'PHYTO_CERT is valid.',
+        },
+      ],
     },
     evidence: [
       {
@@ -78,6 +139,25 @@ function buildPageData(): LaneDetailPageData {
         verificationStatus: 'VERIFIED',
         source: 'UPLOAD',
         checkpointId: null,
+        latestAnalysis: {
+          id: 'analysis-1',
+          artifactId: 'artifact-1',
+          analyzerVersion: 'tesseract',
+          analysisStatus: 'COMPLETED',
+          documentLabel: 'Phytosanitary Certificate',
+          documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+          confidence: 'HIGH',
+          summaryText: 'Matched phytosanitary certificate.',
+          extractedFields: {
+            certificateNumber: 'PC-2026-0001',
+          },
+          missingFieldKeys: ['declaredPointOfEntry'],
+          lowConfidenceFieldKeys: ['officialSealOrSignature'],
+          fieldCompleteness: null,
+          completedAt: '2026-04-07T07:00:00.000Z',
+          createdAt: '2026-04-07T07:00:00.000Z',
+          updatedAt: '2026-04-07T07:00:00.000Z',
+        },
         createdAt: '2026-03-20T10:00:00Z',
         updatedAt: '2026-03-20T10:05:00Z',
       },
@@ -189,6 +269,17 @@ describe('LaneDetailPage', () => {
       get: jest.fn().mockReturnValue(undefined),
     } as never);
     loadLaneDetailPageDataMock.mockResolvedValue(buildPageData());
+    requestAppJsonMock.mockImplementation(async (path: string) => {
+      if (path === '/api/zrl/lanes/LN-2026-001/completeness') {
+        return buildPageData().completeness;
+      }
+
+      return {};
+    });
+    routerRefreshMock.mockReset();
+    useRouterMock.mockReturnValue({
+      refresh: routerRefreshMock,
+    } as never);
   });
 
   it('renders lane header with lane ID', async () => {
@@ -255,6 +346,18 @@ describe('LaneDetailPage', () => {
     expect(screen.getByText('80%')).toBeInTheDocument();
   });
 
+  it('renders compliance check details from live completeness data', async () => {
+    await renderPage();
+
+    expect(screen.getByText('Compliance Check')).toBeInTheDocument();
+    expect(screen.getByText('Required Documents')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Phytosanitary Certificate').length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('VHT Certificate')).toBeInTheDocument();
+    expect(screen.getByText('MRL BLOCKED')).toBeInTheDocument();
+  });
+
   it('renders product and destination info', async () => {
     await renderPage();
     expect(screen.getByText(/Mango/)).toBeInTheDocument();
@@ -269,9 +372,10 @@ describe('LaneDetailPage', () => {
 
     expect(screen.getByText('Version 2')).toBeInTheDocument();
     expect(screen.getByText('Generating')).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: 'Download' }),
-    ).toHaveAttribute('href', '/api/zrl/packs/pack-2/download');
+    expect(screen.getByRole('link', { name: 'Download' })).toHaveAttribute(
+      'href',
+      '/api/zrl/packs/pack-2/download',
+    );
     expect(screen.getByRole('link', { name: 'Verify' })).toHaveAttribute(
       'href',
       '/api/zrl/packs/pack-2/verify',
@@ -288,5 +392,120 @@ describe('LaneDetailPage', () => {
     expect(screen.getByText('Observed Range')).toBeInTheDocument();
     expect(screen.getByText('Recent Readings')).toBeInTheDocument();
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+  });
+
+  it('uploads evidence artifacts from the evidence tab and refreshes the page', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const fileInput = document.querySelector(
+      'input[data-artifact-type="MRL_TEST"]',
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const testFile = new File(['lab'], 'lab-report.pdf', {
+      type: 'application/pdf',
+    });
+
+    await user.upload(fileInput!, testFile);
+
+    expect(requestAppJsonMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/zrl/lanes/LN-2026-001/evidence',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(FormData),
+      }),
+    );
+
+    const formData = requestAppJsonMock.mock.calls[0]?.[1]?.body as FormData;
+    expect(formData.get('artifactType')).toBe('MRL_TEST');
+    expect(formData.get('source')).toBe('UPLOAD');
+    expect(formData.get('file')).toBe(testFile);
+    expect(routerRefreshMock).toHaveBeenCalled();
+  });
+
+  it('verifies the evidence graph on demand from the evidence tab', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Verify Evidence Graph' }),
+    );
+
+    expect(requestAppJsonMock).toHaveBeenCalledWith(
+      '/api/zrl/lanes/LN-2026-001/evidence/graph/verify',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(routerRefreshMock).toHaveBeenCalled();
+  });
+
+  it('verifies a single evidence artifact on demand from the evidence tab', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getAllByRole('button', { name: 'Verify' })[0]!);
+
+    expect(requestAppJsonMock).toHaveBeenCalledWith(
+      '/api/zrl/evidence/artifact-1/verify',
+    );
+    expect(routerRefreshMock).toHaveBeenCalled();
+  });
+
+  it('reanalyses a single evidence artifact on demand from the evidence tab', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Reanalyze' }));
+
+    expect(requestAppJsonMock).toHaveBeenCalledWith(
+      '/api/zrl/evidence/artifact-1/reanalyze',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(routerRefreshMock).toHaveBeenCalled();
+  });
+
+  it('backfills missing analysis on demand from the evidence tab', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Backfill Missing Analysis' }),
+    );
+
+    expect(requestAppJsonMock).toHaveBeenCalledWith(
+      '/api/zrl/evidence/artifact-1/reanalyze',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    expect(routerRefreshMock).toHaveBeenCalled();
+  });
+
+  it('runs compliance check on demand from the lane header', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Run Compliance Check' }),
+    );
+
+    expect(requestAppJsonMock).toHaveBeenCalledWith(
+      '/api/zrl/lanes/LN-2026-001/completeness',
+    );
+  });
+
+  it('collapses the compliance panel on demand', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse' }));
+
+    expect(screen.queryByText('Required Documents')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expand' })).toBeInTheDocument();
   });
 });

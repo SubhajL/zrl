@@ -9,6 +9,8 @@ import {
   MAX_EVIDENCE_LIMIT,
 } from './evidence.constants';
 import type {
+  CreateArtifactAnalysisInput,
+  EvidenceArtifactAnalysisRecord,
   CreateArtifactRecordInput,
   EvidenceArtifactGraph,
   EvidenceArtifactRecord,
@@ -58,6 +60,23 @@ interface ArtifactRow extends QueryResultRow {
   checkpoint_id: string | null;
   verification_status: string;
   metadata: Record<string, unknown> | null;
+  latest_analysis_id: string | null;
+  latest_analysis_artifact_id: string | null;
+  latest_analysis_analyzer_version: string | null;
+  latest_analysis_status: string | null;
+  latest_analysis_document_label: string | null;
+  latest_analysis_document_role: string | null;
+  latest_analysis_confidence: string | null;
+  latest_analysis_summary_text: string | null;
+  latest_analysis_extracted_fields: Record<string, unknown> | null;
+  latest_analysis_missing_field_keys: string[] | null;
+  latest_analysis_low_confidence_field_keys: string[] | null;
+  latest_analysis_field_completeness:
+    | EvidenceArtifactAnalysisRecord['fieldCompleteness']
+    | null;
+  latest_analysis_completed_at: Date | string | null;
+  latest_analysis_created_at: Date | string | null;
+  latest_analysis_updated_at: Date | string | null;
   uploaded_by: string;
   uploaded_at: Date | string;
   updated_at: Date | string;
@@ -70,6 +89,66 @@ interface ArtifactLinkRow extends QueryResultRow {
   target_artifact_id: string;
   relationship_type: string;
 }
+
+const ARTIFACT_SELECT_COLUMNS = `
+  ea.id,
+  ea.lane_id,
+  lanes.lane_id AS lane_public_id,
+  lanes.exporter_id,
+  ea.artifact_type,
+  ea.file_name,
+  ea.mime_type,
+  ea.file_size_bytes,
+  ea.file_path,
+  ea.content_hash,
+  ea.source,
+  ea.checkpoint_id,
+  ea.verification_status,
+  ea.metadata,
+  analysis.id AS latest_analysis_id,
+  analysis.artifact_id AS latest_analysis_artifact_id,
+  analysis.analyzer_version AS latest_analysis_analyzer_version,
+  analysis.analysis_status AS latest_analysis_status,
+  analysis.document_label AS latest_analysis_document_label,
+  analysis.document_role AS latest_analysis_document_role,
+  analysis.confidence AS latest_analysis_confidence,
+  analysis.summary_text AS latest_analysis_summary_text,
+  analysis.extracted_fields AS latest_analysis_extracted_fields,
+  analysis.missing_field_keys AS latest_analysis_missing_field_keys,
+  analysis.low_confidence_field_keys AS latest_analysis_low_confidence_field_keys,
+  analysis.field_completeness AS latest_analysis_field_completeness,
+  analysis.completed_at AS latest_analysis_completed_at,
+  analysis.created_at AS latest_analysis_created_at,
+  analysis.updated_at AS latest_analysis_updated_at,
+  ea.uploaded_by,
+  ea.uploaded_at,
+  ea.updated_at,
+  ea.deleted_at
+`;
+
+const ARTIFACT_ANALYSIS_JOIN = `
+  LEFT JOIN LATERAL (
+    SELECT
+      eaa.id,
+      eaa.artifact_id,
+      eaa.analyzer_version,
+      eaa.analysis_status,
+      eaa.document_label,
+      eaa.document_role,
+      eaa.confidence,
+      eaa.summary_text,
+      eaa.extracted_fields,
+      eaa.missing_field_keys,
+      eaa.low_confidence_field_keys,
+      eaa.completed_at,
+      eaa.created_at,
+      eaa.updated_at
+    FROM evidence_artifact_analyses eaa
+    WHERE eaa.artifact_id = ea.id
+    ORDER BY eaa.created_at DESC, eaa.id DESC
+    LIMIT 1
+  ) analysis ON TRUE
+`;
 
 @Injectable()
 export class PrismaEvidenceStore implements EvidenceArtifactStore {
@@ -278,26 +357,10 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          ea.id,
-          ea.lane_id,
-          lanes.lane_id AS lane_public_id,
-          lanes.exporter_id,
-          ea.artifact_type,
-          ea.file_name,
-          ea.mime_type,
-          ea.file_size_bytes,
-          ea.file_path,
-          ea.content_hash,
-          ea.source,
-          ea.checkpoint_id,
-          ea.verification_status,
-          ea.metadata,
-          ea.uploaded_by,
-          ea.uploaded_at,
-          ea.updated_at,
-          ea.deleted_at
+          ${ARTIFACT_SELECT_COLUMNS}
         FROM evidence_artifacts ea
         INNER JOIN lanes ON lanes.id = ea.lane_id
+        ${ARTIFACT_ANALYSIS_JOIN}
         WHERE ea.lane_id = $1
           AND ea.deleted_at IS NULL
         ORDER BY ea.uploaded_at DESC, ea.id DESC
@@ -315,26 +378,10 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          ea.id,
-          ea.lane_id,
-          lanes.lane_id AS lane_public_id,
-          lanes.exporter_id,
-          ea.artifact_type,
-          ea.file_name,
-          ea.mime_type,
-          ea.file_size_bytes,
-          ea.file_path,
-          ea.content_hash,
-          ea.source,
-          ea.checkpoint_id,
-          ea.verification_status,
-          ea.metadata,
-          ea.uploaded_by,
-          ea.uploaded_at,
-          ea.updated_at,
-          ea.deleted_at
+          ${ARTIFACT_SELECT_COLUMNS}
         FROM evidence_artifacts ea
         INNER JOIN lanes ON lanes.id = ea.lane_id
+        ${ARTIFACT_ANALYSIS_JOIN}
         WHERE ea.checkpoint_id = $1
           AND ea.deleted_at IS NULL
         ORDER BY ea.uploaded_at DESC, ea.id DESC
@@ -416,26 +463,10 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     const rows = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          ea.id,
-          ea.lane_id,
-          lanes.lane_id AS lane_public_id,
-          lanes.exporter_id,
-          ea.artifact_type,
-          ea.file_name,
-          ea.mime_type,
-          ea.file_size_bytes,
-          ea.file_path,
-          ea.content_hash,
-          ea.source,
-          ea.checkpoint_id,
-          ea.verification_status,
-          ea.metadata,
-          ea.uploaded_by,
-          ea.uploaded_at,
-          ea.updated_at,
-          ea.deleted_at
+          ${ARTIFACT_SELECT_COLUMNS}
         FROM evidence_artifacts ea
         INNER JOIN lanes ON lanes.id = ea.lane_id
+        ${ARTIFACT_ANALYSIS_JOIN}
         WHERE ${whereClause}
         ORDER BY ea.uploaded_at DESC, ea.id DESC
         LIMIT $${values.length + 1}
@@ -454,26 +485,10 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          ea.id,
-          ea.lane_id,
-          lanes.lane_id AS lane_public_id,
-          lanes.exporter_id,
-          ea.artifact_type,
-          ea.file_name,
-          ea.mime_type,
-          ea.file_size_bytes,
-          ea.file_path,
-          ea.content_hash,
-          ea.source,
-          ea.checkpoint_id,
-          ea.verification_status,
-          ea.metadata,
-          ea.uploaded_by,
-          ea.uploaded_at,
-          ea.updated_at,
-          ea.deleted_at
+          ${ARTIFACT_SELECT_COLUMNS}
         FROM evidence_artifacts ea
         INNER JOIN lanes ON lanes.id = ea.lane_id
+        ${ARTIFACT_ANALYSIS_JOIN}
         WHERE ea.lane_id = $1
           AND ea.deleted_at IS NULL
         ORDER BY ea.uploaded_at ASC, ea.id ASC
@@ -618,6 +633,123 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     return await this.findArtifactByIdInternal(id, true);
   }
 
+  async createArtifactAnalysis(
+    input: CreateArtifactAnalysisInput,
+  ): Promise<EvidenceArtifactAnalysisRecord> {
+    const id = randomUUID();
+    const result = await this.requireExecutor().query<{
+      id: string;
+      artifact_id: string;
+      analyzer_version: string;
+      analysis_status: string;
+      document_label: string | null;
+      document_role: string | null;
+      confidence: string | null;
+      summary_text: string | null;
+      extracted_fields: Record<string, unknown> | null;
+      missing_field_keys: string[];
+      low_confidence_field_keys: string[];
+      field_completeness: EvidenceArtifactAnalysisRecord['fieldCompleteness'];
+      completed_at: Date | string | null;
+      created_at: Date | string;
+      updated_at: Date | string;
+    }>(
+      `
+        INSERT INTO evidence_artifact_analyses (
+          id,
+          artifact_id,
+          lane_id,
+          analyzer_version,
+          analysis_status,
+          document_label,
+          document_role,
+          confidence,
+          summary_text,
+          extracted_fields,
+          missing_field_keys,
+          low_confidence_field_keys,
+          field_completeness,
+          completed_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13::jsonb, $14, NOW(), NOW()
+        )
+        RETURNING
+          id,
+          artifact_id,
+          analyzer_version,
+          analysis_status,
+          document_label,
+          document_role,
+          confidence,
+          summary_text,
+          extracted_fields,
+          missing_field_keys,
+          low_confidence_field_keys,
+          field_completeness,
+          completed_at,
+          created_at,
+          updated_at
+      `,
+      [
+        id,
+        input.artifactId,
+        input.laneId,
+        input.analyzerVersion,
+        input.analysisStatus,
+        input.documentLabel,
+        input.documentRole,
+        input.confidence,
+        input.summaryText,
+        input.extractedFields === null
+          ? null
+          : JSON.stringify(input.extractedFields),
+        input.missingFieldKeys,
+        input.lowConfidenceFieldKeys,
+        input.fieldCompleteness === null
+          ? null
+          : JSON.stringify(input.fieldCompleteness),
+        input.completedAt,
+      ],
+    );
+
+    const row = result.rows[0];
+    if (row === undefined) {
+      throw new Error('Artifact analysis insert did not return a row.');
+    }
+    return {
+      id: row.id,
+      artifactId: row.artifact_id,
+      analyzerVersion: row.analyzer_version,
+      analysisStatus:
+        row.analysis_status as EvidenceArtifactAnalysisRecord['analysisStatus'],
+      documentLabel: row.document_label,
+      documentRole: row.document_role,
+      confidence: row.confidence,
+      summaryText: row.summary_text,
+      extractedFields: row.extracted_fields,
+      missingFieldKeys: row.missing_field_keys,
+      lowConfidenceFieldKeys: row.low_confidence_field_keys,
+      fieldCompleteness: row.field_completeness,
+      completedAt:
+        row.completed_at === null
+          ? null
+          : row.completed_at instanceof Date
+            ? row.completed_at
+            : new Date(row.completed_at),
+      createdAt:
+        row.created_at instanceof Date
+          ? row.created_at
+          : new Date(row.created_at),
+      updatedAt:
+        row.updated_at instanceof Date
+          ? row.updated_at
+          : new Date(row.updated_at),
+    };
+  }
+
   private async findArtifactByIdInternal(
     id: string,
     includeDeleted: boolean,
@@ -625,26 +757,10 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          ea.id,
-          ea.lane_id,
-          lanes.lane_id AS lane_public_id,
-          lanes.exporter_id,
-          ea.artifact_type,
-          ea.file_name,
-          ea.mime_type,
-          ea.file_size_bytes,
-          ea.file_path,
-          ea.content_hash,
-          ea.source,
-          ea.checkpoint_id,
-          ea.verification_status,
-          ea.metadata,
-          ea.uploaded_by,
-          ea.uploaded_at,
-          ea.updated_at,
-          ea.deleted_at
+          ${ARTIFACT_SELECT_COLUMNS}
         FROM evidence_artifacts ea
         INNER JOIN lanes ON lanes.id = ea.lane_id
+        ${ARTIFACT_ANALYSIS_JOIN}
         WHERE ea.id = $1
           ${includeDeleted ? '' : 'AND ea.deleted_at IS NULL'}
         LIMIT 1
@@ -691,6 +807,40 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
       verificationStatus:
         row.verification_status as EvidenceArtifactRecord['verificationStatus'],
       metadata: row.metadata,
+      latestAnalysis:
+        row.latest_analysis_id === null
+          ? null
+          : {
+              id: row.latest_analysis_id,
+              artifactId: row.latest_analysis_artifact_id ?? row.id,
+              analyzerVersion: row.latest_analysis_analyzer_version ?? '',
+              analysisStatus: row.latest_analysis_status as NonNullable<
+                EvidenceArtifactRecord['latestAnalysis']
+              >['analysisStatus'],
+              documentLabel: row.latest_analysis_document_label,
+              documentRole: row.latest_analysis_document_role,
+              confidence: row.latest_analysis_confidence,
+              summaryText: row.latest_analysis_summary_text,
+              extractedFields: row.latest_analysis_extracted_fields,
+              missingFieldKeys: row.latest_analysis_missing_field_keys ?? [],
+              lowConfidenceFieldKeys:
+                row.latest_analysis_low_confidence_field_keys ?? [],
+              fieldCompleteness: row.latest_analysis_field_completeness,
+              completedAt:
+                row.latest_analysis_completed_at === null
+                  ? null
+                  : row.latest_analysis_completed_at instanceof Date
+                    ? row.latest_analysis_completed_at
+                    : new Date(row.latest_analysis_completed_at),
+              createdAt:
+                row.latest_analysis_created_at instanceof Date
+                  ? row.latest_analysis_created_at
+                  : new Date(row.latest_analysis_created_at ?? row.uploaded_at),
+              updatedAt:
+                row.latest_analysis_updated_at instanceof Date
+                  ? row.latest_analysis_updated_at
+                  : new Date(row.latest_analysis_updated_at ?? row.updated_at),
+            },
       uploadedBy: row.uploaded_by,
       uploadedAt:
         row.uploaded_at instanceof Date
