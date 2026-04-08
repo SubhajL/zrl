@@ -1,0 +1,79 @@
+# Source checked: 2026-04-06
+# Primary sources:
+# - https://food.ec.europa.eu/plants/plant-health-and-biosecurity/trade-plants-plant-products-non-eu-countries_en
+# - https://food.ec.europa.eu/horizontal-topics/traces_en
+# - https://food.ec.europa.eu/plants/pesticides/maximum-residue-levels_en
+# - https://food.ec.europa.eu/plants/pesticides/eu-pesticides-database_en
+# - https://ec.europa.eu/food/plant/pesticides/eu-pesticides-database/backend/api/products?lang=EN
+# - https://ec.europa.eu/food/plant/pesticides/eu-pesticides-database/backend/api/product/77/mrls?lang=EN
+# Notes:
+# - Fresh mangosteen entering the EU requires a phytosanitary certificate and
+#   follows TRACES-based import workflows.
+# - The current official Commission pesticides taxonomy does not expose a
+#   standalone mangosteen leaf. Mangosteen is currently covered under product 77
+#   / commodity code 0163040 (Papayas / Carica papaya) via Commission synonyms
+#   including Mangosteens and the scientific name Garcinia mangostana.
+# - The current official Commission API returned 522 raw product/77 rows on
+#   2026-04-06, which collapse to 516 unique operational substance names after
+#   merging duplicate labels with identical effective limits.
+# - 13 explicit covered rows have no published numeric MRL; they remain encoded
+#   in the CSV as NO_NUMERIC_LIMIT so runtime validation stays truthful and
+#   fail-closed instead of inventing thresholds.
+# - Unlisted substances fall back to the EU default 0.01 mg/kg path under
+#   Regulation (EC) No 396/2005 Article 18(1)(b), except where an official
+#   product/77 footnote states otherwise.
+market: EU
+product: MANGOSTEEN
+version: 1
+effectiveDate: 2026-04-06
+requiredDocuments:
+  - Phytosanitary Certificate
+  - MRL Test Results
+  - GAP Certificate
+  - Export License
+  - Commercial Invoice
+  - Grading Report
+  - Product Photos
+  - Packing List
+  - Temperature Log
+  - SLA Summary
+  - Excursion Report
+  - Handoff Signatures
+  - Transport Document
+  - Delivery Note
+completenessWeights:
+  regulatory: 0.4
+  quality: 0.25
+  coldChain: 0.2
+  chainOfCustody: 0.15
+metadata:
+  coverageState: FULL_EXHAUSTIVE
+  sourceQuality: PRIMARY_ONLY
+  retrievedAt: 2026-04-06
+  commodityCode: '0163040'
+  nonPesticideChecks:
+    - type: PHYTO_CERT
+      status: REQUIRED
+      parameters: {}
+      sourceRef: European Commission plant-health import controls
+      note: Fresh mangosteen from non-EU countries requires a phytosanitary certificate and follows the TRACES import workflow.
+    - type: GAP_CERT
+      status: REQUIRED
+      parameters:
+        zrlOperationalBaseline: true
+      sourceRef: ZRL exporter compliance baseline
+      note: Operational orchard and packinghouse evidence requirement retained by ZRL; not an EU border import condition.
+    - type: COLD_CHAIN
+      status: INFORMATIONAL
+      parameters:
+        zrlOperationalBaseline: true
+      sourceRef: Operational cold-chain evidence expectation
+      note: Cold-chain artifacts remain part of ZRL quality scoring but are not a Commission import condition.
+labPolicy:
+  enforcementMode: FULL_PESTICIDE
+  requiredArtifactType: MRL_TEST
+  acceptedUnits:
+    - mg/kg
+    - ppm
+  defaultDestinationMrlMgKg: 0.01
+substancesFile: ./mangosteen-substances.csv

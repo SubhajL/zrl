@@ -140,6 +140,7 @@ const ARTIFACT_ANALYSIS_JOIN = `
       eaa.extracted_fields,
       eaa.missing_field_keys,
       eaa.low_confidence_field_keys,
+      eaa.field_completeness,
       eaa.completed_at,
       eaa.created_at,
       eaa.updated_at
