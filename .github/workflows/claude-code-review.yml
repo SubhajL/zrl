@@ -10,6 +10,8 @@ concurrency:
 
 jobs:
   claude-review:
+    # Temporarily disable automatic Claude PR review without removing the workflow.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
