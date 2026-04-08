@@ -1,7 +1,10 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { loadRuleDefinitionFromFile } from './rule-definition.files';
+import {
+  findRuleYamlFiles,
+  loadRuleDefinitionFromFile,
+} from './rule-definition.files';
 import { RuleLoaderService } from './rule-loader.service';
 
 describe('RuleLoaderService', () => {
@@ -536,6 +539,15 @@ describe('RuleLoaderService', () => {
     );
   });
 
+  it('ignores document-matrix yaml during repository rule discovery', async () => {
+    const files = await findRuleYamlFiles(resolve(process.cwd(), 'rules'));
+
+    expect(files).toContain(resolve(process.cwd(), 'rules/japan/mango.yaml'));
+    expect(files).not.toContain(
+      resolve(process.cwd(), 'rules/document-matrix.yaml'),
+    );
+  });
+
   it('does not load a repository japan longan rule file', async () => {
     const service = new RuleLoaderService(resolve(process.cwd(), 'rules'));
 
@@ -638,6 +650,54 @@ describe('RuleLoaderService', () => {
         }),
       ]),
     );
+  });
+
+  it('loads the repository eu mangosteen rule file', async () => {
+    const definition = await loadRuleDefinitionFromFile(
+      resolve(process.cwd(), 'rules/eu/mangosteen.yaml'),
+      resolve(process.cwd(), 'rules'),
+    );
+
+    expect(definition.market).toBe('EU');
+    expect(definition.product).toBe('MANGOSTEEN');
+    expect(definition.sourcePath).toBe('rules/eu/mangosteen.yaml');
+    expect(definition.metadata.coverageState).toBe('FULL_EXHAUSTIVE');
+    expect(definition.metadata.sourceQuality).toBe('PRIMARY_ONLY');
+    expect(definition.metadata.commodityCode).toBe('0163040');
+    expect(definition.metadata.nonPesticideChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'PHYTO_CERT',
+          status: 'REQUIRED',
+        }),
+      ]),
+    );
+    expect(definition.labPolicy).toMatchObject({
+      enforcementMode: 'FULL_PESTICIDE',
+      requiredArtifactType: 'MRL_TEST',
+      defaultDestinationMrlMgKg: 0.01,
+    });
+    expect(definition.requiredDocuments).toContain('Phytosanitary Certificate');
+    expect(definition.requiredDocuments).toContain('MRL Test Results');
+    expect(definition.substances).toHaveLength(516);
+    expect(definition.substances).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Acetamiprid (R)',
+          destinationMrl: 0.01,
+          destinationLimitType: 'NUMERIC',
+        }),
+        expect.objectContaining({
+          name: 'Fosetyl',
+          destinationMrl: 0,
+          destinationLimitType: 'NO_NUMERIC_LIMIT',
+        }),
+      ]),
+    );
+    const fosetyl = definition.substances.find(
+      (substance) => substance.name === 'Fosetyl',
+    );
+    expect(fosetyl?.note).toContain('phosphonic acid applies');
   });
 
   it('refreshes cached rules automatically when the backing yaml changes', async () => {

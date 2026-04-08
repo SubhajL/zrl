@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { dirname, join, posix, relative, resolve } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve } from 'node:path';
 import * as YAML from 'yaml';
 import { buildRuleDefinition } from './rules-engine.utils';
 import type {
@@ -9,6 +9,7 @@ import type {
 
 const RULE_YAML_FILE_PATTERN = /\.(ya?ml)$/i;
 const RULE_DATA_FILE_PATTERN = /\.(ya?ml|csv)$/i;
+const EXCLUDED_RULE_YAML_BASENAMES = new Set(['document-matrix.yaml']);
 
 async function findRuleFiles(
   directory: string,
@@ -181,7 +182,10 @@ function toRuleSourcePath(filePath: string, rulesDirectory?: string): string {
 }
 
 export async function findRuleYamlFiles(directory: string): Promise<string[]> {
-  return await findRuleFiles(directory, RULE_YAML_FILE_PATTERN);
+  const files = await findRuleFiles(directory, RULE_YAML_FILE_PATTERN);
+  return files.filter(
+    (filePath) => !EXCLUDED_RULE_YAML_BASENAMES.has(basename(filePath)),
+  );
 }
 
 export async function findRuleDataFiles(directory: string): Promise<string[]> {

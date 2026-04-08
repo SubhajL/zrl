@@ -12,6 +12,8 @@ import type { AuditStore } from '../../common/audit/audit.types';
 import type { HashingService } from '../../common/hashing/hashing.service';
 import type { ColdChainService } from '../cold-chain/cold-chain.service';
 import { RealtimeEventsService } from '../notifications/realtime-events.service';
+import type { EvidenceDocumentClassifier } from './evidence.types';
+import type { EvidenceDocumentAnalysisProvider } from './evidence.types';
 import { EvidenceService } from './evidence.service';
 import {
   ArtifactSource,
@@ -43,6 +45,7 @@ function buildArtifact(
     checkpointId: null,
     verificationStatus: 'PENDING',
     metadata: null,
+    latestAnalysis: null,
     uploadedBy: 'exporter-1',
     uploadedAt: new Date('2026-03-22T10:00:00.000Z'),
     updatedAt: new Date('2026-03-22T10:00:00.000Z'),
@@ -82,6 +85,7 @@ describe('EvidenceService', () => {
   let findArtifactGraphForLaneMock: jest.Mock;
   let updateLaneCompletenessScoreMock: jest.Mock;
   let softDeleteArtifactMock: jest.Mock;
+  let createArtifactAnalysisMock: jest.Mock;
   let rulesEngineService: {
     evaluateLane: jest.Mock;
     notifyCertificationAlertForArtifact: jest.Mock;
@@ -89,6 +93,10 @@ describe('EvidenceService', () => {
   let laneReconciler: { reconcileAfterEvidenceChange: jest.Mock };
   let realtimeEvents: Pick<RealtimeEventsService, 'publishEvidenceUploaded'>;
   let coldChainService: Pick<ColdChainService, 'ingestLaneReadings'>;
+  let documentAnalysisProvider: EvidenceDocumentAnalysisProvider;
+  let documentClassifier: EvidenceDocumentClassifier;
+  let extractTextMock: jest.Mock;
+  let analyzeDocumentMock: jest.Mock;
 
   beforeEach(() => {
     auditStore = {
@@ -122,12 +130,12 @@ describe('EvidenceService', () => {
     listArtifactsForEvaluationMock = jest.fn();
     updateLaneCompletenessScoreMock = jest.fn();
     softDeleteArtifactMock = jest.fn();
+    createArtifactAnalysisMock = jest.fn();
     const transactionalStore = {} as EvidenceArtifactStore;
     Object.assign(transactionalStore, {
       runInTransaction: jest.fn(
-        async <T>(
-          operation: (nestedStore: EvidenceArtifactStore) => Promise<T>,
-        ) => await operation(transactionalStore),
+        <T>(operation: (nestedStore: EvidenceArtifactStore) => Promise<T>) =>
+          operation(transactionalStore),
       ),
       asAuditStore: jest.fn().mockReturnValue(auditStore),
       findLaneById: findLaneByIdMock,
@@ -144,6 +152,7 @@ describe('EvidenceService', () => {
       findArtifactGraphForLane: findArtifactGraphForLaneMock,
       updateLaneCompletenessScore: updateLaneCompletenessScoreMock,
       softDeleteArtifact: softDeleteArtifactMock,
+      createArtifactAnalysis: createArtifactAnalysisMock,
     });
     store = transactionalStore;
     hashingService = {
@@ -195,12 +204,55 @@ describe('EvidenceService', () => {
         },
       }),
     };
+    extractTextMock = jest.fn().mockResolvedValue({
+      engine: 'tesseract',
+      text: 'PHYTOSANITARY CERTIFICATE\nCertificate No. PC-2026-0001',
+      preprocessingApplied: false,
+    });
+    documentAnalysisProvider = {
+      getAvailability: jest.fn().mockResolvedValue({
+        available: true,
+        engine: 'tesseract',
+        binaryPath: '/opt/homebrew/bin/tesseract',
+        preprocessingAvailable: false,
+        preprocessingEngine: 'ocrmypdf',
+        preprocessingBinaryPath: null,
+      }),
+      extractText: extractTextMock,
+    };
+    analyzeDocumentMock = jest.fn().mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Phytosanitary Certificate',
+      documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+      confidence: 'HIGH',
+      summaryText:
+        'Matched Phytosanitary Certificate using matrix-driven rules.',
+      extractedFields: {
+        certificateNumber: 'PC-2026-0001',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['certificateNumber'],
+        presentFieldKeys: ['certificateNumber'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+    documentClassifier = {
+      analyze: analyzeDocumentMock,
+    };
     service = new EvidenceService(
       store,
       objectStore,
       hashingService,
       auditService as never,
       photoMetadataExtractor as never,
+      documentAnalysisProvider,
+      documentClassifier,
       rulesEngineService as never,
       laneReconciler as never,
       realtimeEvents as never,
@@ -209,6 +261,22 @@ describe('EvidenceService', () => {
     tempDirectory = mkdtempSync(join(tmpdir(), 'zrl-evidence-'));
     uploadFilePath = join(tempDirectory, 'phyto.pdf');
     writeFileSync(uploadFilePath, 'phyto-certificate');
+    findArtifactGraphForLaneMock.mockResolvedValue({
+      nodes: [],
+      edges: [],
+    });
+    listArtifactsForIntegrityCheckMock.mockResolvedValue([]);
+    findArtifactByIdMock.mockImplementation((id: string) =>
+      Promise.resolve(buildArtifact({ id })),
+    );
+    updateArtifactVerificationStatusMock.mockImplementation(
+      (id: string, status: 'PENDING' | 'VERIFIED' | 'FAILED') =>
+        Promise.resolve(buildArtifact({ id, verificationStatus: status })),
+    );
+    createReadStreamMock.mockResolvedValue('artifact-stream');
+    (hashingService.hashFile as jest.Mock).mockResolvedValue(
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
   });
 
   it('uploadArtifact hashes content, stores the object, and appends audit', async () => {
@@ -217,6 +285,11 @@ describe('EvidenceService', () => {
       id: 'lane-db-1',
       laneId: 'LN-2026-001',
       exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'JAPAN',
+        product: 'MANGO',
+      },
     });
     (hashingService.hashFile as jest.Mock).mockResolvedValue(
       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -286,8 +359,53 @@ describe('EvidenceService', () => {
       checkpointId: createdArtifact.checkpointId,
       verificationStatus: createdArtifact.verificationStatus,
       metadata: createdArtifact.metadata,
+      latestAnalysis: null,
       createdAt: createdArtifact.uploadedAt.toISOString(),
       updatedAt: createdArtifact.updatedAt.toISOString(),
+    });
+    expect(createArtifactAnalysisMock).toHaveBeenCalledTimes(1);
+    const createArtifactAnalysisCalls = createArtifactAnalysisMock.mock
+      .calls as Array<
+      [
+        {
+          artifactId: string;
+          laneId: string;
+          analyzerVersion: string;
+          analysisStatus: string;
+          documentLabel: string | null;
+          extractedFields: Record<string, unknown> | null;
+          fieldCompleteness: {
+            supported: boolean;
+            presentFieldKeys: string[];
+          } | null;
+        },
+      ]
+    >;
+    const createArtifactAnalysisCall = createArtifactAnalysisCalls[0]?.[0] as {
+      artifactId: string;
+      laneId: string;
+      analyzerVersion: string;
+      analysisStatus: string;
+      documentLabel: string | null;
+      extractedFields: Record<string, unknown> | null;
+      fieldCompleteness: {
+        supported: boolean;
+        presentFieldKeys: string[];
+      } | null;
+    };
+    expect(createArtifactAnalysisCall.artifactId).toBe('artifact-1');
+    expect(createArtifactAnalysisCall.laneId).toBe('lane-db-1');
+    expect(createArtifactAnalysisCall.analyzerVersion).toBe('tesseract');
+    expect(createArtifactAnalysisCall.analysisStatus).toBe('COMPLETED');
+    expect(createArtifactAnalysisCall.documentLabel).toBe(
+      'Phytosanitary Certificate',
+    );
+    expect(createArtifactAnalysisCall.extractedFields).toEqual({
+      certificateNumber: 'PC-2026-0001',
+    });
+    expect(createArtifactAnalysisCall.fieldCompleteness).toMatchObject({
+      supported: true,
+      presentFieldKeys: ['certificateNumber'],
     });
     expect(realtimeEvents.publishEvidenceUploaded).toHaveBeenCalledWith({
       laneId: 'lane-db-1',
@@ -1185,6 +1303,59 @@ describe('EvidenceService', () => {
     });
   });
 
+  it('listLaneArtifacts returns the latest derived analysis when present', async () => {
+    listArtifactsForLaneMock.mockResolvedValue({
+      items: [
+        buildArtifact({
+          latestAnalysis: {
+            id: 'analysis-1',
+            artifactId: 'artifact-1',
+            analyzerVersion: 'ocr-local-v1',
+            analysisStatus: 'COMPLETED',
+            documentLabel: 'Phytosanitary Certificate',
+            documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+            confidence: 'HIGH',
+            summaryText: 'Detected phytosanitary certificate fields.',
+            extractedFields: {
+              certificateNumber: 'PC-2026-0001',
+            },
+            missingFieldKeys: [],
+            lowConfidenceFieldKeys: [],
+            fieldCompleteness: {
+              supported: true,
+              documentMatrixVersion: 1,
+              expectedFieldKeys: ['certificateNumber'],
+              presentFieldKeys: ['certificateNumber'],
+              missingFieldKeys: [],
+              lowConfidenceFieldKeys: [],
+              unsupportedFieldKeys: [],
+            },
+            completedAt: new Date('2026-04-07T06:40:00.000Z'),
+            createdAt: new Date('2026-04-07T06:39:00.000Z'),
+            updatedAt: new Date('2026-04-07T06:40:00.000Z'),
+          },
+        }),
+      ],
+      total: 1,
+    });
+
+    const result = await service.listLaneArtifacts('lane-db-1');
+    const latestAnalysis = result.artifacts[0]?.latestAnalysis;
+
+    expect(latestAnalysis?.id).toBe('analysis-1');
+    expect(latestAnalysis?.artifactId).toBe('artifact-1');
+    expect(latestAnalysis?.analyzerVersion).toBe('ocr-local-v1');
+    expect(latestAnalysis?.analysisStatus).toBe('COMPLETED');
+    expect(latestAnalysis?.confidence).toBe('HIGH');
+    expect(latestAnalysis?.extractedFields).toEqual({
+      certificateNumber: 'PC-2026-0001',
+    });
+    expect(latestAnalysis?.fieldCompleteness).toMatchObject({
+      supported: true,
+      presentFieldKeys: ['certificateNumber'],
+    });
+  });
+
   it('verifyArtifact re-hashes the stored object and marks the artifact verified', async () => {
     const artifact = buildArtifact();
     findArtifactByIdMock.mockResolvedValue(artifact);
@@ -1218,6 +1389,103 @@ describe('EvidenceService', () => {
       valid: true,
       storedHash: artifact.contentHash,
       computedHash: artifact.contentHash,
+    });
+  });
+
+  it('verifyArtifact marks the artifact failed when the stored object cannot be read', async () => {
+    const artifact = buildArtifact();
+    findArtifactByIdMock.mockResolvedValue(artifact);
+    createReadStreamMock.mockRejectedValue(new Error('missing object'));
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    );
+    updateArtifactVerificationStatusMock.mockResolvedValue(
+      buildArtifact({ verificationStatus: 'FAILED' }),
+    );
+
+    const result = await service.verifyArtifact('artifact-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(updateArtifactVerificationStatusMock).toHaveBeenCalledWith(
+      'artifact-1',
+      'FAILED',
+    );
+    expect(result).toEqual({
+      artifactId: 'artifact-1',
+      valid: false,
+      storedHash: artifact.contentHash,
+      computedHash: null,
+    });
+  });
+
+  it('reanalyzes one artifact on demand and stores a fresh derived analysis row', async () => {
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({
+        artifactType: 'PHYTO_CERT',
+        metadata: { issuer: 'Department of Agriculture' },
+      }),
+    );
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'JAPAN',
+        product: 'MANGO',
+      },
+    });
+    createReadStreamMock.mockResolvedValue('artifact-stream');
+
+    await service.reanalyzeArtifact('artifact-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(extractTextMock).toHaveBeenCalledTimes(1);
+    expect(analyzeDocumentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactType: 'PHYTO_CERT',
+        market: 'JAPAN',
+        product: 'MANGO',
+      }),
+    );
+    expect(createArtifactAnalysisMock).toHaveBeenCalledTimes(1);
+    const reanalysisCalls = createArtifactAnalysisMock.mock.calls as Array<
+      [
+        {
+          artifactId: string;
+          analysisStatus: string;
+          fieldCompleteness: {
+            supported: boolean;
+            presentFieldKeys: string[];
+          } | null;
+        },
+      ]
+    >;
+    const reanalysisCall = reanalysisCalls[0]?.[0] as {
+      artifactId: string;
+      analysisStatus: string;
+      fieldCompleteness: {
+        supported: boolean;
+        presentFieldKeys: string[];
+      } | null;
+    };
+    expect(reanalysisCall.artifactId).toBe('artifact-1');
+    expect(reanalysisCall.analysisStatus).toBe('COMPLETED');
+    expect(reanalysisCall.fieldCompleteness).toMatchObject({
+      supported: true,
+      presentFieldKeys: ['certificateNumber'],
     });
   });
 

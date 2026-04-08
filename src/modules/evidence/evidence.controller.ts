@@ -334,6 +334,18 @@ export class EvidenceController {
     return await this.evidenceService.verifyArtifact(artifactId, request.user!);
   }
 
+  @Post('evidence/:id/reanalyze')
+  @UseGuards(JwtAuthGuard)
+  async reanalyzeArtifact(
+    @Param('id') artifactId: string,
+    @Req() request: AuthPrincipalRequest,
+  ) {
+    return await this.evidenceService.reanalyzeArtifact(
+      artifactId,
+      request.user!,
+    );
+  }
+
   @Delete('evidence/:id')
   @UseGuards(JwtAuthGuard, AuditorReadOnlyGuard)
   async deleteArtifact(

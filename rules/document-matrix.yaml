@@ -1,0 +1,448 @@
+# Source checked: 2026-04-07
+# Scope:
+# - Supported runtime market/product rule packs currently on disk only.
+# - First-pass OCR/form completeness scope covers official/formal artifacts only.
+# - Operational evidence such as Product Photos, Temperature Log, SLA Summary,
+#   Excursion Report, and Handoff Signatures is intentionally excluded here and
+#   will require separate operational schemas if OCR is later extended to them.
+# Notes:
+# - "Export License" currently maps to Thailand-side exporter authorization /
+#   registration evidence with medium-low confidence; do not treat it as a
+#   destination-market government import form.
+# - "VHT Certificate" is modeled as treatment evidence with medium confidence
+#   because public official sources define treatment conditions more clearly
+#   than a single harmonized certificate template.
+# - EU mangosteen remains taxonomy-sensitive for pesticide/MRL enforcement, but
+#   that does not materially change the document-field matrix below.
+version: 1
+artifactTypes:
+  - PHYTO_CERT
+  - VHT_CERT
+  - MRL_TEST
+  - GAP_CERT
+  - INVOICE
+supportedCombos:
+  - market: EU
+    product: DURIAN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: EU
+    product: MANGO
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: EU
+    product: MANGOSTEEN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: JAPAN
+    product: DURIAN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: JAPAN
+    product: MANGO
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - VHT Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: JAPAN
+    product: MANGOSTEEN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - VHT Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: KOREA
+    product: DURIAN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: KOREA
+    product: MANGO
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - VHT Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+  - market: KOREA
+    product: MANGOSTEEN
+    requiredDocuments:
+      - Phytosanitary Certificate
+      - MRL Test Results
+      - GAP Certificate
+      - Export License
+      - Commercial Invoice
+      - Packing List
+      - Transport Document
+      - Delivery Note
+documents:
+  - documentLabel: Phytosanitary Certificate
+    artifactType: PHYTO_CERT
+    documentClass: OFFICIAL_GOVERNMENT_FORM
+    documentRole: THAILAND_NPPO_EXPORT_CERTIFICATE
+    confidence: HIGH
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://assets.ippc.int/static/media/files/publication/en/2022/05/ISPM_12_2022_En_PCs_2022-04-21_PostCPM-16.pdf
+      - https://e-phyto.doa.go.th/
+      - https://food.ec.europa.eu/plants/plant-health-and-biosecurity/trade-plants-plant-products-non-eu-countries_en
+      - https://food.ec.europa.eu/horizontal-topics/traces_en
+      - https://www.maff.go.jp/pps/j/law/houki/kokuji_joken/kokuji_joken_23_html_23.html
+      - https://www.maff.go.jp/pps/j/law/houki/saisoku/saisoku_107_html_107.html
+      - https://www.qia.go.kr/plant/imQua/plant_fruit_cond.jsp
+    requiredFieldKeys:
+      - certificateNumber
+      - issuingAuthority
+      - exporterName
+      - consigneeName
+      - packageDescription
+      - placeOfOrigin
+      - meansOfConveyance
+      - declaredPointOfEntry
+      - commodityDescription
+      - botanicalName
+      - additionalDeclarations
+      - issueDate
+      - authorizedOfficer
+      - officialSealOrSignature
+    marketSpecificFieldRules:
+      - combo: JAPAN/MANGO
+        requiredFieldKeys:
+          - mustStateFruitFlyFree
+          - treatmentReference
+      - combo: JAPAN/MANGOSTEEN
+        requiredFieldKeys:
+          - treatmentReference
+          - packageMarkingForJapan
+      - combo: KOREA/MANGOSTEEN
+        requiredFieldKeys:
+          - treatmentReference
+          - fumigationDetails
+    notes:
+      - Thailand-origin phytosanitary certificate presented to destination-market plant-health authorities.
+      - Treatment-specific declarations may be mandatory for certain Japan/Korea flows.
+  - documentLabel: VHT Certificate
+    artifactType: VHT_CERT
+    documentClass: TREATMENT_EVIDENCE
+    documentRole: TREATMENT_CERTIFICATE_OR_RECORD
+    confidence: MEDIUM
+    applicableCombos:
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/MANGO
+    sourceUrls:
+      - https://www.maff.go.jp/pps/j/law/houki/kokuji_joken/kokuji_joken_23_html_23.html
+      - https://www.maff.go.jp/pps/j/law/houki/saisoku/saisoku_107_html_107.html
+      - https://www.qia.go.kr/plant/imQua/plant_fruit_cond.jsp
+    requiredFieldKeys:
+      - treatmentRecordNumber
+      - commodityName
+      - lotOrConsignmentId
+      - treatmentFacility
+      - treatmentDate
+      - treatmentMethod
+      - targetCoreTemperatureC
+      - holdMinutes
+      - operatorOrInspector
+      - linkedPhytoCertificateNumber
+    marketSpecificFieldRules:
+      - combo: JAPAN/MANGO
+        requiredFieldKeys:
+          - allowedVariety
+          - maffVerificationReference
+      - combo: JAPAN/MANGOSTEEN
+        requiredFieldKeys:
+          - humidityRequirement
+          - coolingRequirement
+      - combo: KOREA/MANGO
+        requiredFieldKeys:
+          - overseasInspectionReference
+    notes:
+      - Public official sources define treatment conditions more clearly than a single harmonized certificate layout.
+      - Japan mangosteen requirement is treatment evidence tied to steam-heat conditions, even though the repo label is VHT Certificate.
+  - documentLabel: MRL Test Results
+    artifactType: MRL_TEST
+    documentClass: LAB_REPORT
+    documentRole: RESIDUE_ANALYSIS_REPORT
+    confidence: MEDIUM_HIGH
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://food.ec.europa.eu/plants/pesticides/maximum-residue-levels_en
+      - https://food.ec.europa.eu/plants/pesticides/eu-pesticides-database_en
+      - https://www.caa.go.jp/en/policy/standards_evaluation/residues_of_pesticides/
+      - https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/shokuhin/zanryu/index_00016.html
+      - https://db.ffcr.or.jp/
+      - https://www.foodsafetykorea.go.kr/residue/prd/mrls/list.do
+    requiredFieldKeys:
+      - reportNumber
+      - laboratoryName
+      - accreditationReference
+      - sampleId
+      - commodityName
+      - sampleOriginCountry
+      - sampleReceiptDate
+      - analysisDate
+      - analyticalMethod
+      - analyteTable
+      - resultUnits
+      - authorizedSignatory
+    notes:
+      - Lab reports are formal evidence artifacts but not government-issued forms.
+      - Required field completeness should verify schema presence, not chemical compliance outcomes.
+  - documentLabel: GAP Certificate
+    artifactType: GAP_CERT
+    documentClass: CERTIFICATION_SCHEMA
+    documentRole: THAILAND_GAP_CERTIFICATION_EVIDENCE
+    confidence: MEDIUM_LOW
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://cabservices.acfs.go.th/Act1/LoadFile?id=113
+      - https://e-book.acfs.go.th/Book_view/252
+      - https://cabservices.acfs.go.th/Act1/Scope
+    requiredFieldKeys:
+      - certificateNumber
+      - certificateHolder
+      - schemeName
+      - commodityScope
+      - farmOrSiteId
+      - farmLocation
+      - certificationBody
+      - issueDate
+      - expiryDate
+      - authorizedSignatory
+    notes:
+      - Strong official basis exists for the certification scheme, but not for treating GAP as a destination-market import form.
+  - documentLabel: Commercial Invoice
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: COMMERCIAL_INVOICE
+    confidence: HIGH
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://www.customs.go.jp/english/c-answer_e/imtsukan/1107_e.htm
+      - https://www.customs.go.kr/english/cm/cntnts/cntntsView.do?cntntsId=2731&mi=8055
+      - https://trade.ec.europa.eu/access-to-markets/en/content/customs-clearance-documents-and-procedures-0
+    requiredFieldKeys:
+      - invoiceNumber
+      - invoiceDate
+      - sellerName
+      - buyerName
+      - goodsDescription
+      - quantity
+      - unitPrice
+      - totalAmount
+      - currency
+      - countryOfOrigin
+      - incoterms
+      - shipmentReference
+    notes:
+      - Trade document, not government-issued.
+  - documentLabel: Packing List
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: PACKING_LIST
+    confidence: HIGH
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://www.customs.go.jp/english/c-answer_e/imtsukan/1107_e.htm
+      - https://www.customs.go.kr/english/cm/cntnts/cntntsView.do?cntntsId=2731&mi=8055
+    requiredFieldKeys:
+      - packingListNumber
+      - packingListDate
+      - exporterName
+      - consigneeName
+      - invoiceReference
+      - packageCount
+      - packageType
+      - marksAndNumbers
+      - grossWeight
+      - netWeight
+      - containerReference
+    notes:
+      - Trade document, not government-issued.
+  - documentLabel: Transport Document
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: TRANSPORT_DOCUMENT
+    confidence: HIGH
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://www.customs.go.jp/english/c-answer_e/imtsukan/1107_e.htm
+      - https://www.customs.go.kr/english/cm/cntnts/cntntsView.do?cntntsId=2731&mi=8055
+      - https://trade.ec.europa.eu/access-to-markets/en/content/customs-clearance-documents-and-procedures-0
+    requiredFieldKeys:
+      - transportDocumentNumber
+      - transportMode
+      - carrierName
+      - shipperName
+      - consigneeName
+      - departurePoint
+      - arrivalPoint
+      - goodsDescription
+      - packageCount
+      - grossWeight
+      - issueDate
+    notes:
+      - Covers airway bill / bill of lading / similar carrier documents.
+  - documentLabel: Delivery Note
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: DELIVERY_NOTE
+    confidence: LOW_MEDIUM
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls: []
+    requiredFieldKeys:
+      - deliveryNoteNumber
+      - deliveryDate
+      - senderName
+      - receiverName
+      - deliveryLocation
+      - shipmentReference
+      - goodsDescription
+      - quantity
+      - senderSignature
+      - receiverSignature
+    notes:
+      - Operational/private logistics artifact; no strong official destination-market requirement found.
+  - documentLabel: Export License
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: THAILAND_EXPORTER_AUTHORIZATION_EVIDENCE
+    confidence: MEDIUM_LOW
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls:
+      - https://www.doa.go.th/psco/?page_id=189
+      - https://e-phytoexporter.doa.go.th/Home/Register
+      - https://e-phyto.doa.go.th/
+    requiredFieldKeys:
+      - authorizationNumber
+      - legalEntityName
+      - establishmentName
+      - operatorType
+      - address
+      - issueDate
+      - expiryDate
+      - issuingOffice
+    notes:
+      - Best current official mapping is Thailand exporter registration/authorization evidence rather than a clean per-shipment government license form.

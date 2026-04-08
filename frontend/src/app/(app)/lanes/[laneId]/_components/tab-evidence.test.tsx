@@ -22,6 +22,7 @@ function buildArtifact(
     verificationStatus: 'VERIFIED',
     source: 'UPLOAD',
     checkpointId: null,
+    latestAnalysis: null,
     createdAt: '2026-03-20T10:00:00Z',
     updatedAt: '2026-03-20T10:05:00Z',
     ...overrides,
@@ -165,9 +166,7 @@ describe('TabEvidence', () => {
 
     it('shows error message when upload fails', async () => {
       const user = userEvent.setup();
-      const onUpload = jest
-        .fn()
-        .mockRejectedValue(new Error('Network error'));
+      const onUpload = jest.fn().mockRejectedValue(new Error('Network error'));
 
       const { container } = render(
         <TabEvidence evidence={[]} onUpload={onUpload} />,
@@ -269,6 +268,171 @@ describe('TabEvidence', () => {
 
       expect(screen.getByText('phyto.pdf')).toBeInTheDocument();
       expect(screen.getByText('abcdef12')).toBeInTheDocument();
+    });
+
+    it('renders latest analysis completeness details when present', () => {
+      const evidence = [
+        buildArtifact({
+          artifactType: 'PHYTO_CERT',
+          latestAnalysis: {
+            id: 'analysis-1',
+            artifactId: 'artifact-1',
+            analyzerVersion: 'tesseract',
+            analysisStatus: 'COMPLETED',
+            documentLabel: 'Phytosanitary Certificate',
+            documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+            confidence: 'HIGH',
+            summaryText: 'Matched phytosanitary certificate.',
+            extractedFields: { certificateNumber: 'PC-2026-0001' },
+            missingFieldKeys: ['declaredPointOfEntry'],
+            lowConfidenceFieldKeys: ['officialSealOrSignature'],
+            fieldCompleteness: {
+              supported: true,
+              documentMatrixVersion: 1,
+              expectedFieldKeys: ['certificateNumber', 'declaredPointOfEntry'],
+              presentFieldKeys: ['certificateNumber'],
+              missingFieldKeys: ['declaredPointOfEntry'],
+              lowConfidenceFieldKeys: ['officialSealOrSignature'],
+              unsupportedFieldKeys: ['certificateNumber'],
+            },
+            completedAt: '2026-04-07T07:00:00.000Z',
+            createdAt: '2026-04-07T07:00:00.000Z',
+            updatedAt: '2026-04-07T07:00:00.000Z',
+          },
+        }),
+      ];
+
+      render(<TabEvidence evidence={evidence} />);
+
+      expect(screen.getByText('Document analysis')).toBeInTheDocument();
+      expect(screen.getByText('Phytosanitary Certificate')).toBeInTheDocument();
+      expect(screen.getByText('Present 1/2')).toBeInTheDocument();
+      expect(
+        screen.getByText('Missing: declaredPointOfEntry'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Low confidence: officialSealOrSignature'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Unsupported extract: certificateNumber'),
+      ).toBeInTheDocument();
+    });
+
+    it('verifies a single artifact on demand', async () => {
+      const user = userEvent.setup();
+      const onVerifyArtifact = jest.fn().mockResolvedValue(undefined);
+      const evidence = [buildArtifact({ artifactType: 'PHYTO_CERT' })];
+
+      render(
+        <TabEvidence evidence={evidence} onVerifyArtifact={onVerifyArtifact} />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Verify' }));
+
+      expect(onVerifyArtifact).toHaveBeenCalledWith('artifact-1');
+    });
+
+    it('reanalyzes a single artifact on demand', async () => {
+      const user = userEvent.setup();
+      const onReanalyzeArtifact = jest.fn().mockResolvedValue(undefined);
+      const evidence = [buildArtifact({ artifactType: 'PHYTO_CERT' })];
+
+      render(
+        <TabEvidence
+          evidence={evidence}
+          onReanalyzeArtifact={onReanalyzeArtifact}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Reanalyze' }));
+
+      expect(onReanalyzeArtifact).toHaveBeenCalledWith('artifact-1');
+    });
+
+    it('backfills artifacts missing analysis on demand', async () => {
+      const user = userEvent.setup();
+      const onBackfillAnalysis = jest.fn().mockResolvedValue(undefined);
+      const evidence = [
+        buildArtifact({ id: 'artifact-1', artifactType: 'PHYTO_CERT' }),
+        buildArtifact({
+          id: 'artifact-2',
+          artifactType: 'MRL_TEST',
+          latestAnalysis: {
+            id: 'analysis-2',
+            artifactId: 'artifact-2',
+            analyzerVersion: 'tesseract',
+            analysisStatus: 'COMPLETED',
+            documentLabel: 'MRL Test Results',
+            documentRole: 'RESIDUE_ANALYSIS_REPORT',
+            confidence: 'HIGH',
+            summaryText: 'Matched lab report.',
+            extractedFields: {},
+            missingFieldKeys: [],
+            lowConfidenceFieldKeys: [],
+            fieldCompleteness: {
+              supported: true,
+              documentMatrixVersion: 1,
+              expectedFieldKeys: [],
+              presentFieldKeys: [],
+              missingFieldKeys: [],
+              lowConfidenceFieldKeys: [],
+              unsupportedFieldKeys: [],
+            },
+            completedAt: '2026-04-07T07:00:00.000Z',
+            createdAt: '2026-04-07T07:00:00.000Z',
+            updatedAt: '2026-04-07T07:00:00.000Z',
+          },
+        }),
+      ];
+
+      render(
+        <TabEvidence
+          evidence={evidence}
+          onBackfillAnalysis={onBackfillAnalysis}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole('button', { name: 'Backfill Missing Analysis' }),
+      );
+
+      expect(onBackfillAnalysis).toHaveBeenCalled();
+    });
+
+    it('does not show bulk backfill when only unsupported operational artifacts lack analysis', () => {
+      const evidence = [
+        buildArtifact({
+          id: 'artifact-photo-1',
+          artifactType: 'CHECKPOINT_PHOTO',
+          latestAnalysis: null,
+        }),
+      ];
+
+      render(
+        <TabEvidence evidence={evidence} onBackfillAnalysis={jest.fn()} />,
+      );
+
+      expect(
+        screen.queryByRole('button', { name: 'Backfill Missing Analysis' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows an artifact-level error when verification fails', async () => {
+      const user = userEvent.setup();
+      const onVerifyArtifact = jest
+        .fn()
+        .mockRejectedValue(new Error('Integrity check failed'));
+      const evidence = [buildArtifact({ artifactType: 'PHYTO_CERT' })];
+
+      render(
+        <TabEvidence evidence={evidence} onVerifyArtifact={onVerifyArtifact} />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Verify' }));
+
+      expect(
+        await screen.findByText('Integrity check failed'),
+      ).toBeInTheDocument();
     });
   });
 });

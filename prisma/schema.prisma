@@ -87,6 +87,15 @@ enum VerificationStatus {
   @@map("verification_status")
 }
 
+enum ArtifactAnalysisStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("artifact_analysis_status")
+}
+
 enum CheckpointStatus {
   PENDING
   COMPLETED
@@ -485,6 +494,7 @@ model Lane {
   ruleSnapshot        RuleSnapshot?
   checkpoints         Checkpoint[]
   artifacts           EvidenceArtifact[]
+  analyses            EvidenceArtifactAnalysis[]
   proofPacks          ProofPack[]
   notifications       Notification[]
   temperatureReadings TemperatureReading[]
@@ -660,6 +670,7 @@ model EvidenceArtifact {
   lane        Lane           @relation(fields: [laneId], references: [id], onDelete: Restrict)
   checkpoint  Checkpoint?    @relation(fields: [checkpointId], references: [id], onDelete: SetNull)
   uploader    User           @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  analyses    EvidenceArtifactAnalysis[]
   sourceLinks ArtifactLink[] @relation("SourceArtifact")
   targetLinks ArtifactLink[] @relation("TargetArtifact")
 
@@ -667,6 +678,32 @@ model EvidenceArtifact {
   @@index([laneId, verificationStatus])
   @@index([checkpointId])
   @@map("evidence_artifacts")
+}
+
+model EvidenceArtifactAnalysis {
+  id                   String                 @id @default(uuid())
+  artifactId           String                 @map("artifact_id")
+  laneId               String                 @map("lane_id")
+  analyzerVersion      String                 @map("analyzer_version")
+  analysisStatus       ArtifactAnalysisStatus @default(QUEUED) @map("analysis_status")
+  documentLabel        String?                @map("document_label")
+  documentRole         String?                @map("document_role")
+  confidence           String?
+  summaryText          String?                @map("summary_text")
+  extractedFields      Json?                  @map("extracted_fields")
+  missingFieldKeys     String[]               @default([]) @map("missing_field_keys")
+  lowConfidenceFieldKeys String[]             @default([]) @map("low_confidence_field_keys")
+  fieldCompleteness    Json?                  @map("field_completeness")
+  completedAt          DateTime?              @map("completed_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  artifact EvidenceArtifact @relation(fields: [artifactId], references: [id], onDelete: Restrict)
+  lane     Lane             @relation(fields: [laneId], references: [id], onDelete: Restrict)
+
+  @@index([artifactId, createdAt])
+  @@index([laneId, createdAt])
+  @@map("evidence_artifact_analyses")
 }
 
 model ArtifactLink {

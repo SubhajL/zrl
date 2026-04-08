@@ -231,6 +231,7 @@ export interface EvidenceArtifact {
   readonly verificationStatus: ArtifactVerificationStatus;
   readonly source: ArtifactSource;
   readonly checkpointId: string | null;
+  readonly latestAnalysis: EvidenceArtifactAnalysis | null;
   readonly metadata?: {
     readonly capturedAt?: string;
     readonly gpsLat?: number;
@@ -238,6 +239,34 @@ export interface EvidenceArtifact {
     readonly cameraModel?: string;
     readonly exifTimestamp?: string;
   };
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface EvidenceDocumentFieldCompleteness {
+  readonly supported: boolean;
+  readonly documentMatrixVersion: number;
+  readonly expectedFieldKeys: readonly string[];
+  readonly presentFieldKeys: readonly string[];
+  readonly missingFieldKeys: readonly string[];
+  readonly lowConfidenceFieldKeys: readonly string[];
+  readonly unsupportedFieldKeys: readonly string[];
+}
+
+export interface EvidenceArtifactAnalysis {
+  readonly id: string;
+  readonly artifactId: string;
+  readonly analyzerVersion: string;
+  readonly analysisStatus: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  readonly documentLabel: string | null;
+  readonly documentRole: string | null;
+  readonly confidence: string | null;
+  readonly summaryText: string | null;
+  readonly extractedFields: Record<string, unknown> | null;
+  readonly missingFieldKeys: readonly string[];
+  readonly lowConfidenceFieldKeys: readonly string[];
+  readonly fieldCompleteness: EvidenceDocumentFieldCompleteness | null;
+  readonly completedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -349,6 +378,54 @@ export interface CompletenessResult {
   readonly required: number;
   readonly present: number;
   readonly missing: readonly string[];
+  readonly checklist: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly category:
+      | 'REGULATORY'
+      | 'QUALITY'
+      | 'COLD_CHAIN'
+      | 'CHAIN_OF_CUSTODY';
+    readonly weight: number;
+    readonly required: boolean;
+    readonly present: boolean;
+    readonly status: 'PRESENT' | 'MISSING' | 'EXPIRED';
+    readonly artifactIds: readonly string[];
+  }[];
+  readonly categories: readonly {
+    readonly category:
+      | 'REGULATORY'
+      | 'QUALITY'
+      | 'COLD_CHAIN'
+      | 'CHAIN_OF_CUSTODY';
+    readonly weight: number;
+    readonly required: number;
+    readonly present: number;
+    readonly score: number;
+  }[];
+  readonly labValidation: {
+    readonly status: 'PASS' | 'FAIL' | 'BLOCKED';
+    readonly valid: boolean;
+    readonly hasUnknowns: boolean;
+    readonly blockingReasons: readonly string[];
+    readonly results: readonly {
+      readonly substance: string;
+      readonly cas: string | null;
+      readonly valueMgKg: number | null;
+      readonly limitMgKg: number | null;
+      readonly passed: boolean;
+      readonly status: 'PASS' | 'FAIL' | 'UNKNOWN';
+      readonly riskLevel: RiskLevel | null;
+      readonly limitSource: 'SPECIFIC' | 'DEFAULT_FALLBACK';
+    }[];
+  } | null;
+  readonly certificationAlerts: readonly {
+    readonly artifactType: 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT';
+    readonly status: 'MISSING' | 'EXPIRED' | 'VALID';
+    readonly expiresAt: string | null;
+    readonly artifactId: string | null;
+    readonly message: string;
+  }[];
 }
 
 // Paginated response meta from contract
@@ -417,7 +494,10 @@ export const STATUS_VARIANT: Record<
 };
 
 // Gap #6: Fruit-specific temperature profiles (from CLAUDE.md domain table)
-export const FRUIT_TEMPERATURE_PROFILES: Record<ProductType, TemperatureProfile> = {
+export const FRUIT_TEMPERATURE_PROFILES: Record<
+  ProductType,
+  TemperatureProfile
+> = {
   MANGO: {
     fruit: 'MANGO',
     optimalMinC: 10,
