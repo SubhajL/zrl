@@ -1199,6 +1199,462 @@ describe('EvidenceService', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('uploadArtifact passes OCR-extracted expiryDate into certification alerts when source metadata is missing', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-ocr-expiry',
+      artifactType: 'GAP_CERT',
+      fileName: 'gap.pdf',
+      mimeType: 'application/pdf',
+      metadata: null,
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'EU',
+        product: 'MANGO',
+      },
+    });
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    (hashingService.hashString as jest.Mock).mockResolvedValue(
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    );
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'GAP Certificate',
+      documentRole: 'THAILAND_GAP_CERTIFICATION_EVIDENCE',
+      confidence: 'MEDIUM_LOW',
+      summaryText: 'Matched GAP Certificate using matrix-driven rules.',
+      extractedFields: {
+        certificateNumber: 'GAP-2026-2301',
+        expiryDate: '2026-03-01',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['certificateNumber', 'expiryDate'],
+        presentFieldKeys: ['certificateNumber', 'expiryDate'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+    createArtifactAnalysisMock.mockResolvedValue({
+      id: 'analysis-gap-1',
+      artifactId: 'artifact-ocr-expiry',
+      analyzerVersion: 'tesseract',
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'GAP Certificate',
+      documentRole: 'THAILAND_GAP_CERTIFICATION_EVIDENCE',
+      confidence: 'MEDIUM_LOW',
+      summaryText: 'Matched GAP Certificate using matrix-driven rules.',
+      extractedFields: {
+        certificateNumber: 'GAP-2026-2301',
+        expiryDate: '2026-03-01',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['certificateNumber', 'expiryDate'],
+        presentFieldKeys: ['certificateNumber', 'expiryDate'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+      completedAt: new Date('2026-03-22T10:00:00.000Z'),
+      createdAt: new Date('2026-03-22T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-22T10:00:00.000Z'),
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'GAP_CERT',
+        fileName: 'gap.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    const certificationAlertCalls = rulesEngineService
+      .notifyCertificationAlertForArtifact.mock.calls as Array<
+      [
+        {
+          artifact: {
+            id: string;
+            artifactType: string;
+            metadata: Record<string, unknown> | null;
+            latestAnalysisExtractedFields: Record<string, unknown> | null;
+          };
+        },
+      ]
+    >;
+    const certificationAlertCall = certificationAlertCalls[0]?.[0];
+    expect(certificationAlertCall).toBeDefined();
+    expect(certificationAlertCall?.artifact).toBeDefined();
+    expect(certificationAlertCall?.artifact.id).toBe('artifact-ocr-expiry');
+    expect(certificationAlertCall?.artifact.artifactType).toBe('GAP_CERT');
+    expect(certificationAlertCall?.artifact.metadata).toBeNull();
+    expect(
+      certificationAlertCall?.artifact.latestAnalysisExtractedFields,
+    ).toEqual({
+      certificateNumber: 'GAP-2026-2301',
+      expiryDate: '2026-03-01',
+    });
+  });
+
+  it('uploadArtifact passes OCR-derived lab analysis fields into lane evaluation inputs for MRL artifacts', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-mrl-ocr',
+      artifactType: 'MRL_TEST',
+      fileName: 'mrl-report.pdf',
+      mimeType: 'application/pdf',
+      metadata: null,
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'KOREA',
+        product: 'MANGO',
+      },
+    });
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    listArtifactsForEvaluationMock.mockResolvedValue([
+      {
+        id: 'artifact-mrl-ocr',
+        artifactType: 'MRL_TEST',
+        fileName: 'mrl-report.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'MRL Test Results',
+        latestAnalysisExtractedFields: {
+          reportNumber: 'MRL-2026-0007',
+          laboratoryName: 'Thai Central Lab',
+          analyteTable: 'Attached residue table',
+          resultUnits: 'mg/kg',
+        },
+        latestAnalysisFieldCompleteness: {
+          supported: true,
+          documentMatrixVersion: 1,
+          expectedFieldKeys: ['reportNumber'],
+          presentFieldKeys: ['reportNumber'],
+          missingFieldKeys: [],
+          lowConfidenceFieldKeys: [],
+          unsupportedFieldKeys: [],
+        },
+      },
+    ]);
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'MRL Test Results',
+      documentRole: 'RESIDUE_ANALYSIS_REPORT',
+      confidence: 'MEDIUM_HIGH',
+      summaryText: 'Matched MRL Test Results using matrix-driven rules.',
+      extractedFields: {
+        reportNumber: 'MRL-2026-0007',
+        laboratoryName: 'Thai Central Lab',
+        analyteTable: 'Attached residue table',
+        resultUnits: 'mg/kg',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['reportNumber'],
+        presentFieldKeys: ['reportNumber'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'mrl-report.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(rulesEngineService.evaluateLane).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Array),
+    );
+    const evaluateLaneCalls = rulesEngineService.evaluateLane.mock
+      .calls as Array<
+      [
+        unknown,
+        Array<{
+          id: string;
+          artifactType: string;
+          latestAnalysisDocumentLabel?: string | null;
+          latestAnalysisExtractedFields?: Record<string, unknown> | null;
+        }>,
+      ]
+    >;
+    const evaluatedArtifactsForMrl = evaluateLaneCalls[0]?.[1] ?? [];
+    expect(evaluatedArtifactsForMrl).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'artifact-mrl-ocr',
+          artifactType: 'MRL_TEST',
+          latestAnalysisDocumentLabel: 'MRL Test Results',
+        }),
+      ]),
+    );
+    const mrlArtifact = evaluatedArtifactsForMrl.find(
+      (artifact) => artifact.id === 'artifact-mrl-ocr',
+    );
+    expect(mrlArtifact?.latestAnalysisExtractedFields).toMatchObject({
+      reportNumber: 'MRL-2026-0007',
+      laboratoryName: 'Thai Central Lab',
+    });
+  });
+
+  it('uploadArtifact passes OCR document labels into lane evaluation inputs for invoice-family artifacts', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-invoice-ocr',
+      artifactType: 'INVOICE',
+      fileName: 'trade-doc.pdf',
+      mimeType: 'application/pdf',
+      metadata: null,
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 0,
+      ruleSnapshot: {
+        market: 'EU',
+        product: 'MANGO',
+      },
+    });
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    listArtifactsForEvaluationMock.mockResolvedValue([
+      {
+        id: 'artifact-invoice-ocr',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'Packing List',
+      },
+    ]);
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Packing List',
+      documentRole: 'PACKING_LIST',
+      confidence: 'HIGH',
+      summaryText: 'Matched Packing List using matrix-driven rules.',
+      extractedFields: {
+        packingListNumber: 'PL-2026-001',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['packingListNumber'],
+        presentFieldKeys: ['packingListNumber'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(rulesEngineService.evaluateLane).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'artifact-invoice-ocr',
+          artifactType: 'INVOICE',
+          latestAnalysisDocumentLabel: 'Packing List',
+        }),
+      ]),
+    );
+  });
+
+  it('uploadArtifact refreshes lane completeness after OCR analysis creates new document context', async () => {
+    const createdArtifact = buildArtifact({
+      id: 'artifact-post-analysis-refresh',
+      artifactType: 'INVOICE',
+      fileName: 'trade-doc.pdf',
+      mimeType: 'application/pdf',
+      metadata: null,
+    });
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 10,
+      ruleSnapshot: {
+        market: 'EU',
+        product: 'MANGO',
+      },
+    });
+    createArtifactMock.mockResolvedValue(createdArtifact);
+    listArtifactsForEvaluationMock
+      .mockResolvedValueOnce([
+        {
+          id: 'artifact-post-analysis-refresh',
+          artifactType: 'INVOICE',
+          fileName: 'trade-doc.pdf',
+          metadata: null,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'artifact-post-analysis-refresh',
+          artifactType: 'INVOICE',
+          fileName: 'trade-doc.pdf',
+          metadata: null,
+          latestAnalysisDocumentLabel: 'Packing List',
+        },
+      ]);
+    rulesEngineService.evaluateLane
+      .mockReturnValueOnce({
+        score: 10,
+        required: 2,
+        present: 0,
+        missing: ['Packing List', 'Commercial Invoice'],
+        checklist: [],
+        categories: [],
+        labValidation: null,
+        certificationAlerts: [],
+      })
+      .mockReturnValueOnce({
+        score: 60,
+        required: 2,
+        present: 1,
+        missing: ['Commercial Invoice'],
+        checklist: [],
+        categories: [],
+        labValidation: null,
+        certificationAlerts: [],
+      });
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Packing List',
+      documentRole: 'PACKING_LIST',
+      confidence: 'HIGH',
+      summaryText: 'Matched Packing List using matrix-driven rules.',
+      extractedFields: {
+        packingListNumber: 'PL-2026-0193',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['packingListNumber'],
+        presentFieldKeys: ['packingListNumber'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+
+    await service.uploadArtifact(
+      {
+        laneId: 'lane-db-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 2048,
+        tempFilePath: uploadFilePath,
+        source: ArtifactSource.UPLOAD,
+        checkpointId: null,
+        metadata: null,
+        links: [],
+      },
+      {
+        id: 'exporter-1',
+        email: 'exporter@example.com',
+        role: 'EXPORTER',
+        companyName: 'Exporter Co',
+        mfaEnabled: false,
+        sessionVersion: 0,
+      },
+    );
+
+    expect(rulesEngineService.evaluateLane).toHaveBeenCalledTimes(2);
+    expect(updateLaneCompletenessScoreMock).toHaveBeenNthCalledWith(
+      1,
+      'lane-db-1',
+      10,
+    );
+    expect(updateLaneCompletenessScoreMock).toHaveBeenNthCalledWith(
+      2,
+      'lane-db-1',
+      60,
+    );
+    expect(realtimeEvents.publishEvidenceUploaded).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      artifactId: 'artifact-post-analysis-refresh',
+      type: 'INVOICE',
+      completeness: 60,
+    });
+  });
+
   it('uploadArtifact preserves the committed artifact when automatic lane reconciliation fails', async () => {
     const createdArtifact = buildArtifact();
     findLaneByIdMock.mockResolvedValue({
@@ -1487,6 +1943,280 @@ describe('EvidenceService', () => {
       supported: true,
       presentFieldKeys: ['certificateNumber'],
     });
+  });
+
+  it('reanalyzeArtifact refreshes lane completeness and reconciliation after writing a new analysis row', async () => {
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-reanalyze-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+      }),
+    );
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 40,
+      ruleSnapshot: {
+        market: 'EU',
+        product: 'MANGO',
+      },
+    });
+    createReadStreamMock.mockResolvedValue('artifact-stream');
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Packing List',
+      documentRole: 'PACKING_LIST',
+      confidence: 'HIGH',
+      summaryText: 'Matched Packing List using matrix-driven rules.',
+      extractedFields: {
+        packingListNumber: 'PL-2026-0193',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['packingListNumber'],
+        presentFieldKeys: ['packingListNumber'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+    listArtifactsForEvaluationMock.mockResolvedValue([
+      {
+        id: 'artifact-reanalyze-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'Packing List',
+      },
+    ]);
+    rulesEngineService.evaluateLane.mockReturnValue({
+      score: 75,
+      required: 2,
+      present: 1,
+      missing: ['Commercial Invoice'],
+      checklist: [],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    });
+
+    await service.reanalyzeArtifact('artifact-reanalyze-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(listArtifactsForEvaluationMock).toHaveBeenCalledWith('lane-db-1');
+    expect(rulesEngineService.evaluateLane).toHaveBeenCalledWith(
+      expect.objectContaining({
+        market: 'EU',
+        product: 'MANGO',
+      }),
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'artifact-reanalyze-1',
+          latestAnalysisDocumentLabel: 'Packing List',
+        }),
+      ]),
+    );
+    expect(updateLaneCompletenessScoreMock).toHaveBeenCalledWith(
+      'lane-db-1',
+      75,
+    );
+    expect(realtimeEvents.publishEvidenceUploaded).toHaveBeenCalledWith({
+      laneId: 'lane-db-1',
+      artifactId: 'artifact-reanalyze-1',
+      type: 'INVOICE',
+      completeness: 75,
+    });
+    expect(laneReconciler.reconcileAfterEvidenceChange).toHaveBeenCalledWith(
+      'lane-db-1',
+      'exporter-1',
+    );
+  });
+
+  it('reanalyzeArtifact rechecks certification alerts using the fresh OCR analysis fields', async () => {
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-cert-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: null,
+      }),
+    );
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 40,
+      ruleSnapshot: {
+        market: 'JAPAN',
+        product: 'MANGO',
+      },
+    });
+    createReadStreamMock.mockResolvedValue('artifact-stream');
+    analyzeDocumentMock.mockResolvedValue({
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Phytosanitary Certificate',
+      documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+      confidence: 'HIGH',
+      summaryText:
+        'Matched Phytosanitary Certificate using matrix-driven rules.',
+      extractedFields: {
+        certificateNumber: 'JP-MG-PHYTO-2026-0001',
+        expiryDate: '2026-03-01',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['certificateNumber', 'expiryDate'],
+        presentFieldKeys: ['certificateNumber', 'expiryDate'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+    });
+    createArtifactAnalysisMock.mockResolvedValue({
+      id: 'analysis-cert-1',
+      artifactId: 'artifact-cert-1',
+      analyzerVersion: 'tesseract',
+      analysisStatus: 'COMPLETED',
+      documentLabel: 'Phytosanitary Certificate',
+      documentRole: 'THAILAND_NPPO_EXPORT_CERTIFICATE',
+      confidence: 'HIGH',
+      summaryText:
+        'Matched Phytosanitary Certificate using matrix-driven rules.',
+      extractedFields: {
+        certificateNumber: 'JP-MG-PHYTO-2026-0001',
+        expiryDate: '2026-03-01',
+      },
+      missingFieldKeys: [],
+      lowConfidenceFieldKeys: [],
+      fieldCompleteness: {
+        supported: true,
+        documentMatrixVersion: 1,
+        expectedFieldKeys: ['certificateNumber', 'expiryDate'],
+        presentFieldKeys: ['certificateNumber', 'expiryDate'],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
+      completedAt: new Date('2026-03-22T10:00:00.000Z'),
+      createdAt: new Date('2026-03-22T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-22T10:00:00.000Z'),
+    });
+    listArtifactsForEvaluationMock.mockResolvedValue([
+      {
+        id: 'artifact-cert-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: null,
+        latestAnalysisExtractedFields: {
+          expiryDate: '2026-03-01',
+        },
+      },
+    ]);
+    rulesEngineService.evaluateLane.mockReturnValue({
+      score: 80,
+      required: 1,
+      present: 1,
+      missing: [],
+      checklist: [],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    });
+
+    await service.reanalyzeArtifact('artifact-cert-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    const recheckAlertCalls = rulesEngineService
+      .notifyCertificationAlertForArtifact.mock.calls as Array<
+      [
+        {
+          laneId: string;
+          lanePublicId: string;
+          artifact: {
+            id: string;
+            artifactType: string;
+            latestAnalysisExtractedFields: Record<string, unknown> | null;
+          };
+        },
+      ]
+    >;
+    const recheckAlertCall = recheckAlertCalls[0]?.[0];
+    expect(recheckAlertCall?.laneId).toBe('lane-db-1');
+    expect(recheckAlertCall?.lanePublicId).toBe('LN-2026-001');
+    expect(recheckAlertCall?.artifact).toBeDefined();
+    expect(recheckAlertCall?.artifact.id).toBe('artifact-cert-1');
+    expect(recheckAlertCall?.artifact.artifactType).toBe('PHYTO_CERT');
+    expect(recheckAlertCall?.artifact.latestAnalysisExtractedFields).toEqual({
+      certificateNumber: 'JP-MG-PHYTO-2026-0001',
+      expiryDate: '2026-03-01',
+    });
+  });
+
+  it('reanalyzeArtifact returns without refresh side effects when analysis is unavailable', async () => {
+    findArtifactByIdMock.mockResolvedValue(
+      buildArtifact({
+        id: 'artifact-no-analysis-1',
+        artifactType: 'PHYTO_CERT',
+        fileName: 'phyto.pdf',
+        metadata: null,
+      }),
+    );
+    findLaneByIdMock.mockResolvedValue({
+      id: 'lane-db-1',
+      laneId: 'LN-2026-001',
+      exporterId: 'exporter-1',
+      completenessScore: 40,
+      ruleSnapshot: {
+        market: 'JAPAN',
+        product: 'MANGO',
+      },
+    });
+    (documentAnalysisProvider.getAvailability as jest.Mock).mockResolvedValue({
+      available: false,
+      reason: 'tesseract missing',
+    });
+    const getArtifactSpy = jest
+      .spyOn(service, 'getArtifact')
+      .mockResolvedValue({ artifact: buildArtifact() } as never);
+
+    await service.reanalyzeArtifact('artifact-no-analysis-1', {
+      id: 'exporter-1',
+      email: 'exporter@example.com',
+      role: 'EXPORTER',
+      companyName: 'Exporter Co',
+      mfaEnabled: false,
+      sessionVersion: 0,
+    });
+
+    expect(updateLaneCompletenessScoreMock).not.toHaveBeenCalled();
+    expect(realtimeEvents.publishEvidenceUploaded).not.toHaveBeenCalled();
+    expect(laneReconciler.reconcileAfterEvidenceChange).not.toHaveBeenCalled();
+    expect(
+      rulesEngineService.notifyCertificationAlertForArtifact,
+    ).not.toHaveBeenCalled();
+
+    getArtifactSpy.mockRestore();
   });
 
   it('getArtifact rejects exporters who do not own the lane', async () => {

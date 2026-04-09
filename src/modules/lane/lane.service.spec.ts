@@ -389,6 +389,10 @@ describe('LaneService', () => {
           present: true,
           status: 'PRESENT',
           artifactIds: ['artifact-1'],
+          provenance: {
+            source: 'ARTIFACT_TYPE',
+            artifactId: 'artifact-1',
+          },
         },
       ],
       categories: [],
@@ -423,6 +427,102 @@ describe('LaneService', () => {
         }),
       ]),
     );
+  });
+
+  it('getCompleteness passes OCR document labels for invoice-family artifacts into rules evaluation', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    listEvidenceArtifactsForLaneMock.mockResolvedValue([
+      {
+        id: 'artifact-trade-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'Packing List',
+      },
+    ]);
+    evaluateLaneMock.mockReturnValue({
+      score: 25,
+      required: 1,
+      present: 1,
+      missing: [],
+      checklist: [],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    });
+
+    await service.getCompleteness('lane-db-1');
+
+    expect(evaluateLaneMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({
+          artifactType: 'INVOICE',
+          latestAnalysisDocumentLabel: 'Packing List',
+        }),
+      ]),
+    );
+  });
+
+  it('getCompleteness preserves OCR field completeness for backend lab validation parity', async () => {
+    const service = createService();
+    const lane = buildLaneDetail();
+
+    findLaneByIdMock.mockResolvedValue(lane);
+    listEvidenceArtifactsForLaneMock.mockResolvedValue([
+      {
+        id: 'artifact-lab-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'mrl-report.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'MRL Test Results',
+        latestAnalysisExtractedFields: {
+          reportNumber: 'MRL-2026-0007',
+        },
+        latestAnalysisFieldCompleteness: {
+          supported: false,
+          documentMatrixVersion: 1,
+          expectedFieldKeys: [],
+          presentFieldKeys: [],
+          missingFieldKeys: [],
+          lowConfidenceFieldKeys: [],
+          unsupportedFieldKeys: ['reportNumber'],
+        },
+      },
+    ]);
+    evaluateLaneMock.mockReturnValue({
+      score: 0,
+      required: 0,
+      present: 0,
+      missing: [],
+      checklist: [],
+      categories: [],
+      labValidation: null,
+      certificationAlerts: [],
+    });
+
+    await service.getCompleteness('lane-db-1');
+
+    const evaluateLaneCalls = evaluateLaneMock.mock.calls as Array<
+      [
+        unknown,
+        Array<{
+          latestAnalysisFieldCompleteness?: {
+            supported: boolean;
+          } | null;
+        }>,
+      ]
+    >;
+    const evaluatedArtifacts = evaluateLaneCalls[0]?.[1] ?? [];
+
+    expect(
+      evaluatedArtifacts[0]?.latestAnalysisFieldCompleteness,
+    ).toMatchObject({
+      supported: false,
+    });
   });
 
   it('returns lane detail from the store', async () => {

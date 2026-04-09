@@ -90,6 +90,17 @@ interface ParsedLabResult {
   valueMgKg: number;
 }
 
+type ChecklistMatchSource =
+  | 'ARTIFACT_TYPE'
+  | 'METADATA_DOCUMENT_TYPE'
+  | 'OCR_DOCUMENT_LABEL'
+  | 'FILE_NAME_FALLBACK';
+
+interface ChecklistMatch {
+  matched: boolean;
+  source: ChecklistMatchSource | null;
+}
+
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -99,6 +110,16 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function matchesFileNameFallback(
+  fileName: string,
+  documentLabel: string,
+): boolean {
+  const sluggedFileName = slugify(fileName);
+  const sluggedDocumentLabel = slugify(documentLabel);
+
+  return sluggedFileName.includes(sluggedDocumentLabel);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -144,6 +165,16 @@ function parseDateString(value: unknown): string | null {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
+
+const MRL_REQUIRED_OCR_FIELDS = [
+  'reportNumber',
+  'laboratoryName',
+  'sampleId',
+  'analysisDate',
+  'analyteTable',
+  'resultUnits',
+  'authorizedSignatory',
+] as const;
 
 @Injectable()
 export class RulesEngineService {
@@ -562,6 +593,7 @@ export class RulesEngineService {
       artifactType: artifact.artifactType,
       fileName: artifact.fileName,
       metadata: artifact.metadata,
+      latestAnalysisExtractedFields: artifact.latestAnalysisExtractedFields,
     };
     const expiryStatus = this.readCertificationExpiryStatus(
       certificationArtifact,
@@ -618,7 +650,10 @@ export class RulesEngineService {
     reason: 'VALID' | 'EXPIRED' | 'MISSING_EXPIRY';
     expiresAt: Date | null;
   } {
-    const expiresAtValue = this.readExpiryDate(artifact.metadata);
+    const expiresAtValue = this.readExpiryDate(
+      artifact.metadata,
+      artifact.latestAnalysisExtractedFields,
+    );
     if (expiresAtValue === null) {
       return {
         status: 'EXPIRED',
@@ -683,18 +718,21 @@ export class RulesEngineService {
   ): RuleChecklistItem[] {
     return snapshot.requiredDocuments.map((documentLabel) => {
       const category = this.resolveDocumentCategory(documentLabel);
-      const matchingArtifacts = artifacts.filter((artifact) =>
-        this.artifactSatisfiesDocument(documentLabel, artifact),
-      );
+      const matchingArtifacts = artifacts.flatMap((artifact) => {
+        const match = this.artifactSatisfiesDocument(documentLabel, artifact);
+        return match.matched ? [{ artifact, source: match.source }] : [];
+      });
       const certificationStatus = this.resolveCertificationDocumentStatus(
         documentLabel,
-        matchingArtifacts,
+        matchingArtifacts.map((entry) => entry.artifact),
       );
       const status =
         certificationStatus ??
         (matchingArtifacts.length > 0 ? 'PRESENT' : 'MISSING');
       const weight =
         snapshot.completenessWeights[CATEGORY_WEIGHT_KEYS[category]];
+      const primaryMatch =
+        matchingArtifacts[matchingArtifacts.length - 1] ?? null;
 
       return {
         key: slugify(documentLabel),
@@ -704,7 +742,14 @@ export class RulesEngineService {
         required: true,
         present: status === 'PRESENT',
         status,
-        artifactIds: matchingArtifacts.map((artifact) => artifact.id),
+        artifactIds: matchingArtifacts.map((entry) => entry.artifact.id),
+        provenance:
+          primaryMatch === null || primaryMatch.source === null
+            ? null
+            : {
+                source: primaryMatch.source,
+                artifactId: primaryMatch.artifact.id,
+              },
       };
     });
   }
@@ -745,6 +790,24 @@ export class RulesEngineService {
           hasUnknowns: false,
           blockingReasons: ['MRL_TEST_REQUIRED'],
           results: [],
+          evidenceSource: null,
+        };
+      }
+
+      return null;
+    }
+
+    const hasOcrBackedLabDocument =
+      this.hasOcrBackedLabDocument(latestLabArtifact);
+    if (!hasOcrBackedLabDocument) {
+      if (enforcementMode === 'FULL_PESTICIDE') {
+        return {
+          status: 'BLOCKED',
+          valid: false,
+          hasUnknowns: false,
+          blockingReasons: ['MRL_TEST_REQUIRED'],
+          results: [],
+          evidenceSource: 'ARTIFACT_TYPE_ONLY',
         };
       }
 
@@ -883,6 +946,10 @@ export class RulesEngineService {
           hasUnknowns,
           blockingReasons,
           results: validationResults,
+          evidenceSource:
+            results.length > 0
+              ? 'METADATA_STRUCTURED_RESULTS'
+              : 'OCR_DOCUMENT_ANALYSIS',
         };
       }
 
@@ -892,6 +959,10 @@ export class RulesEngineService {
         hasUnknowns,
         blockingReasons,
         results: validationResults,
+        evidenceSource:
+          results.length > 0
+            ? 'METADATA_STRUCTURED_RESULTS'
+            : 'OCR_DOCUMENT_ANALYSIS',
       };
     }
 
@@ -901,6 +972,7 @@ export class RulesEngineService {
       hasUnknowns,
       blockingReasons: [],
       results: validationResults,
+      evidenceSource: 'METADATA_STRUCTURED_RESULTS',
     };
   }
 
@@ -937,11 +1009,15 @@ export class RulesEngineService {
           expiresAt: null,
           artifactId: null,
           message: `${artifactType} is missing.`,
+          evidenceSource: null,
         };
       }
 
       const latestArtifact = matchingArtifacts[matchingArtifacts.length - 1];
-      const expiresAt = this.readExpiryDate(latestArtifact.metadata);
+      const expiresAt = this.readExpiryDate(
+        latestArtifact.metadata,
+        latestArtifact.latestAnalysisExtractedFields,
+      );
       if (expiresAt === null) {
         return {
           artifactType,
@@ -949,8 +1025,14 @@ export class RulesEngineService {
           expiresAt: null,
           artifactId: latestArtifact.id,
           message: `${artifactType} is missing expiry metadata.`,
+          evidenceSource: null,
         };
       }
+
+      const evidenceSource =
+        this.readExpiryDateFromMetadata(latestArtifact.metadata) !== null
+          ? 'METADATA_EXPIRY'
+          : 'OCR_EXTRACTED_FIELDS';
 
       return new Date(expiresAt).getTime() <= Date.now()
         ? {
@@ -959,6 +1041,7 @@ export class RulesEngineService {
             expiresAt,
             artifactId: latestArtifact.id,
             message: `${artifactType} is expired.`,
+            evidenceSource,
           }
         : {
             artifactType,
@@ -966,6 +1049,7 @@ export class RulesEngineService {
             expiresAt,
             artifactId: latestArtifact.id,
             message: `${artifactType} is valid.`,
+            evidenceSource,
           };
     });
   }
@@ -980,50 +1064,106 @@ export class RulesEngineService {
   private artifactSatisfiesDocument(
     documentLabel: string,
     artifact: RuleLaneArtifact,
-  ): boolean {
+  ): ChecklistMatch {
     const documentKey = normalizeKey(documentLabel);
     const metadata = artifact.metadata ?? {};
     const metadataDocumentType =
       readString(metadata, 'documentType') ??
       readString(metadata, 'documentName');
-    const fileName = normalizeKey(artifact.fileName);
+    const ocrDocumentLabel =
+      artifact.latestAnalysisDocumentLabel === null ||
+      artifact.latestAnalysisDocumentLabel === undefined
+        ? null
+        : normalizeKey(artifact.latestAnalysisDocumentLabel);
+    const fileName = artifact.fileName;
 
     if (
       metadataDocumentType !== null &&
       normalizeKey(metadataDocumentType) === documentKey
     ) {
-      return true;
+      return { matched: true, source: 'METADATA_DOCUMENT_TYPE' };
+    }
+
+    if (ocrDocumentLabel !== null && ocrDocumentLabel === documentKey) {
+      return { matched: true, source: 'OCR_DOCUMENT_LABEL' };
     }
 
     switch (documentKey) {
       case 'phytosanitary certificate':
-        return artifact.artifactType === 'PHYTO_CERT';
+        return {
+          matched: artifact.artifactType === 'PHYTO_CERT',
+          source:
+            artifact.artifactType === 'PHYTO_CERT' ? 'ARTIFACT_TYPE' : null,
+        };
       case 'vht certificate':
-        return artifact.artifactType === 'VHT_CERT';
+        return {
+          matched: artifact.artifactType === 'VHT_CERT',
+          source: artifact.artifactType === 'VHT_CERT' ? 'ARTIFACT_TYPE' : null,
+        };
       case 'mrl test results':
-        return artifact.artifactType === 'MRL_TEST';
+        return {
+          matched: artifact.artifactType === 'MRL_TEST',
+          source: artifact.artifactType === 'MRL_TEST' ? 'ARTIFACT_TYPE' : null,
+        };
       case 'gap certificate':
-        return artifact.artifactType === 'GAP_CERT';
+        return {
+          matched: artifact.artifactType === 'GAP_CERT',
+          source: artifact.artifactType === 'GAP_CERT' ? 'ARTIFACT_TYPE' : null,
+        };
       case 'product photos':
       case 'grading report':
-        return artifact.artifactType === 'CHECKPOINT_PHOTO';
+        return {
+          matched: artifact.artifactType === 'CHECKPOINT_PHOTO',
+          source:
+            artifact.artifactType === 'CHECKPOINT_PHOTO'
+              ? 'ARTIFACT_TYPE'
+              : null,
+        };
       case 'temperature log':
       case 'sla summary':
       case 'excursion report':
-        return artifact.artifactType === 'TEMP_DATA';
+        return {
+          matched: artifact.artifactType === 'TEMP_DATA',
+          source:
+            artifact.artifactType === 'TEMP_DATA' ? 'ARTIFACT_TYPE' : null,
+        };
       case 'handoff signatures':
-        return artifact.artifactType === 'HANDOFF_SIGNATURE';
+        return {
+          matched: artifact.artifactType === 'HANDOFF_SIGNATURE',
+          source:
+            artifact.artifactType === 'HANDOFF_SIGNATURE'
+              ? 'ARTIFACT_TYPE'
+              : null,
+        };
       case 'commercial invoice':
       case 'packing list':
       case 'transport document':
       case 'delivery note':
       case 'export license':
-        return (
-          artifact.artifactType === 'INVOICE' || fileName.includes(documentKey)
-        );
+        return {
+          matched: matchesFileNameFallback(fileName, documentLabel),
+          source: matchesFileNameFallback(fileName, documentLabel)
+            ? 'FILE_NAME_FALLBACK'
+            : null,
+        };
       default:
-        return fileName.includes(documentKey);
+        return {
+          matched: matchesFileNameFallback(fileName, documentLabel),
+          source: matchesFileNameFallback(fileName, documentLabel)
+            ? 'FILE_NAME_FALLBACK'
+            : null,
+        };
     }
+  }
+
+  private readExpiryDateFromMetadata(
+    metadata: Record<string, unknown> | null,
+  ): string | null {
+    return (
+      parseDateString(metadata?.['expiresAt']) ??
+      parseDateString(metadata?.['expiryDate']) ??
+      parseDateString(metadata?.['expirationDate'])
+    );
   }
 
   private resolveCertificationDocumentStatus(
@@ -1048,7 +1188,10 @@ export class RulesEngineService {
     }
 
     const latestArtifact = artifacts[artifacts.length - 1];
-    const expiresAt = this.readExpiryDate(latestArtifact.metadata);
+    const expiresAt = this.readExpiryDate(
+      latestArtifact.metadata,
+      latestArtifact.latestAnalysisExtractedFields,
+    );
     if (expiresAt === null) {
       return 'EXPIRED';
     }
@@ -1058,15 +1201,13 @@ export class RulesEngineService {
 
   private readExpiryDate(
     metadata: Record<string, unknown> | null,
+    extractedFields?: Record<string, unknown> | null,
   ): string | null {
-    if (metadata === null) {
-      return null;
-    }
-
     return (
-      parseDateString(metadata['expiresAt']) ??
-      parseDateString(metadata['expiryDate']) ??
-      parseDateString(metadata['expirationDate'])
+      this.readExpiryDateFromMetadata(metadata) ??
+      parseDateString(extractedFields?.['expiryDate']) ??
+      parseDateString(extractedFields?.['expiresAt']) ??
+      parseDateString(extractedFields?.['expirationDate'])
     );
   }
 
@@ -1108,5 +1249,44 @@ export class RulesEngineService {
         },
       ];
     });
+  }
+
+  private hasOcrBackedLabDocument(artifact: RuleLaneArtifact): boolean {
+    if (artifact.artifactType !== 'MRL_TEST') {
+      return false;
+    }
+
+    if (artifact.metadata !== null) {
+      const resultsValue =
+        artifact.metadata['results'] ??
+        artifact.metadata['substances'] ??
+        artifact.metadata['labResults'];
+      if (Array.isArray(resultsValue) && resultsValue.length > 0) {
+        return true;
+      }
+    }
+
+    if (artifact.latestAnalysisDocumentLabel !== 'MRL Test Results') {
+      return false;
+    }
+
+    const extractedFields = artifact.latestAnalysisExtractedFields;
+    if (extractedFields === null || extractedFields === undefined) {
+      return false;
+    }
+
+    const fieldCompleteness = artifact.latestAnalysisFieldCompleteness;
+    if (
+      fieldCompleteness !== null &&
+      fieldCompleteness !== undefined &&
+      !fieldCompleteness.supported
+    ) {
+      return false;
+    }
+
+    return MRL_REQUIRED_OCR_FIELDS.every(
+      (field) =>
+        extractedFields[field] !== undefined && extractedFields[field] !== null,
+    );
   }
 }

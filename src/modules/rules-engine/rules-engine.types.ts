@@ -219,6 +219,17 @@ export interface RuleLaneArtifact {
   artifactType: string;
   fileName: string;
   metadata: Record<string, unknown> | null;
+  latestAnalysisDocumentLabel?: string | null;
+  latestAnalysisExtractedFields?: Record<string, unknown> | null;
+  latestAnalysisFieldCompleteness?: {
+    supported: boolean;
+    documentMatrixVersion: number;
+    expectedFieldKeys: string[];
+    presentFieldKeys: string[];
+    missingFieldKeys: string[];
+    lowConfidenceFieldKeys: string[];
+    unsupportedFieldKeys: string[];
+  } | null;
 }
 
 export interface RuleChecklistItem {
@@ -230,6 +241,14 @@ export interface RuleChecklistItem {
   present: boolean;
   status: 'PRESENT' | 'MISSING' | 'EXPIRED';
   artifactIds: string[];
+  provenance?: {
+    source:
+      | 'ARTIFACT_TYPE'
+      | 'METADATA_DOCUMENT_TYPE'
+      | 'OCR_DOCUMENT_LABEL'
+      | 'FILE_NAME_FALLBACK';
+    artifactId: string;
+  } | null;
 }
 
 export interface RuleChecklistCategorySummary {
@@ -257,6 +276,11 @@ export interface RuleLabValidationResult {
   hasUnknowns: boolean;
   blockingReasons: string[];
   results: RuleLabValidationResultItem[];
+  evidenceSource?:
+    | 'METADATA_STRUCTURED_RESULTS'
+    | 'OCR_DOCUMENT_ANALYSIS'
+    | 'ARTIFACT_TYPE_ONLY'
+    | null;
 }
 
 export interface RuleCertificationAlert {
@@ -265,6 +289,7 @@ export interface RuleCertificationAlert {
   expiresAt: string | null;
   artifactId: string | null;
   message: string;
+  evidenceSource?: 'METADATA_EXPIRY' | 'OCR_EXTRACTED_FIELDS' | null;
 }
 
 export type RuleCertificationArtifactType =
@@ -289,6 +314,7 @@ export interface RuleCertificationScanArtifact {
   artifactType: RuleCertificationArtifactType;
   fileName: string;
   metadata: Record<string, unknown> | null;
+  latestAnalysisExtractedFields?: Record<string, unknown> | null;
   uploadedAt: Date;
 }
 

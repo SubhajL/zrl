@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
+  <rect width="1800" height="1200" fill="#ffffff" />
+  <text x="80" y="110" font-family="Arial" font-size="52" font-weight="700" fill="#111111">STEAM HEAT TREATMENT CERTIFICATE</text>
+  <text x="80" y="210" font-family="Arial" font-size="34" fill="#111111">Treatment record number: VHT-JP-MT-2026-0041</text>
+  <text x="80" y="290" font-family="Arial" font-size="34" fill="#111111">Commodity name: Fresh mangosteen consignment</text>
+  <text x="80" y="370" font-family="Arial" font-size="34" fill="#111111">Treatment facility: Southern Steam Heat Chamber</text>
+  <text x="80" y="450" font-family="Arial" font-size="34" fill="#111111">Treatment date: 07 April 2026</text>
+  <text x="80" y="530" font-family="Arial" font-size="34" fill="#111111">Treatment method: Steam heat treatment</text>
+  <text x="80" y="610" font-family="Arial" font-size="34" fill="#111111">Target core temperature C: 46.0</text>
+  <text x="80" y="690" font-family="Arial" font-size="34" fill="#111111">Hold minutes: 58</text>
+  <text x="80" y="770" font-family="Arial" font-size="34" fill="#111111">Humidity requirement: Chamber humidity maintained between 50 and 80 percent.</text>
+  <text x="80" y="850" font-family="Arial" font-size="34" fill="#111111">Cooling requirement: Product cooled for at least 60 minutes after treatment.</text>
+  <text x="80" y="930" font-family="Arial" font-size="34" fill="#111111">Linked phyto certificate number: JP-MT-PHYTO-2026-0007</text>
+</svg>

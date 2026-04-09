@@ -497,4 +497,345 @@ describeIfDatabase('PrismaEvidenceStore (db-backed)', () => {
       await db.query('DELETE FROM users WHERE id = $1', [exporterId]);
     }
   });
+
+  it('listArtifactsForEvaluation includes latest analysis context for rules evaluation', async () => {
+    const exporterId = 'user-evidence-eval-test';
+    const laneId = 'lane-evidence-eval-test';
+    const publicLaneId = 'LN-EVIDENCE-EVAL-TEST';
+    const artifactId = 'artifact-eval-target';
+    const db = pool as Pool;
+    const store = new PrismaEvidenceStore(db as never);
+
+    await db.query(
+      `
+        INSERT INTO users (
+          id,
+          email,
+          password_hash,
+          role,
+          company_name,
+          mfa_enabled,
+          totp_secret,
+          session_version,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'EXPORTER', $4, false, NULL, 0, NOW(), NOW())
+      `,
+      [
+        exporterId,
+        `${exporterId}@example.com`,
+        'hashed-password',
+        'Exporter Co',
+      ],
+    );
+
+    await db.query(
+      `
+        INSERT INTO lanes (
+          id,
+          lane_id,
+          exporter_id,
+          status,
+          product_type,
+          destination_market,
+          completeness_score,
+          status_changed_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          'EVIDENCE_COLLECTING',
+          'MANGO',
+          'KOREA',
+          0,
+          NOW(),
+          NOW(),
+          NOW()
+        )
+      `,
+      [laneId, publicLaneId, exporterId],
+    );
+
+    await db.query(
+      `
+        INSERT INTO evidence_artifacts (
+          id,
+          lane_id,
+          artifact_type,
+          file_name,
+          mime_type,
+          file_size_bytes,
+          file_path,
+          content_hash,
+          source,
+          checkpoint_id,
+          uploaded_by,
+          verification_status,
+          metadata,
+          uploaded_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          'MRL_TEST',
+          'mrl-report.pdf',
+          'application/pdf',
+          256,
+          'evidence/mrl-report.pdf',
+          'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          'UPLOAD',
+          NULL,
+          $3,
+          'VERIFIED',
+          NULL,
+          NOW(),
+          NOW()
+        )
+      `,
+      [artifactId, laneId, exporterId],
+    );
+
+    await db.query(
+      `
+        INSERT INTO evidence_artifact_analyses (
+          id,
+          artifact_id,
+          lane_id,
+          analyzer_version,
+          analysis_status,
+          document_label,
+          document_role,
+          confidence,
+          summary_text,
+          extracted_fields,
+          missing_field_keys,
+          low_confidence_field_keys,
+          field_completeness,
+          completed_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          'analysis-eval-1',
+          $1,
+          $2,
+          'ocr-local-v1',
+          'COMPLETED',
+          'MRL Test Results',
+          'RESIDUE_ANALYSIS_REPORT',
+          'MEDIUM_HIGH',
+          'Detected MRL report fields.',
+          '{"reportNumber":"MRL-2026-0007","laboratoryName":"Thai Central Lab","sampleId":"SAMPLE-88","analysisDate":"2026-03-22","analyteTable":"Attached residue table","resultUnits":"mg/kg","authorizedSignatory":"Lead Chemist"}'::jsonb,
+          ARRAY[]::TEXT[],
+          ARRAY[]::TEXT[],
+          '{"supported":true,"documentMatrixVersion":1,"expectedFieldKeys":["reportNumber"],"presentFieldKeys":["reportNumber"],"missingFieldKeys":[],"lowConfidenceFieldKeys":[],"unsupportedFieldKeys":[]}'::jsonb,
+          NOW(),
+          NOW(),
+          NOW()
+        )
+      `,
+      [artifactId, laneId],
+    );
+
+    try {
+      const artifacts = await store.listArtifactsForEvaluation(laneId);
+
+      expect(artifacts).toHaveLength(1);
+      expect(artifacts[0]?.id).toBe(artifactId);
+      expect(artifacts[0]?.artifactType).toBe('MRL_TEST');
+      expect(artifacts[0]?.latestAnalysisDocumentLabel).toBe(
+        'MRL Test Results',
+      );
+      expect(artifacts[0]?.latestAnalysisExtractedFields).toMatchObject({
+        reportNumber: 'MRL-2026-0007',
+        laboratoryName: 'Thai Central Lab',
+      });
+      expect(artifacts[0]?.latestAnalysisFieldCompleteness).toMatchObject({
+        supported: true,
+        presentFieldKeys: ['reportNumber'],
+      });
+    } finally {
+      await db.query(
+        'DELETE FROM evidence_artifact_analyses WHERE artifact_id = $1',
+        [artifactId],
+      );
+      await db.query('DELETE FROM evidence_artifacts WHERE id = $1', [
+        artifactId,
+      ]);
+      await db.query('DELETE FROM lanes WHERE id = $1', [laneId]);
+      await db.query('DELETE FROM users WHERE id = $1', [exporterId]);
+    }
+  });
+
+  it('listArtifactsForEvaluation includes latest OCR document labels for invoice-family artifacts', async () => {
+    const exporterId = 'user-evidence-trade-eval-test';
+    const laneId = 'lane-evidence-trade-eval-test';
+    const publicLaneId = 'LN-EVIDENCE-TRADE-EVAL-TEST';
+    const artifactId = 'artifact-trade-eval-target';
+    const db = pool as Pool;
+    const store = new PrismaEvidenceStore(db as never);
+
+    await db.query(
+      `
+        INSERT INTO users (
+          id,
+          email,
+          password_hash,
+          role,
+          company_name,
+          mfa_enabled,
+          totp_secret,
+          session_version,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'EXPORTER', $4, false, NULL, 0, NOW(), NOW())
+      `,
+      [
+        exporterId,
+        `${exporterId}@example.com`,
+        'hashed-password',
+        'Exporter Co',
+      ],
+    );
+
+    await db.query(
+      `
+        INSERT INTO lanes (
+          id,
+          lane_id,
+          exporter_id,
+          status,
+          product_type,
+          destination_market,
+          completeness_score,
+          status_changed_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          'EVIDENCE_COLLECTING',
+          'MANGO',
+          'EU',
+          0,
+          NOW(),
+          NOW(),
+          NOW()
+        )
+      `,
+      [laneId, publicLaneId, exporterId],
+    );
+
+    await db.query(
+      `
+        INSERT INTO evidence_artifacts (
+          id,
+          lane_id,
+          artifact_type,
+          file_name,
+          mime_type,
+          file_size_bytes,
+          file_path,
+          content_hash,
+          source,
+          checkpoint_id,
+          uploaded_by,
+          verification_status,
+          metadata,
+          uploaded_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          'INVOICE',
+          'trade-doc.pdf',
+          'application/pdf',
+          256,
+          'evidence/trade-doc.pdf',
+          'abababababababababababababababababababababababababababababababab',
+          'UPLOAD',
+          NULL,
+          $3,
+          'VERIFIED',
+          NULL,
+          NOW(),
+          NOW()
+        )
+      `,
+      [artifactId, laneId, exporterId],
+    );
+
+    await db.query(
+      `
+        INSERT INTO evidence_artifact_analyses (
+          id,
+          artifact_id,
+          lane_id,
+          analyzer_version,
+          analysis_status,
+          document_label,
+          document_role,
+          confidence,
+          summary_text,
+          extracted_fields,
+          missing_field_keys,
+          low_confidence_field_keys,
+          field_completeness,
+          completed_at,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          'analysis-trade-eval-1',
+          $1,
+          $2,
+          'ocr-local-v1',
+          'COMPLETED',
+          'Packing List',
+          'PACKING_LIST',
+          'HIGH',
+          'Detected packing list fields.',
+          '{"packingListNumber":"PL-2026-001"}'::jsonb,
+          ARRAY[]::TEXT[],
+          ARRAY[]::TEXT[],
+          '{"supported":true,"documentMatrixVersion":1,"expectedFieldKeys":["packingListNumber"],"presentFieldKeys":["packingListNumber"],"missingFieldKeys":[],"lowConfidenceFieldKeys":[],"unsupportedFieldKeys":[]}'::jsonb,
+          NOW(),
+          NOW(),
+          NOW()
+        )
+      `,
+      [artifactId, laneId],
+    );
+
+    try {
+      const artifacts = await store.listArtifactsForEvaluation(laneId);
+
+      expect(artifacts).toEqual([
+        expect.objectContaining({
+          id: artifactId,
+          artifactType: 'INVOICE',
+          latestAnalysisDocumentLabel: 'Packing List',
+        }),
+      ]);
+    } finally {
+      await db.query(
+        'DELETE FROM evidence_artifact_analyses WHERE artifact_id = $1',
+        [artifactId],
+      );
+      await db.query('DELETE FROM evidence_artifacts WHERE id = $1', [
+        artifactId,
+      ]);
+      await db.query('DELETE FROM lanes WHERE id = $1', [laneId]);
+      await db.query('DELETE FROM users WHERE id = $1', [exporterId]);
+    }
+  });
 });
