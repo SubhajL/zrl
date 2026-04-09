@@ -9,7 +9,6 @@ import type {
   OcrFixtureVariantManifestEntry,
 } from './ocr-fixture-manifest';
 import { loadOcrFixtureManifest } from './ocr-fixture-manifest';
-import { OCR_BROWSER_READINESS_SLOTS } from '../../../frontend/src/lib/testing/ocr-browser-readiness-slots';
 import type {
   RuleMarket,
   RuleProduct,
@@ -80,11 +79,16 @@ const BACKEND_PROVEN_DOCUMENT_LABELS = new Set([
   'Export License',
 ]);
 
-function buildBrowserProvenRequiredSlots(): Set<string> {
+function buildBrowserProvenRequiredSlots(
+  matrix: SupportedDocumentMatrix,
+): Set<string> {
   return new Set(
-    OCR_BROWSER_READINESS_SLOTS.map(
-      (slot) => `${slot.combo}::${slot.documentLabel}`,
-    ),
+    matrix.supportedCombos.flatMap((combo) => {
+      const comboId = comboKey(combo.market, combo.product);
+      return combo.requiredDocuments.map(
+        (documentLabel) => `${comboId}::${documentLabel}`,
+      );
+    }),
   );
 }
 
@@ -207,7 +211,7 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
     loadSupportedDocumentMatrix(),
     loadOcrFixtureManifest(),
   ]);
-  const browserProvenRequiredSlots = buildBrowserProvenRequiredSlots();
+  const browserProvenRequiredSlots = buildBrowserProvenRequiredSlots(matrix);
 
   const entries = matrix.supportedCombos.flatMap((combo) => {
     const comboId = comboKey(combo.market, combo.product);
