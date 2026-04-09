@@ -1,0 +1,371 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/commercial-invoice-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "invoiceNumber",
+          "invoiceDate",
+          "sellerName",
+          "buyerName",
+          "goodsDescription",
+          "quantity",
+          "unitPrice",
+          "totalAmount",
+          "currency",
+          "countryOfOrigin",
+          "incoterms",
+          "shipmentReference"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/delivery-note-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "deliveryNoteNumber",
+          "deliveryDate",
+          "senderName",
+          "receiverName",
+          "deliveryLocation",
+          "shipmentReference",
+          "goodsDescription",
+          "quantity",
+          "senderSignature",
+          "receiverSignature"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/export-license-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "authorizationNumber",
+          "legalEntityName",
+          "establishmentName",
+          "operatorType",
+          "address",
+          "issueDate",
+          "expiryDate",
+          "issuingOffice"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/certifications/gap-certificate-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "certificateNumber",
+          "certificateHolder",
+          "schemeName",
+          "commodityScope",
+          "farmOrSiteId",
+          "farmLocation",
+          "certificationBody",
+          "issueDate",
+          "expiryDate",
+          "authorizedSignatory"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/lab/mrl-test-results-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "reportNumber",
+          "laboratoryName",
+          "accreditationReference",
+          "sampleId",
+          "commodityName",
+          "sampleOriginCountry",
+          "sampleReceiptDate",
+          "analysisDate",
+          "analyticalMethod",
+          "analyteTable",
+          "resultUnits",
+          "authorizedSignatory"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/packing-list-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "packingListNumber",
+          "packingListDate",
+          "exporterName",
+          "consigneeName",
+          "invoiceReference",
+          "packageCount",
+          "packageType",
+          "marksAndNumbers",
+          "grossWeight",
+          "netWeight",
+          "containerReference"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "certificateNumber",
+          "issuingAuthority",
+          "exporterName",
+          "consigneeName",
+          "packageDescription",
+          "placeOfOrigin",
+          "meansOfConveyance",
+          "commodityDescription",
+          "botanicalName",
+          "additionalDeclarations",
+          "issueDate",
+          "authorizedOfficer"
+        ],
+        "missingFieldKeys": ["declaredPointOfEntry", "officialSealOrSignature"],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ],
+      "variants": [
+        {
+          "combo": "JAPAN/MANGO",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-japan-mango.svg",
+          "requiredFieldKeys": ["mustStateFruitFlyFree", "treatmentReference"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": ["mustStateFruitFlyFree", "treatmentReference"],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        },
+        {
+          "combo": "JAPAN/MANGOSTEEN",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-japan-mangosteen.svg",
+          "requiredFieldKeys": ["packageMarkingForJapan", "treatmentReference"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": [
+              "packageMarkingForJapan",
+              "treatmentReference"
+            ],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        },
+        {
+          "combo": "KOREA/MANGOSTEEN",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-korea-mangosteen.svg",
+          "requiredFieldKeys": ["fumigationDetails", "treatmentReference"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": ["fumigationDetails", "treatmentReference"],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        }
+      ]
+    },
+    {
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/transport-document-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "transportDocumentNumber",
+          "transportMode",
+          "carrierName",
+          "shipperName",
+          "consigneeName",
+          "departurePoint",
+          "arrivalPoint",
+          "goodsDescription",
+          "packageCount",
+          "grossWeight",
+          "issueDate"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
+      "documentLabel": "VHT Certificate",
+      "artifactType": "VHT_CERT",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "treatmentRecordNumber",
+          "commodityName",
+          "lotOrConsignmentId",
+          "treatmentFacility",
+          "treatmentDate",
+          "treatmentMethod",
+          "targetCoreTemperatureC",
+          "holdMinutes",
+          "operatorOrInspector",
+          "linkedPhytoCertificateNumber"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": ["JAPAN/MANGO", "JAPAN/MANGOSTEEN", "KOREA/MANGO"],
+      "variants": [
+        {
+          "combo": "JAPAN/MANGO",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-japan-mango.svg",
+          "requiredFieldKeys": ["allowedVariety", "maffVerificationReference"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": ["allowedVariety", "maffVerificationReference"],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        },
+        {
+          "combo": "JAPAN/MANGOSTEEN",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-japan-mangosteen.svg",
+          "requiredFieldKeys": ["coolingRequirement", "humidityRequirement"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": ["coolingRequirement", "humidityRequirement"],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        },
+        {
+          "combo": "KOREA/MANGO",
+          "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-korea-mango.svg",
+          "requiredFieldKeys": ["overseasInspectionReference"],
+          "expectedFieldCompleteness": {
+            "presentFieldKeys": ["overseasInspectionReference"],
+            "missingFieldKeys": [],
+            "lowConfidenceFieldKeys": [],
+            "unsupportedFieldKeys": []
+          }
+        }
+      ]
+    }
+  ]
+}

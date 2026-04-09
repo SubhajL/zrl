@@ -8,8 +8,30 @@ export interface BackendPackReadyResult {
   readonly packId: string;
 }
 
+export interface BackendArtifactAnalysisReadyResult {
+  readonly artifactId: string;
+  readonly documentLabel: string | null;
+  readonly fieldCompleteness: {
+    readonly supported: boolean;
+    readonly expectedFieldKeys: readonly string[];
+    readonly presentFieldKeys: readonly string[];
+    readonly missingFieldKeys: readonly string[];
+    readonly lowConfidenceFieldKeys: readonly string[];
+    readonly unsupportedFieldKeys: readonly string[];
+  };
+}
+
 export interface AuthenticatedBackendHelper {
-  seedRequiredEvidenceForLane(laneId: string): Promise<BackendEvidenceSeedResult>;
+  seedRequiredEvidenceForLane(
+    laneId: string,
+  ): Promise<BackendEvidenceSeedResult>;
+  waitForArtifactIdByFileName(
+    laneId: string,
+    fileName: string,
+  ): Promise<string>;
+  waitForArtifactAnalysisReady(
+    artifactId: string,
+  ): Promise<BackendArtifactAnalysisReadyResult>;
   generateAndWaitForReadyPack(
     laneId: string,
     packType: 'REGULATOR' | 'BUYER' | 'DEFENSE',
@@ -37,11 +59,24 @@ interface CheckpointsResponse {
   }>;
 }
 
+interface ArtifactDetailResponse {
+  readonly artifact: {
+    readonly id: string;
+    readonly latestAnalysis: {
+      readonly documentLabel: string | null;
+      readonly fieldCompleteness:
+        | BackendArtifactAnalysisReadyResult['fieldCompleteness']
+        | null;
+    } | null;
+  };
+}
+
 const DEFAULT_EXPORTER_EMAIL =
   process.env['PLAYWRIGHT_EXPORTER_EMAIL']?.trim() || 'exporter@zrl-dev.test';
 const DEFAULT_EXPORTER_PASSWORD =
   process.env['PLAYWRIGHT_EXPORTER_PASSWORD']?.trim() || 'ZrlDev2026!';
 const COMPLETENESS_TIMEOUT_MS = 30_000;
+const ARTIFACT_ANALYSIS_TIMEOUT_MS = 30_000;
 const PACK_READY_TIMEOUT_MS = 45_000;
 const POLL_INTERVAL_MS = 1_000;
 
@@ -240,7 +275,8 @@ class FrontendBackendHelper implements AuthenticatedBackendHelper {
     for (const upload of uploads) {
       const multipart: MultipartPayload = {
         artifactType: upload.artifactType,
-        source: upload.artifactType === 'CHECKPOINT_PHOTO' ? 'CAMERA' : 'UPLOAD',
+        source:
+          upload.artifactType === 'CHECKPOINT_PHOTO' ? 'CAMERA' : 'UPLOAD',
         file: {
           name: upload.fileName,
           mimeType: upload.mimeType,
@@ -255,9 +291,12 @@ class FrontendBackendHelper implements AuthenticatedBackendHelper {
         multipart['checkpointId'] = upload.checkpointId;
       }
 
-      const response = await this.api.post(`/api/zrl/lanes/${encodeURIComponent(laneId)}/evidence`, {
-        multipart,
-      });
+      const response = await this.api.post(
+        `/api/zrl/lanes/${encodeURIComponent(laneId)}/evidence`,
+        {
+          multipart,
+        },
+      );
       await assertJsonOk(
         response,
         `upload ${upload.artifactType} for lane ${laneId}`,
@@ -270,6 +309,72 @@ class FrontendBackendHelper implements AuthenticatedBackendHelper {
     };
   }
 
+  async waitForArtifactAnalysisReady(
+    artifactId: string,
+  ): Promise<BackendArtifactAnalysisReadyResult> {
+    const deadline = Date.now() + ARTIFACT_ANALYSIS_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      const response = await this.api.get(
+        `/api/zrl/evidence/${encodeURIComponent(artifactId)}`,
+      );
+      const body = (await assertJsonOk(
+        response,
+        `fetch artifact ${artifactId}`,
+      )) as ArtifactDetailResponse;
+      const fieldCompleteness = body.artifact.latestAnalysis?.fieldCompleteness;
+
+      if (fieldCompleteness !== null && fieldCompleteness !== undefined) {
+        return {
+          artifactId: body.artifact.id,
+          documentLabel: body.artifact.latestAnalysis?.documentLabel ?? null,
+          fieldCompleteness,
+        };
+      }
+
+      await sleep(POLL_INTERVAL_MS);
+    }
+
+    throw new Error(
+      `Artifact ${artifactId} did not receive OCR analysis within ${ARTIFACT_ANALYSIS_TIMEOUT_MS}ms.`,
+    );
+  }
+
+  async waitForArtifactIdByFileName(
+    laneId: string,
+    fileName: string,
+  ): Promise<string> {
+    const deadline = Date.now() + ARTIFACT_ANALYSIS_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      const response = await this.api.get(
+        `/api/zrl/lanes/${encodeURIComponent(laneId)}/evidence`,
+      );
+      const body = (await assertJsonOk(
+        response,
+        `list evidence for lane ${laneId}`,
+      )) as {
+        artifacts: Array<{
+          id: string;
+          fileName: string;
+        }>;
+      };
+      const artifactId = body.artifacts.find(
+        (artifact) => artifact.fileName === fileName,
+      )?.id;
+
+      if (artifactId) {
+        return artifactId;
+      }
+
+      await sleep(POLL_INTERVAL_MS);
+    }
+
+    throw new Error(
+      `Artifact ${fileName} did not appear in lane ${laneId} within ${ARTIFACT_ANALYSIS_TIMEOUT_MS}ms.`,
+    );
+  }
+
   async generateAndWaitForReadyPack(
     laneId: string,
     packType: 'REGULATOR' | 'BUYER' | 'DEFENSE',
@@ -280,7 +385,10 @@ class FrontendBackendHelper implements AuthenticatedBackendHelper {
         data: { packType },
       },
     );
-    const created = (await assertJsonOk(response, `generate ${packType} pack`)) as {
+    const created = (await assertJsonOk(
+      response,
+      `generate ${packType} pack`,
+    )) as {
       pack: { id: string };
     };
 
@@ -293,7 +401,9 @@ class FrontendBackendHelper implements AuthenticatedBackendHelper {
         packsResponse,
         `list packs for ${laneId}`,
       )) as PacksResponse;
-      const matchingPack = packs.packs.find((pack) => pack.id === created.pack.id);
+      const matchingPack = packs.packs.find(
+        (pack) => pack.id === created.pack.id,
+      );
       if (matchingPack?.status === 'READY') {
         return { packId: matchingPack.id };
       }
@@ -394,12 +504,17 @@ export async function createAuthenticatedBackendHelper(
       password: DEFAULT_EXPORTER_PASSWORD,
     },
   });
-  const body = (await assertJsonOk(loginResponse, 'frontend session login')) as {
+  const body = (await assertJsonOk(
+    loginResponse,
+    'frontend session login',
+  )) as {
     requireMfa: boolean;
   };
 
   if (body.requireMfa) {
-    throw new Error('The exporter Playwright account unexpectedly requires MFA.');
+    throw new Error(
+      'The exporter Playwright account unexpectedly requires MFA.',
+    );
   }
 
   return new FrontendBackendHelper(api);

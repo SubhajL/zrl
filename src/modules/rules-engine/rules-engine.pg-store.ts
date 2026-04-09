@@ -73,6 +73,7 @@ interface CertificationScanArtifactRow extends QueryResultRow {
   artifact_type: 'PHYTO_CERT' | 'VHT_CERT' | 'GAP_CERT';
   file_name: string;
   metadata: Record<string, unknown> | string | null;
+  latest_analysis_extracted_fields: Record<string, unknown> | string | null;
   uploaded_at: Date | string;
 }
 
@@ -553,10 +554,18 @@ export class PrismaRulesEngineStore implements RuleStore {
           artifacts.artifact_type,
           artifacts.file_name,
           artifacts.metadata,
+          analysis.extracted_fields AS latest_analysis_extracted_fields,
           artifacts.uploaded_at
         FROM evidence_artifacts AS artifacts
         INNER JOIN lanes
           ON lanes.id = artifacts.lane_id
+        LEFT JOIN LATERAL (
+          SELECT extracted_fields
+          FROM evidence_artifact_analyses
+          WHERE artifact_id = artifacts.id
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1
+        ) AS analysis ON TRUE
         WHERE artifacts.deleted_at IS NULL
           AND artifacts.artifact_type IN ('PHYTO_CERT', 'VHT_CERT', 'GAP_CERT')
           AND lanes.status IN (
@@ -584,6 +593,13 @@ export class PrismaRulesEngineStore implements RuleStore {
         typeof row.metadata === 'string'
           ? (JSON.parse(row.metadata) as Record<string, unknown>)
           : row.metadata,
+      latestAnalysisExtractedFields:
+        typeof row.latest_analysis_extracted_fields === 'string'
+          ? (JSON.parse(row.latest_analysis_extracted_fields) as Record<
+              string,
+              unknown
+            >)
+          : row.latest_analysis_extracted_fields,
       uploadedAt: new Date(row.uploaded_at),
     }));
   }

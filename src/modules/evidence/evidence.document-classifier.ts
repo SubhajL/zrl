@@ -108,14 +108,38 @@ function extractCommonFields(
     meansOfConveyance:
       stringFromMetadata(metadata, 'meansOfConveyance') ??
       findRegexValue(text, [/means\s+of\s+conveyance\s*[:#]?\s*([^\n]+)/i]),
+    packageDescription:
+      (input.artifactType === 'PHYTO_CERT'
+        ? stringFromMetadata(metadata, 'packageDescription')
+        : undefined) ??
+      findRegexValue(text, [/package\s+description\s*[:#]?\s*([^\n]+)/i]),
     placeOfOrigin:
-      stringFromMetadata(metadata, 'placeOfOrigin') ??
-      findRegexValue(text, [
-        /(?:place\s+of\s+origin|origin)\s*[:#]?\s*([^\n]+)/i,
-      ]),
+      (input.artifactType === 'PHYTO_CERT'
+        ? stringFromMetadata(metadata, 'placeOfOrigin')
+        : undefined) ??
+      findRegexValue(text, [/place\s+of\s+origin\s*[:#]?\s*([^\n]+)/i]),
+    commodityDescription:
+      stringFromMetadata(metadata, 'commodityDescription') ??
+      findRegexValue(text, [/commodity\s+description\s*[:#]?\s*([^\n]+)/i]),
     additionalDeclarations:
       stringFromMetadata(metadata, 'additionalDeclarations') ??
       findRegexValue(text, [/additional\s+declarations?\s*[:#]?\s*([^\n]+)/i]),
+    treatmentReference:
+      stringFromMetadata(metadata, 'treatmentReference') ??
+      findRegexValue(text, [/treatment\s+reference\s*[:#]?\s*([^\n]+)/i]),
+    packageMarkingForJapan:
+      stringFromMetadata(metadata, 'packageMarkingForJapan') ??
+      findRegexValue(text, [
+        /package\s+marking\s+for\s+japan\s*[:#]?\s*([^\n]+)/i,
+      ]),
+    fumigationDetails:
+      stringFromMetadata(metadata, 'fumigationDetails') ??
+      findRegexValue(text, [/fumigation\s+details\s*[:#]?\s*([^\n]+)/i]),
+    authorizedOfficer:
+      (input.artifactType === 'PHYTO_CERT'
+        ? stringFromMetadata(metadata, 'authorizedOfficer')
+        : undefined) ??
+      findRegexValue(text, [/authorized\s+officer\s*[:#]?\s*([^\n]+)/i]),
     treatmentRecordNumber:
       stringFromMetadata(metadata, 'treatmentRecordNumber') ??
       findRegexValue(text, [
@@ -124,7 +148,7 @@ function extractCommonFields(
     targetCoreTemperatureC:
       stringFromMetadata(metadata, 'targetCoreTemperatureC') ??
       findRegexValue(text, [
-        /(?:core\s+temperature|target\s+temperature)\s*[:#]?\s*([^\n]+)/i,
+        /target\s+core\s+temperature(?:\s+c)?\s*[:#]?\s*([^\n]+)/i,
       ]),
     holdMinutes:
       stringFromMetadata(metadata, 'holdMinutes') ??
@@ -134,8 +158,45 @@ function extractCommonFields(
     linkedPhytoCertificateNumber:
       stringFromMetadata(metadata, 'linkedPhytoCertificateNumber') ??
       findRegexValue(text, [
-        /(?:linked\s+phyto\s+certificate|phyto\s+certificate\s+number)\s*[:#]?\s*([^\n]+)/i,
+        /linked\s+phyto\s+certificate\s+number\s*[:#]?\s*([^\n]+)/i,
       ]),
+    overseasInspectionReference:
+      stringFromMetadata(metadata, 'overseasInspectionReference') ??
+      findRegexValue(text, [
+        /overseas\s+inspection\s+reference\s*[:#]?\s*([^\n]+)/i,
+      ]),
+    commodityName:
+      stringFromMetadata(metadata, 'commodityName') ??
+      findRegexValue(text, [/commodity\s+name\s*[:#]?\s*([^\n]+)/i]),
+    lotOrConsignmentId:
+      stringFromMetadata(metadata, 'lotOrConsignmentId') ??
+      findRegexValue(text, [/lot\s+or\s+consignment\s+id\s*[:#]?\s*([^\n]+)/i]),
+    treatmentFacility:
+      stringFromMetadata(metadata, 'treatmentFacility') ??
+      findRegexValue(text, [/treatment\s+facility\s*[:#]?\s*([^\n]+)/i]),
+    treatmentDate:
+      stringFromMetadata(metadata, 'treatmentDate') ??
+      findRegexValue(text, [/treatment\s+date\s*[:#]?\s*([^\n]+)/i]),
+    treatmentMethod:
+      stringFromMetadata(metadata, 'treatmentMethod') ??
+      findRegexValue(text, [/treatment\s+method\s*[:#]?\s*([^\n]+)/i]),
+    operatorOrInspector:
+      stringFromMetadata(metadata, 'operatorOrInspector') ??
+      findRegexValue(text, [/operator\s+or\s+inspector\s*[:#]?\s*([^\n]+)/i]),
+    allowedVariety:
+      stringFromMetadata(metadata, 'allowedVariety') ??
+      findRegexValue(text, [/allowed\s+variety\s*[:#]?\s*([^\n]+)/i]),
+    maffVerificationReference:
+      stringFromMetadata(metadata, 'maffVerificationReference') ??
+      findRegexValue(text, [
+        /maff\s+verification\s+reference\s*[:#]?\s*([^\n]+)/i,
+      ]),
+    humidityRequirement:
+      stringFromMetadata(metadata, 'humidityRequirement') ??
+      findRegexValue(text, [/humidity\s+requirement\s*[:#]?\s*([^\n]+)/i]),
+    coolingRequirement:
+      stringFromMetadata(metadata, 'coolingRequirement') ??
+      findRegexValue(text, [/cooling\s+requirement\s*[:#]?\s*([^\n]+)/i]),
     reportNumber:
       stringFromMetadata(metadata, 'reportNumber') ??
       findRegexValue(text, [
@@ -146,13 +207,40 @@ function extractCommonFields(
       (input.artifactType === 'MRL_TEST'
         ? stringFromMetadata(metadata, 'issuer')
         : undefined) ??
-      findRegexValue(text, [/(?:laboratory|lab\s+name)\s*[:#]?\s*([^\n]+)/i]),
+      findRegexValue(text, [
+        /(?:laboratory\s+name|lab\s+name)\s*[:#]?\s*([^\n]+)/i,
+      ]),
+    accreditationReference:
+      stringFromMetadata(metadata, 'accreditationReference') ??
+      findRegexValue(text, [/accreditation\s+reference\s*[:#]?\s*([^\n]+)/i]),
+    sampleId:
+      stringFromMetadata(metadata, 'sampleId') ??
+      findRegexValue(text, [/sample\s+id\s*[:#]?\s*([^\n]+)/i]),
+    sampleOriginCountry:
+      stringFromMetadata(metadata, 'sampleOriginCountry') ??
+      findRegexValue(text, [/sample\s+origin\s+country\s*[:#]?\s*([^\n]+)/i]),
+    sampleReceiptDate:
+      stringFromMetadata(metadata, 'sampleReceiptDate') ??
+      findRegexValue(text, [/sample\s+receipt\s+date\s*[:#]?\s*([^\n]+)/i]),
+    analysisDate:
+      stringFromMetadata(metadata, 'analysisDate') ??
+      findRegexValue(text, [/analysis\s+date\s*[:#]?\s*([^\n]+)/i]),
+    analyticalMethod:
+      stringFromMetadata(metadata, 'analyticalMethod') ??
+      findRegexValue(text, [/analytical\s+method\s*[:#]?\s*([^\n]+)/i]),
+    analyteTable:
+      stringFromMetadata(metadata, 'analyteTable') ??
+      findRegexValue(text, [/analyte\s+table\s*[:#]?\s*([^\n]+)/i]),
     resultUnits:
       stringFromMetadata(metadata, 'resultUnits') ??
-      findRegexValue(text, [/(?:result\s+units|units)\s*[:#]?\s*([^\n]+)/i]),
+      findRegexValue(text, [/(?:result\s+units|units)\s*[:#]?\s*([^;\n]+)/i]),
     certificateHolder:
       stringFromMetadata(metadata, 'certificateHolder') ??
-      stringFromMetadata(metadata, 'holderName'),
+      stringFromMetadata(metadata, 'holderName') ??
+      findRegexValue(text, [/certificate\s+holder\s*[:#]?\s*([^\n]+)/i]),
+    schemeName:
+      stringFromMetadata(metadata, 'schemeName') ??
+      findRegexValue(text, [/scheme\s+name\s*[:#]?\s*([^\n]+)/i]),
     expiryDate:
       stringFromMetadata(metadata, 'expiryDate') ??
       findRegexValue(text, [
@@ -160,7 +248,20 @@ function extractCommonFields(
       ]),
     commodityScope:
       stringFromMetadata(metadata, 'commodityScope') ??
-      listFromMetadata(metadata, 'scope'),
+      listFromMetadata(metadata, 'scope') ??
+      findRegexValue(text, [/commodity\s+scope\s*[:#]?\s*([^\n]+)/i]),
+    farmOrSiteId:
+      stringFromMetadata(metadata, 'farmOrSiteId') ??
+      findRegexValue(text, [/farm\s+or\s+site\s+id\s*[:#]?\s*([^\n]+)/i]),
+    farmLocation:
+      stringFromMetadata(metadata, 'farmLocation') ??
+      findRegexValue(text, [/farm\s+location\s*[:#]?\s*([^\n]+)/i]),
+    certificationBody:
+      stringFromMetadata(metadata, 'certificationBody') ??
+      findRegexValue(text, [/certification\s+body\s*[:#]?\s*([^\n]+)/i]),
+    authorizedSignatory:
+      stringFromMetadata(metadata, 'authorizedSignatory') ??
+      findRegexValue(text, [/authorized\s+signatory\s*[:#]?\s*([^\n]+)/i]),
     invoiceNumber:
       stringFromMetadata(metadata, 'invoiceNumber') ??
       findRegexValue(text, [
@@ -176,11 +277,119 @@ function extractCommonFields(
       findRegexValue(text, [
         /(?:goods\s+description|description\s+of\s+goods)\s*[:#]?\s*([^\n]+)/i,
       ]),
+    sellerName:
+      stringFromMetadata(metadata, 'sellerName') ??
+      findRegexValue(text, [/seller\s+name\s*[:#]?\s*([^\n]+)/i]),
+    buyerName:
+      stringFromMetadata(metadata, 'buyerName') ??
+      findRegexValue(text, [/buyer\s+name\s*[:#]?\s*([^\n]+)/i]),
+    quantity:
+      stringFromMetadata(metadata, 'quantity') ??
+      findRegexValue(text, [/quantity\s*[:#]?\s*([^\n]+)/i]),
+    unitPrice:
+      stringFromMetadata(metadata, 'unitPrice') ??
+      findRegexValue(text, [/unit\s+price\s*[:#]?\s*([^\n]+)/i]),
+    totalAmount:
+      stringFromMetadata(metadata, 'totalAmount') ??
+      findRegexValue(text, [/total\s+amount\s*[:#]?\s*([^\n]+)/i]),
+    currency:
+      stringFromMetadata(metadata, 'currency') ??
+      findRegexValue(text, [/currency\s*[:#]?\s*([^\n]+)/i]),
+    countryOfOrigin:
+      stringFromMetadata(metadata, 'countryOfOrigin') ??
+      findRegexValue(text, [/country\s+of\s+origin\s*[:#]?\s*([^|;\n]+)/i]),
+    incoterms:
+      stringFromMetadata(metadata, 'incoterms') ??
+      findRegexValue(text, [/incoterms\s*[:#]?\s*([^|;\n]+)/i]),
     shipmentReference:
       stringFromMetadata(metadata, 'shipmentReference') ??
+      findRegexValue(text, [/shipment\s+reference\s*[:#]?\s*([^|;\n]+)/i]),
+    packingListNumber:
+      stringFromMetadata(metadata, 'packingListNumber') ??
+      findRegexValue(text, [/packing\s+list\s+number\s*[:#]?\s*([^\n]+)/i]),
+    packingListDate:
+      stringFromMetadata(metadata, 'packingListDate') ??
+      findRegexValue(text, [/packing\s+list\s+date\s*[:#]?\s*([^\n]+)/i]),
+    invoiceReference:
+      stringFromMetadata(metadata, 'invoiceReference') ??
+      findRegexValue(text, [/invoice\s+reference\s*[:#]?\s*([^\n]+)/i]),
+    packageCount:
+      stringFromMetadata(metadata, 'packageCount') ??
+      findRegexValue(text, [/package\s+count\s*[:#]?\s*([^\n]+)/i]),
+    packageType:
+      stringFromMetadata(metadata, 'packageType') ??
+      findRegexValue(text, [/package\s+type\s*[:#]?\s*([^\n]+)/i]),
+    marksAndNumbers:
+      stringFromMetadata(metadata, 'marksAndNumbers') ??
+      findRegexValue(text, [/marks\s+and\s+numbers\s*[:#]?\s*([^\n]+)/i]),
+    grossWeight:
+      stringFromMetadata(metadata, 'grossWeight') ??
+      findRegexValue(text, [/gross\s+weight\s*[:#]?\s*([^|;\n]+)/i]),
+    netWeight:
+      stringFromMetadata(metadata, 'netWeight') ??
+      findRegexValue(text, [/net\s+weight\s*[:#]?\s*([^|;\n]+)/i]),
+    containerReference:
+      stringFromMetadata(metadata, 'containerReference') ??
+      findRegexValue(text, [/container\s+reference\s*[:#]?\s*([^\n]+)/i]),
+    transportDocumentNumber:
+      stringFromMetadata(metadata, 'transportDocumentNumber') ??
       findRegexValue(text, [
-        /(?:shipment\s+reference|reference)\s*[:#]?\s*([^\n]+)/i,
+        /transport\s+document\s+number\s*[:#]?\s*([^\n]+)/i,
       ]),
+    transportMode:
+      stringFromMetadata(metadata, 'transportMode') ??
+      findRegexValue(text, [/transport\s+mode\s*[:#]?\s*([^\n]+)/i]),
+    carrierName:
+      stringFromMetadata(metadata, 'carrierName') ??
+      findRegexValue(text, [/carrier\s+name\s*[:#]?\s*([^\n]+)/i]),
+    shipperName:
+      stringFromMetadata(metadata, 'shipperName') ??
+      findRegexValue(text, [/shipper\s+name\s*[:#]?\s*([^\n]+)/i]),
+    departurePoint:
+      stringFromMetadata(metadata, 'departurePoint') ??
+      findRegexValue(text, [/departure\s+point\s*[:#]?\s*([^\n]+)/i]),
+    arrivalPoint:
+      stringFromMetadata(metadata, 'arrivalPoint') ??
+      findRegexValue(text, [/arrival\s+point\s*[:#]?\s*([^\n]+)/i]),
+    deliveryNoteNumber:
+      stringFromMetadata(metadata, 'deliveryNoteNumber') ??
+      findRegexValue(text, [/delivery\s+note\s+number\s*[:#]?\s*([^\n]+)/i]),
+    deliveryDate:
+      stringFromMetadata(metadata, 'deliveryDate') ??
+      findRegexValue(text, [/delivery\s+date\s*[:#]?\s*([^\n]+)/i]),
+    senderName:
+      stringFromMetadata(metadata, 'senderName') ??
+      findRegexValue(text, [/sender\s+name\s*[:#]?\s*([^\n]+)/i]),
+    receiverName:
+      stringFromMetadata(metadata, 'receiverName') ??
+      findRegexValue(text, [/receiver\s+name\s*[:#]?\s*([^\n]+)/i]),
+    deliveryLocation:
+      stringFromMetadata(metadata, 'deliveryLocation') ??
+      findRegexValue(text, [/delivery\s+location\s*[:#]?\s*([^\n]+)/i]),
+    senderSignature:
+      stringFromMetadata(metadata, 'senderSignature') ??
+      findRegexValue(text, [/sender\s+signature\s*[:#]?\s*([^\n]+)/i]),
+    receiverSignature:
+      stringFromMetadata(metadata, 'receiverSignature') ??
+      findRegexValue(text, [/receiver\s+signature\s*[:#]?\s*([^\n]+)/i]),
+    authorizationNumber:
+      stringFromMetadata(metadata, 'authorizationNumber') ??
+      findRegexValue(text, [/authorization\s+number\s*[:#]?\s*([^\n]+)/i]),
+    legalEntityName:
+      stringFromMetadata(metadata, 'legalEntityName') ??
+      findRegexValue(text, [/legal\s+entity\s+name\s*[:#]?\s*([^\n]+)/i]),
+    establishmentName:
+      stringFromMetadata(metadata, 'establishmentName') ??
+      findRegexValue(text, [/establishment\s+name\s*[:#]?\s*([^\n]+)/i]),
+    operatorType:
+      stringFromMetadata(metadata, 'operatorType') ??
+      findRegexValue(text, [/operator\s+type\s*[:#]?\s*([^\n]+)/i]),
+    address:
+      stringFromMetadata(metadata, 'address') ??
+      findRegexValue(text, [/address\s*[:#]?\s*([^\n]+)/i]),
+    issuingOffice:
+      stringFromMetadata(metadata, 'issuingOffice') ??
+      findRegexValue(text, [/issuing\s+office\s*[:#]?\s*([^\n]+)/i]),
   };
 }
 
@@ -229,6 +438,7 @@ function scoreDocument(
     case 'GAP Certificate':
       if (normalizedText.includes('gap')) score += 4;
       if (normalizedText.includes('certificate')) score += 2;
+      if (normalizedText.includes('good agricultural practices')) score += 8;
       break;
     case 'Commercial Invoice':
       if (normalizedText.includes('commercial invoice')) score += 8;
@@ -248,6 +458,8 @@ function scoreDocument(
     case 'Export License':
       if (normalizedText.includes('export license')) score += 8;
       if (normalizedText.includes('exporter registration')) score += 5;
+      if (normalizedText.includes('exporter authorization')) score += 8;
+      if (normalizedText.includes('authorization record')) score += 4;
       break;
     default:
       break;
@@ -365,7 +577,10 @@ export class MatrixDrivenEvidenceDocumentClassifier implements EvidenceDocumentC
       } else {
         lowConfidenceFieldKeys.push('mustStateFruitFlyFree');
       }
-      if (declaration.includes('treatment')) {
+      if (
+        extractedFields['treatmentReference'] === undefined &&
+        declaration.includes('treatment')
+      ) {
         extractedFields['treatmentReference'] = declaration;
       }
     }

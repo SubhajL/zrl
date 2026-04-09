@@ -379,7 +379,9 @@ describe('RulesEngineService', () => {
         id: 'artifact-3',
         artifactType: 'INVOICE',
         fileName: 'invoice.pdf',
-        metadata: null,
+        metadata: {
+          documentType: 'Commercial Invoice',
+        },
       },
     ]);
 
@@ -406,6 +408,129 @@ describe('RulesEngineService', () => {
         expect.objectContaining({
           artifactType: 'VHT_CERT',
           status: 'MISSING',
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane uses OCR document labels to satisfy invoice-family checklist items when metadata labeling is absent', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Packing List', 'Commercial Invoice'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-pack-1',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'Packing List',
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Packing List',
+          status: 'PRESENT',
+          present: true,
+          artifactIds: ['artifact-pack-1'],
+          provenance: {
+            source: 'OCR_DOCUMENT_LABEL',
+            artifactId: 'artifact-pack-1',
+          },
+        }),
+        expect.objectContaining({
+          label: 'Commercial Invoice',
+          status: 'MISSING',
+          present: false,
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane does not let a generic invoice artifact satisfy every invoice-family document without metadata or OCR label proof', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Packing List', 'Commercial Invoice'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-generic-invoice',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Packing List',
+          status: 'MISSING',
+          present: false,
+        }),
+        expect.objectContaining({
+          label: 'Commercial Invoice',
+          status: 'MISSING',
+          present: false,
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane uses slug-like filenames as a conservative fallback for invoice-family artifacts', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Packing List', 'Commercial Invoice'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-pack-filename',
+        artifactType: 'INVOICE',
+        fileName: 'shipment-packing_list-2026.pdf',
+        metadata: null,
+      },
+      {
+        id: 'artifact-commercial-filename',
+        artifactType: 'INVOICE',
+        fileName: 'commercial-invoice_final.pdf',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Packing List',
+          status: 'PRESENT',
+          provenance: {
+            source: 'FILE_NAME_FALLBACK',
+            artifactId: 'artifact-pack-filename',
+          },
+        }),
+        expect.objectContaining({
+          label: 'Commercial Invoice',
+          status: 'PRESENT',
+          provenance: {
+            source: 'FILE_NAME_FALLBACK',
+            artifactId: 'artifact-commercial-filename',
+          },
         }),
       ]),
     );
@@ -547,6 +672,186 @@ describe('RulesEngineService', () => {
         valid: false,
         blockingReasons: ['MRL_TEST_REQUIRED'],
         results: [],
+      }),
+    );
+  });
+
+  it('evaluateLane keeps missing-document blocking when an MRL artifact lacks OCR proof of a supported lab report', () => {
+    const definition = buildDefinition({
+      market: 'KOREA',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-ocr-absent',
+        artifactType: 'MRL_TEST',
+        fileName: 'unknown-report.pdf',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'BLOCKED',
+        valid: false,
+        blockingReasons: ['MRL_TEST_REQUIRED'],
+        results: [],
+      }),
+    );
+  });
+
+  it('evaluateLane treats OCR-backed MRL reports without structured numeric results as present but blocked', () => {
+    const definition = buildDefinition({
+      market: 'KOREA',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-ocr-lab-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'mrl-report.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'MRL Test Results',
+        latestAnalysisExtractedFields: {
+          reportNumber: 'MRL-2026-0007',
+          laboratoryName: 'Thai Central Lab',
+          sampleId: 'SAMPLE-88',
+          analysisDate: '2026-03-22',
+          analyteTable: 'Attached residue table',
+          resultUnits: 'mg/kg',
+          authorizedSignatory: 'Lead Chemist',
+        },
+        latestAnalysisFieldCompleteness: {
+          supported: true,
+          documentMatrixVersion: 1,
+          expectedFieldKeys: [
+            'reportNumber',
+            'laboratoryName',
+            'accreditationReference',
+            'sampleId',
+            'commodityName',
+            'sampleOriginCountry',
+            'sampleReceiptDate',
+            'analysisDate',
+            'analyticalMethod',
+            'analyteTable',
+            'resultUnits',
+            'authorizedSignatory',
+          ],
+          presentFieldKeys: [
+            'reportNumber',
+            'laboratoryName',
+            'sampleId',
+            'analysisDate',
+            'analyteTable',
+            'resultUnits',
+            'authorizedSignatory',
+          ],
+          missingFieldKeys: [
+            'accreditationReference',
+            'commodityName',
+            'sampleOriginCountry',
+            'sampleReceiptDate',
+            'analyticalMethod',
+          ],
+          lowConfidenceFieldKeys: [],
+          unsupportedFieldKeys: [],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'BLOCKED',
+        valid: false,
+        hasUnknowns: true,
+        blockingReasons: ['MRL_RESULTS_REQUIRED'],
+        evidenceSource: 'OCR_DOCUMENT_ANALYSIS',
+        results: [
+          expect.objectContaining({
+            substance: 'Chlorpyrifos',
+            status: 'UNKNOWN',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('evaluateLane rejects OCR-backed MRL reports when field completeness marks them unsupported', () => {
+    const definition = buildDefinition({
+      market: 'KOREA',
+      product: 'MANGO',
+      labPolicy: {
+        enforcementMode: 'FULL_PESTICIDE',
+        requiredArtifactType: 'MRL_TEST',
+        acceptedUnits: ['mg/kg', 'ppm'],
+        defaultDestinationMrlMgKg: 0.01,
+      },
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-unsupported-lab-1',
+        artifactType: 'MRL_TEST',
+        fileName: 'mrl-report.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'MRL Test Results',
+        latestAnalysisExtractedFields: {
+          reportNumber: 'MRL-2026-0007',
+          laboratoryName: 'Thai Central Lab',
+          sampleId: 'SAMPLE-88',
+          analysisDate: '2026-03-22',
+          analyteTable: 'Attached residue table',
+          resultUnits: 'mg/kg',
+          authorizedSignatory: 'Lead Chemist',
+        },
+        latestAnalysisFieldCompleteness: {
+          supported: false,
+          documentMatrixVersion: 1,
+          expectedFieldKeys: [],
+          presentFieldKeys: [],
+          missingFieldKeys: [],
+          lowConfidenceFieldKeys: [],
+          unsupportedFieldKeys: ['reportNumber'],
+        },
+      },
+    ]);
+
+    expect(result.labValidation).toEqual(
+      expect.objectContaining({
+        status: 'BLOCKED',
+        valid: false,
+        blockingReasons: ['MRL_TEST_REQUIRED'],
+        evidenceSource: 'ARTIFACT_TYPE_ONLY',
       }),
     );
   });
@@ -1046,6 +1351,182 @@ describe('RulesEngineService', () => {
 
     expect(claimCertificationAlertDelivery).not.toHaveBeenCalled();
     expect(notifyLaneOwner).not.toHaveBeenCalled();
+  });
+
+  it('uses OCR-extracted expiryDate when upload metadata is missing for certification alerts', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const notifyLaneOwner = jest.fn().mockResolvedValue([]);
+    const notificationService = {
+      notifyLaneOwner,
+    };
+    const claimCertificationAlertDelivery = jest.fn().mockResolvedValue({
+      id: 'delivery-ocr-expiry',
+    });
+    const completeCertificationAlertDelivery = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    const releaseCertificationAlertDelivery = jest
+      .fn()
+      .mockResolvedValue(undefined);
+    const store = {
+      claimCertificationAlertDelivery,
+      completeCertificationAlertDelivery,
+      releaseCertificationAlertDelivery,
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn(),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+      listLatestActiveCertificationArtifacts: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      store,
+      { hashString: jest.fn() } as unknown as HashingService,
+      notificationService as never,
+    );
+
+    await service.notifyCertificationAlertForArtifact({
+      laneId: 'lane-1',
+      lanePublicId: 'LN-2026-001',
+      artifact: {
+        id: 'artifact-ocr-1',
+        artifactType: 'GAP_CERT',
+        fileName: 'gap.pdf',
+        metadata: null,
+        latestAnalysisExtractedFields: {
+          expiryDate: '2026-03-01',
+        },
+      },
+    });
+
+    expect(claimCertificationAlertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactId: 'artifact-ocr-1',
+        artifactType: 'GAP_CERT',
+        alertCode: 'EXPIRED',
+      }),
+    );
+    expect(completeCertificationAlertDelivery).toHaveBeenCalledWith(
+      'delivery-ocr-expiry',
+      expect.objectContaining({ deliveryStatus: 'SKIPPED' }),
+    );
+  });
+
+  it('evaluateLane uses OCR-extracted expiryDate when certification metadata is missing', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const definition = buildDefinition({
+      requiredDocuments: ['GAP Certificate'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-gap-1',
+        artifactType: 'GAP_CERT',
+        fileName: 'gap.pdf',
+        metadata: null,
+        latestAnalysisExtractedFields: {
+          expiryDate: '2026-04-15',
+        },
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'GAP Certificate',
+          status: 'PRESENT',
+          present: true,
+        }),
+      ]),
+    );
+    expect(result.certificationAlerts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          artifactType: 'GAP_CERT',
+          status: 'VALID',
+          artifactId: 'artifact-gap-1',
+          evidenceSource: 'OCR_EXTRACTED_FIELDS',
+        }),
+      ]),
+    );
+  });
+
+  it('scanCertificationExpirations uses OCR-extracted expiryDate when metadata is missing', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
+    const notifyLaneOwner = jest.fn().mockResolvedValue([
+      {
+        id: 'notification-ocr-warning',
+      },
+    ]);
+    const notificationService = {
+      notifyLaneOwner,
+    };
+    const claimCertificationAlertDelivery = jest.fn().mockResolvedValue({
+      id: 'delivery-ocr-warning',
+    });
+    const store = {
+      claimCertificationAlertDelivery,
+      completeCertificationAlertDelivery: jest
+        .fn()
+        .mockResolvedValue(undefined),
+      releaseCertificationAlertDelivery: jest.fn().mockResolvedValue(undefined),
+      listLatestActiveCertificationArtifacts: jest.fn().mockResolvedValue([
+        {
+          laneId: 'lane-1',
+          lanePublicId: 'LN-2026-001',
+          artifactId: 'artifact-ocr-scan-1',
+          artifactType: 'PHYTO_CERT',
+          fileName: 'phyto.pdf',
+          metadata: null,
+          latestAnalysisExtractedFields: {
+            expiryDate: '2026-04-07',
+          },
+          uploadedAt: new Date('2026-03-20T00:00:00.000Z'),
+        },
+      ]),
+      runInTransaction: jest.fn(),
+      syncRuleDefinition: jest.fn(),
+      findLatestRuleSet: jest.fn(),
+      listMarkets: jest.fn(),
+      listSubstances: jest.fn(),
+      createSubstance: jest.fn(),
+      bumpRuleVersionsForMarket: jest.fn(),
+      updateSubstance: jest.fn(),
+      listRuleVersions: jest.fn(),
+      appendSubstanceAuditEntry: jest.fn(),
+    } as unknown as RuleStore;
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      store,
+      { hashString: jest.fn() } as unknown as HashingService,
+      notificationService as never,
+    );
+
+    const result = await service.scanCertificationExpirations();
+
+    expect(claimCertificationAlertDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactId: 'artifact-ocr-scan-1',
+        alertCode: 'WARNING_14',
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        notified: 1,
+      }),
+    );
   });
 
   it('scanCertificationExpirations emits warning notifications for upcoming expiries', async () => {

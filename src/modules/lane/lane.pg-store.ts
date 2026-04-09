@@ -92,6 +92,9 @@ interface ArtifactRow extends QueryResultRow {
   artifact_type: string;
   file_name: string;
   metadata: Record<string, unknown> | null;
+  latest_analysis_document_label: string | null;
+  latest_analysis_extracted_fields: Record<string, unknown> | string | null;
+  latest_analysis_field_completeness: Record<string, unknown> | string | null;
 }
 
 @Injectable()
@@ -583,11 +586,21 @@ export class PrismaLaneStore implements LaneStore {
     const result = await this.requireExecutor().query<ArtifactRow>(
       `
         SELECT
-          id,
-          artifact_type,
-          file_name,
-          metadata
-        FROM evidence_artifacts
+          artifacts.id,
+          artifacts.artifact_type,
+          artifacts.file_name,
+          artifacts.metadata,
+          analysis.document_label AS latest_analysis_document_label,
+          analysis.extracted_fields AS latest_analysis_extracted_fields,
+          analysis.field_completeness AS latest_analysis_field_completeness
+        FROM evidence_artifacts AS artifacts
+        LEFT JOIN LATERAL (
+          SELECT document_label, extracted_fields, field_completeness
+          FROM evidence_artifact_analyses
+          WHERE artifact_id = artifacts.id
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1
+        ) AS analysis ON TRUE
         WHERE lane_id = $1
           AND deleted_at IS NULL
         ORDER BY uploaded_at ASC, id ASC
@@ -600,6 +613,20 @@ export class PrismaLaneStore implements LaneStore {
       artifactType: row.artifact_type,
       fileName: row.file_name,
       metadata: row.metadata,
+      latestAnalysisDocumentLabel: row.latest_analysis_document_label,
+      latestAnalysisExtractedFields:
+        typeof row.latest_analysis_extracted_fields === 'string'
+          ? (JSON.parse(row.latest_analysis_extracted_fields) as Record<
+              string,
+              unknown
+            >)
+          : row.latest_analysis_extracted_fields,
+      latestAnalysisFieldCompleteness:
+        typeof row.latest_analysis_field_completeness === 'string'
+          ? (JSON.parse(
+              row.latest_analysis_field_completeness,
+            ) as RuleLaneArtifact['latestAnalysisFieldCompleteness'])
+          : (row.latest_analysis_field_completeness as RuleLaneArtifact['latestAnalysisFieldCompleteness']),
     }));
   }
 

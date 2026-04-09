@@ -68,4 +68,17 @@ describe('lane creation scenario support filters', () => {
       ),
     ).toBe(false);
   });
+
+  it('treats eu mangosteen as supported live coverage', () => {
+    expect(
+      LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'mangosteen-eu-truck',
+      ),
+    ).toBe(true);
+    expect(
+      UNSUPPORTED_LIVE_LANE_CREATION_SCENARIOS.some(
+        (scenario) => scenario.name === 'mangosteen-eu-truck',
+      ),
+    ).toBe(false);
+  });
 });

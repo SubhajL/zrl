@@ -502,6 +502,9 @@ export class PrismaEvidenceStore implements EvidenceArtifactStore {
       artifactType: row.artifact_type,
       fileName: row.file_name,
       metadata: row.metadata,
+      latestAnalysisDocumentLabel: row.latest_analysis_document_label,
+      latestAnalysisExtractedFields: row.latest_analysis_extracted_fields,
+      latestAnalysisFieldCompleteness: row.latest_analysis_field_completeness,
     }));
   }
 

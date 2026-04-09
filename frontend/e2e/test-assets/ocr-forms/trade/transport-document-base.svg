@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
+  <rect width="1800" height="1200" fill="#ffffff" />
+  <text x="80" y="110" font-family="Arial" font-size="52" font-weight="700" fill="#111111">TRANSPORT DOCUMENT</text>
+  <text x="80" y="210" font-family="Arial" font-size="34" fill="#111111">Transport document number: AWB-217-2026-8891</text>
+  <text x="80" y="290" font-family="Arial" font-size="34" fill="#111111">Transport mode: Air freight</text>
+  <text x="80" y="370" font-family="Arial" font-size="34" fill="#111111">Carrier name: Thai Airways Cargo</text>
+  <text x="80" y="450" font-family="Arial" font-size="34" fill="#111111">Shipper name: Thai Orchard Export Co., Ltd.</text>
+  <text x="80" y="530" font-family="Arial" font-size="34" fill="#111111">Consignee name: Global Fresh Produce Importers</text>
+  <text x="80" y="610" font-family="Arial" font-size="34" fill="#111111">Departure point: Bangkok</text>
+  <text x="80" y="690" font-family="Arial" font-size="34" fill="#111111">Arrival point: Tokyo Narita</text>
+  <text x="80" y="770" font-family="Arial" font-size="34" fill="#111111">Goods description: Fresh tropical fruit export consignment</text>
+  <text x="80" y="850" font-family="Arial" font-size="34" fill="#111111">Package count: 420</text>
+  <text x="80" y="930" font-family="Arial" font-size="34" fill="#111111">Gross weight: 5100 kg | Issue date: 07 April 2026</text>
+</svg>

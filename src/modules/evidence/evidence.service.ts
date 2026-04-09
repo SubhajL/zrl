@@ -380,7 +380,32 @@ export class EvidenceService {
     const artifact = await this.requireArtifact(id);
     this.assertLaneAccess(artifact.exporterId, actor);
 
-    await this.runArtifactAnalysis(artifact);
+    const lane = await this.store.findLaneById(artifact.laneId);
+    const analysis = await this.runArtifactAnalysis(
+      artifact,
+      lane ?? undefined,
+    );
+
+    if (analysis === null) {
+      return await this.getArtifact(id, actor);
+    }
+
+    if (lane !== null) {
+      const completeness = await this.refreshLaneComplianceAfterAnalysis(
+        lane,
+        artifact,
+        analysis,
+      );
+
+      await this.realtimeEvents.publishEvidenceUploaded({
+        laneId: artifact.laneId,
+        artifactId: artifact.id,
+        type: artifact.artifactType,
+        completeness,
+      });
+
+      await this.reconcileLaneTransitionsAfterUpload(lane, actor.id);
+    }
 
     return await this.getArtifact(id, actor);
   }
@@ -674,13 +699,28 @@ export class EvidenceService {
 
       await this.autoVerifyArtifactAfterUpload(artifact, actor);
       await this.autoVerifyLaneGraphAfterUpload(lane.id, actor);
-      await this.autoAnalyzeArtifactAfterUpload(artifact, lane);
-      await this.notifyCertificationAlertAfterUpload(lane, artifact);
+      const analysis = await this.autoAnalyzeArtifactAfterUpload(
+        artifact,
+        lane,
+      );
+      const refreshedCompleteness =
+        analysis === null
+          ? completeness
+          : await this.refreshLaneComplianceAfterAnalysis(
+              lane,
+              artifact,
+              analysis,
+            );
+
+      if (analysis === null) {
+        await this.notifyCertificationAlertAfterUpload(lane, artifact, null);
+      }
+
       await this.realtimeEvents.publishEvidenceUploaded({
         laneId: artifact.laneId,
         artifactId: artifact.id,
         type: artifact.artifactType,
-        completeness,
+        completeness: refreshedCompleteness,
       });
 
       await this.reconcileLaneTransitionsAfterUpload(lane, actor.id);
@@ -726,6 +766,7 @@ export class EvidenceService {
       laneId: string;
     },
     artifact: EvidenceArtifactRecord,
+    analysis: { extractedFields: Record<string, unknown> | null } | null,
   ) {
     if (!isCertificationArtifactType(artifact.artifactType)) {
       return;
@@ -740,6 +781,7 @@ export class EvidenceService {
           artifactType: artifact.artifactType,
           fileName: artifact.fileName,
           metadata: artifact.metadata,
+          latestAnalysisExtractedFields: analysis?.extractedFields ?? null,
         },
       });
     } catch (error) {
@@ -798,7 +840,7 @@ export class EvidenceService {
     lane: EvidenceLaneRecord,
   ) {
     try {
-      await this.runArtifactAnalysis(artifact, lane);
+      return await this.runArtifactAnalysis(artifact, lane);
     } catch (error) {
       const message =
         error instanceof Error
@@ -809,7 +851,31 @@ export class EvidenceService {
         `Automatic artifact analysis failed for artifact ${artifact.id}: ${message}`,
         stack,
       );
+      return null;
     }
+  }
+
+  private async refreshLaneComplianceAfterAnalysis(
+    lane: EvidenceLaneRecord,
+    artifact: EvidenceArtifactRecord,
+    analysis: { extractedFields: Record<string, unknown> | null } | null,
+  ): Promise<number> {
+    let completeness =
+      typeof lane.completenessScore === 'number' ? lane.completenessScore : 0;
+
+    if (lane.ruleSnapshot !== null && lane.ruleSnapshot !== undefined) {
+      const artifacts = await this.store.listArtifactsForEvaluation(lane.id);
+      const evaluation = this.rulesEngineService.evaluateLane(
+        lane.ruleSnapshot,
+        artifacts,
+      );
+      await this.store.updateLaneCompletenessScore(lane.id, evaluation.score);
+      completeness = evaluation.score;
+    }
+
+    await this.notifyCertificationAlertAfterUpload(lane, artifact, analysis);
+
+    return completeness;
   }
 
   private async requireArtifact(id: string) {
