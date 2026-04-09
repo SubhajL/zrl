@@ -506,16 +506,23 @@ describe('LaneService', () => {
 
     await service.getCompleteness('lane-db-1');
 
-    expect(evaluateLaneMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.arrayContaining([
-        expect.objectContaining({
-          latestAnalysisFieldCompleteness: expect.objectContaining({
-            supported: false,
-          }),
-        }),
-      ]),
-    );
+    const evaluateLaneCalls = evaluateLaneMock.mock.calls as Array<
+      [
+        unknown,
+        Array<{
+          latestAnalysisFieldCompleteness?: {
+            supported: boolean;
+          } | null;
+        }>,
+      ]
+    >;
+    const evaluatedArtifacts = evaluateLaneCalls[0]?.[1] ?? [];
+
+    expect(
+      evaluatedArtifacts[0]?.latestAnalysisFieldCompleteness,
+    ).toMatchObject({
+      supported: false,
+    });
   });
 
   it('returns lane detail from the store', async () => {

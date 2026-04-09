@@ -53,7 +53,13 @@ function assertStringArray(value: unknown, label: string): string[] {
     throw new Error(`Invalid OCR fixture manifest ${label}.`);
   }
 
-  return value;
+  return value.map((entry) => {
+    if (typeof entry !== 'string') {
+      throw new Error(`Invalid OCR fixture manifest ${label}.`);
+    }
+
+    return entry;
+  });
 }
 
 function parseExpectedFieldCompleteness(

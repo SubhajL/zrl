@@ -645,21 +645,20 @@ describeIfDatabase('PrismaEvidenceStore (db-backed)', () => {
     try {
       const artifacts = await store.listArtifactsForEvaluation(laneId);
 
-      expect(artifacts).toEqual([
-        expect.objectContaining({
-          id: artifactId,
-          artifactType: 'MRL_TEST',
-          latestAnalysisDocumentLabel: 'MRL Test Results',
-          latestAnalysisExtractedFields: expect.objectContaining({
-            reportNumber: 'MRL-2026-0007',
-            laboratoryName: 'Thai Central Lab',
-          }),
-          latestAnalysisFieldCompleteness: expect.objectContaining({
-            supported: true,
-            presentFieldKeys: ['reportNumber'],
-          }),
-        }),
-      ]);
+      expect(artifacts).toHaveLength(1);
+      expect(artifacts[0]?.id).toBe(artifactId);
+      expect(artifacts[0]?.artifactType).toBe('MRL_TEST');
+      expect(artifacts[0]?.latestAnalysisDocumentLabel).toBe(
+        'MRL Test Results',
+      );
+      expect(artifacts[0]?.latestAnalysisExtractedFields).toMatchObject({
+        reportNumber: 'MRL-2026-0007',
+        laboratoryName: 'Thai Central Lab',
+      });
+      expect(artifacts[0]?.latestAnalysisFieldCompleteness).toMatchObject({
+        supported: true,
+        presentFieldKeys: ['reportNumber'],
+      });
     } finally {
       await db.query(
         'DELETE FROM evidence_artifact_analyses WHERE artifact_id = $1',

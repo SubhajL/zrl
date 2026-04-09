@@ -1295,21 +1295,31 @@ describe('EvidenceService', () => {
       },
     );
 
+    const certificationAlertCalls = rulesEngineService
+      .notifyCertificationAlertForArtifact.mock.calls as Array<
+      [
+        {
+          artifact: {
+            id: string;
+            artifactType: string;
+            metadata: Record<string, unknown> | null;
+            latestAnalysisExtractedFields: Record<string, unknown> | null;
+          };
+        },
+      ]
+    >;
+    const certificationAlertCall = certificationAlertCalls[0]?.[0];
+    expect(certificationAlertCall).toBeDefined();
+    expect(certificationAlertCall?.artifact).toBeDefined();
+    expect(certificationAlertCall?.artifact.id).toBe('artifact-ocr-expiry');
+    expect(certificationAlertCall?.artifact.artifactType).toBe('GAP_CERT');
+    expect(certificationAlertCall?.artifact.metadata).toBeNull();
     expect(
-      rulesEngineService.notifyCertificationAlertForArtifact,
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        artifact: expect.objectContaining({
-          id: 'artifact-ocr-expiry',
-          artifactType: 'GAP_CERT',
-          metadata: null,
-          latestAnalysisExtractedFields: {
-            certificateNumber: 'GAP-2026-2301',
-            expiryDate: '2026-03-01',
-          },
-        }),
-      }),
-    );
+      certificationAlertCall?.artifact.latestAnalysisExtractedFields,
+    ).toEqual({
+      certificateNumber: 'GAP-2026-2301',
+      expiryDate: '2026-03-01',
+    });
   });
 
   it('uploadArtifact passes OCR-derived lab analysis fields into lane evaluation inputs for MRL artifacts', async () => {
@@ -1405,18 +1415,37 @@ describe('EvidenceService', () => {
 
     expect(rulesEngineService.evaluateLane).toHaveBeenCalledWith(
       expect.anything(),
+      expect.any(Array),
+    );
+    const evaluateLaneCalls = rulesEngineService.evaluateLane.mock
+      .calls as Array<
+      [
+        unknown,
+        Array<{
+          id: string;
+          artifactType: string;
+          latestAnalysisDocumentLabel?: string | null;
+          latestAnalysisExtractedFields?: Record<string, unknown> | null;
+        }>,
+      ]
+    >;
+    const evaluatedArtifactsForMrl = evaluateLaneCalls[0]?.[1] ?? [];
+    expect(evaluatedArtifactsForMrl).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'artifact-mrl-ocr',
           artifactType: 'MRL_TEST',
           latestAnalysisDocumentLabel: 'MRL Test Results',
-          latestAnalysisExtractedFields: expect.objectContaining({
-            reportNumber: 'MRL-2026-0007',
-            laboratoryName: 'Thai Central Lab',
-          }),
         }),
       ]),
     );
+    const mrlArtifact = evaluatedArtifactsForMrl.find(
+      (artifact) => artifact.id === 'artifact-mrl-ocr',
+    );
+    expect(mrlArtifact?.latestAnalysisExtractedFields).toMatchObject({
+      reportNumber: 'MRL-2026-0007',
+      laboratoryName: 'Thai Central Lab',
+    });
   });
 
   it('uploadArtifact passes OCR document labels into lane evaluation inputs for invoice-family artifacts', async () => {
@@ -2118,22 +2147,30 @@ describe('EvidenceService', () => {
       sessionVersion: 0,
     });
 
-    expect(
-      rulesEngineService.notifyCertificationAlertForArtifact,
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        laneId: 'lane-db-1',
-        lanePublicId: 'LN-2026-001',
-        artifact: expect.objectContaining({
-          id: 'artifact-cert-1',
-          artifactType: 'PHYTO_CERT',
-          latestAnalysisExtractedFields: {
-            certificateNumber: 'JP-MG-PHYTO-2026-0001',
-            expiryDate: '2026-03-01',
-          },
-        }),
-      }),
-    );
+    const recheckAlertCalls = rulesEngineService
+      .notifyCertificationAlertForArtifact.mock.calls as Array<
+      [
+        {
+          laneId: string;
+          lanePublicId: string;
+          artifact: {
+            id: string;
+            artifactType: string;
+            latestAnalysisExtractedFields: Record<string, unknown> | null;
+          };
+        },
+      ]
+    >;
+    const recheckAlertCall = recheckAlertCalls[0]?.[0];
+    expect(recheckAlertCall?.laneId).toBe('lane-db-1');
+    expect(recheckAlertCall?.lanePublicId).toBe('LN-2026-001');
+    expect(recheckAlertCall?.artifact).toBeDefined();
+    expect(recheckAlertCall?.artifact.id).toBe('artifact-cert-1');
+    expect(recheckAlertCall?.artifact.artifactType).toBe('PHYTO_CERT');
+    expect(recheckAlertCall?.artifact.latestAnalysisExtractedFields).toEqual({
+      certificateNumber: 'JP-MG-PHYTO-2026-0001',
+      expiryDate: '2026-03-01',
+    });
   });
 
   it('reanalyzeArtifact returns without refresh side effects when analysis is unavailable', async () => {

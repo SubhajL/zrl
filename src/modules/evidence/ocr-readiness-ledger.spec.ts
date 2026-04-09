@@ -9,36 +9,27 @@ describe('OCR readiness ledger', () => {
     expect(ledger.entries).toHaveLength(75);
     expect(ledger.fullyReadySlots).toBeGreaterThan(0);
 
-    expect(ledger.entries).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          combo: 'JAPAN/MANGO',
-          documentLabel: 'Phytosanitary Certificate',
-          ready: true,
-          browserProof: expect.objectContaining({
-            status: 'COMPLETE',
-          }),
-        }),
-        expect.objectContaining({
-          combo: 'EU/MANGO',
-          documentLabel: 'GAP Certificate',
-          ready: true,
-          browserProof: expect.objectContaining({
-            status: 'COMPLETE',
-          }),
-        }),
-        expect.objectContaining({
-          combo: 'KOREA/MANGO',
-          documentLabel: 'VHT Certificate',
-          classifierProof: expect.objectContaining({
-            status: 'COMPLETE',
-          }),
-          browserProof: expect.objectContaining({
-            status: 'COMPLETE',
-          }),
-        }),
-      ]),
+    const japanMangoPhyto = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'JAPAN/MANGO' &&
+        entry.documentLabel === 'Phytosanitary Certificate',
     );
+    const euMangoGap = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'EU/MANGO' && entry.documentLabel === 'GAP Certificate',
+    );
+    const koreaMangoVht = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'KOREA/MANGO' &&
+        entry.documentLabel === 'VHT Certificate',
+    );
+
+    expect(japanMangoPhyto?.ready).toBe(true);
+    expect(japanMangoPhyto?.browserProof.status).toBe('COMPLETE');
+    expect(euMangoGap?.ready).toBe(true);
+    expect(euMangoGap?.browserProof.status).toBe('COMPLETE');
+    expect(koreaMangoVht?.classifierProof.status).toBe('COMPLETE');
+    expect(koreaMangoVht?.browserProof.status).toBe('COMPLETE');
   });
 
   it('marks every slot blocked when any proof layer is not complete', async () => {
@@ -60,17 +51,17 @@ describe('OCR readiness ledger', () => {
   it('includes base and combo-specific required fields for override-bearing slots', async () => {
     const ledger = await buildOcrReadinessLedger();
 
-    expect(ledger.entries).toEqual(
+    const japanMangoPhyto = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'JAPAN/MANGO' &&
+        entry.documentLabel === 'Phytosanitary Certificate',
+    );
+
+    expect(japanMangoPhyto?.requiredFieldKeys).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          combo: 'JAPAN/MANGO',
-          documentLabel: 'Phytosanitary Certificate',
-          requiredFieldKeys: expect.arrayContaining([
-            'certificateNumber',
-            'mustStateFruitFlyFree',
-            'treatmentReference',
-          ]),
-        }),
+        'certificateNumber',
+        'mustStateFruitFlyFree',
+        'treatmentReference',
       ]),
     );
   });
