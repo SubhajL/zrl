@@ -1,0 +1,13 @@
+version: 1
+exceptions:
+  - combo: EU/DURIAN
+    documentLabel: Phytosanitary Certificate
+    status: UNRESOLVED
+    exceptionType: POLICY_DISPUTE
+    phase: 34.10.3
+    summary: External EU plant-health guidance weakens the basis for the current live-rule phytosanitary requirement.
+    reason: The live rule pack still requires a phytosanitary certificate, but `34.10.3` preserved a conflicting external signal that may narrow or remove that requirement.
+    sourceRefs:
+      - docs/OCR-34-10-3-SCOPE-DECISION-LEDGER.md
+      - rules/eu/durian.yaml
+    recommendedAction: Keep the current runtime rule requirement in place for now, but surface this combo-document pair as policy review needed.

@@ -3,6 +3,7 @@ import {
   loadRuleDefinitionFromFile,
 } from '../rules-engine/rule-definition.files';
 import { loadSupportedDocumentMatrix } from './document-matrix';
+import { loadOcrPolicyExceptions } from './ocr-policy-exceptions';
 import { resolve } from 'node:path';
 
 export interface OcrScopeExpansionAuditResult {
@@ -10,6 +11,13 @@ export interface OcrScopeExpansionAuditResult {
   extraRequiredDocumentsOutsideFirstPass: string[];
   requiredDocumentsCoveredByExistingMatrix: string[];
   nonDocumentControlsModeledAsFieldOrRuleConstraints: string[];
+  policyExceptions: Array<{
+    combo: string;
+    documentLabel: string;
+    status: string;
+    exceptionType: string;
+    summary: string;
+  }>;
 }
 
 const NON_DOCUMENT_CONTROL_LABELS = new Set([
@@ -21,9 +29,10 @@ const NON_DOCUMENT_CONTROL_LABELS = new Set([
 ]);
 
 export async function buildOcrScopeExpansionAudit(): Promise<OcrScopeExpansionAuditResult> {
-  const [matrix, files] = await Promise.all([
+  const [matrix, files, policyExceptions] = await Promise.all([
     loadSupportedDocumentMatrix(),
     findRuleYamlFiles(resolve(process.cwd(), 'rules')),
+    loadOcrPolicyExceptions(),
   ]);
 
   const definitions = await Promise.all(
@@ -62,5 +71,12 @@ export async function buildOcrScopeExpansionAudit(): Promise<OcrScopeExpansionAu
       'KOREA/MANGOSTEEN fumigation, registration, and overseas inspection are modeled on the phytosanitary path, not as separate document uploads.',
       'JAPAN/MANGOSTEEN certificate-label control is modeled as phytosanitary/VHT field requirements, not a separate document family.',
     ],
+    policyExceptions: policyExceptions.exceptions.map((entry) => ({
+      combo: entry.combo,
+      documentLabel: entry.documentLabel,
+      status: entry.status,
+      exceptionType: entry.exceptionType,
+      summary: entry.summary,
+    })),
   };
 }

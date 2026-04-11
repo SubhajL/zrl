@@ -19,6 +19,10 @@ describe('OCR fixture manifest helpers', () => {
           documentLabel: 'VHT Certificate',
           artifactType: 'VHT_CERT',
         }),
+        expect.objectContaining({
+          documentLabel: 'Grading Report',
+          artifactType: 'INVOICE',
+        }),
       ]),
     );
   });
@@ -35,6 +39,16 @@ describe('OCR fixture manifest helpers', () => {
     expect(text).toContain(
       'Treatment reference: VHT treatment record VHT-2026-0088 completed before export.',
     );
+  });
+
+  it('extracts deterministic OCR-visible text from the committed grading report fixture', async () => {
+    const text = await loadOcrFixtureText(
+      'frontend/e2e/test-assets/ocr-forms/trade/grading-report-base.svg',
+    );
+
+    expect(text).toContain('GRADING REPORT');
+    expect(text).toContain('Grade class: Premium Export A');
+    expect(text).toContain('Lot or consignment ID: LOT-EXPORT-2026-041');
   });
 
   it('keeps fixture manifest combo applicability aligned with the supported document matrix', async () => {

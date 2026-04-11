@@ -15,6 +15,7 @@ This document reflects the current implemented system as of the current OCR read
 
 - `34.7.1` to `34.7.5`
 - `34.9.1` to `34.9.10`
+- `34.10.1` to `34.10.8`
 
 ## Short Answer
 
@@ -34,25 +35,25 @@ The current system does **not** yet generally support:
 
 ## Current Scope vs Future Scope
 
-| Area                                                                   | Current Version                                                                       | Future / Not Yet Implemented                                                               |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Supported document scope                                               | Current first-pass matrix labels in `rules/document-matrix.yaml`                      | Extra approval/support letters or certificate families only after explicit matrix modeling |
-| Required-document checks                                               | Yes, per supported combo                                                              | Same, but can expand if the matrix expands                                                 |
-| OCR document classification                                            | Yes, for analyzable artifact families                                                 | Broader only if new artifact/document families are added                                   |
-| OCR field completeness                                                 | Yes                                                                                   | Broader semantic/value checks still pending                                                |
-| Combo-specific override fields                                         | Yes, for currently modeled phyto/VHT overrides                                        | Additional overrides only if new matrix requirements are added                             |
-| Certification expiry validation                                        | Yes, metadata first with OCR fallback in limited cases                                | Could be broadened if more cert types/fields are modeled                                   |
-| Trade-document checklist satisfaction                                  | Yes, with metadata first and OCR label fallback                                       | Could be hardened further with more cross-document rules                                   |
-| MRL threshold comparison                                               | Yes, when structured numeric lab data already exists in artifact metadata             | Full OCR-derived numeric extraction and comparison still pending                           |
-| MRL PDF/image-only numeric PASS/FAIL                                   | No, not generally                                                                     | Would require OCR table extraction + numeric normalization + qualifier handling            |
-| Cross-document consistency (dates, shipment refs, linked certificates) | No, not generally                                                                     | Future scope if reconciliation rules are explicitly added                                  |
-| Browser OCR proof                                                      | Yes, exhaustive per-required-document browser proof now exists for the current matrix | Further expansion only if the matrix itself grows                                          |
-| Multiple filled variants per form family                               | Not required for the current first-pass completeness scope                            | Recommended for robustness hardening or stricter readiness                                 |
-| Full document-derived PASS/FAIL from uploads alone                     | No                                                                                    | Requires stronger extraction, reconciliation, and rule-comparison layers                   |
+| Area                                                                   | Current Version                                                                           | Future / Not Yet Implemented                                                               |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Supported document scope                                               | Current first-pass matrix labels in `rules/document-matrix.yaml`                          | Extra approval/support letters or certificate families only after explicit matrix modeling |
+| Required-document checks                                               | Yes, per supported combo                                                                  | Same, but can expand if the matrix expands                                                 |
+| OCR document classification                                            | Yes, for analyzable artifact families                                                     | Broader only if new artifact/document families are added                                   |
+| OCR field completeness                                                 | Yes                                                                                       | Broader semantic/value checks still pending                                                |
+| Combo-specific override fields                                         | Yes, for currently modeled phyto/VHT overrides                                            | Additional overrides only if new matrix requirements are added                             |
+| Certification expiry validation                                        | Yes, metadata first with OCR fallback in limited cases                                    | Could be broadened if more cert types/fields are modeled                                   |
+| Trade-document checklist satisfaction                                  | Yes, with metadata first and OCR label fallback                                           | Could be hardened further with more cross-document rules                                   |
+| MRL threshold comparison                                               | Yes, when structured numeric lab data already exists in artifact metadata                 | Full OCR-derived numeric extraction and comparison still pending                           |
+| MRL PDF/image-only numeric PASS/FAIL                                   | No, not generally                                                                         | Would require OCR table extraction + numeric normalization + qualifier handling            |
+| Cross-document consistency (dates, shipment refs, linked certificates) | No, not generally                                                                         | Future scope if reconciliation rules are explicitly added                                  |
+| Browser OCR proof                                                      | Yes, exhaustive for the current fixture-backed first-pass set, including `Grading Report` | Must expand again when the matrix grows ahead of fixtures/browser proof                    |
+| Multiple filled variants per form family                               | Not required for the current first-pass completeness scope                                | Recommended for robustness hardening or stricter readiness                                 |
+| Full document-derived PASS/FAIL from uploads alone                     | No                                                                                        | Requires stronger extraction, reconciliation, and rule-comparison layers                   |
 
 ### Current conclusion for extra supporting forms/certificates
 
-As of the current first-pass OCR matrix, the modeled standalone OCR document families remain limited to the current matrix labels.
+As of the current first-pass OCR matrix, the modeled standalone OCR document families include `Grading Report` in addition to the earlier baseline labels.
 
 This is a repo-state conclusion, not a claim that the real-world standards can never require more. If later combo-by-combo external research confirms additional supporting forms or approval letters, that expansion should proceed as explicit follow-on scope rather than being silently assumed into the current matrix.
 
@@ -72,6 +73,15 @@ But in the current modeled system these are treated as:
 They are **not** yet grounded as separate upload document families.
 
 At the same time, some live rule-pack required documents still sit outside that first-pass matrix and should be treated as explicit future modeling scope rather than implicitly dismissed.
+
+Current planning state after `34.10.3`:
+
+- `docs/OCR-34-10-3-SCOPE-DECISION-LEDGER.md` records the explicit decision boundary for future matrix work.
+- `Grading Report` has now advanced into matrix modeling via `34.10.4`.
+- operational evidence (`Product Photos`, `Temperature Log`, `SLA Summary`, `Excursion Report`, `Handoff Signatures`) remains outside first-pass OCR document-family scope.
+- unresolved items such as `EU/DURIAN` phyto scope and Korea mangosteen exporter-process paperwork remain deferred until separately closed.
+- machine-readable unresolved OCR/policy exceptions now live in `rules/ocr-policy-exceptions.yaml`; this currently records the `EU/DURIAN` phytosanitary dispute without changing live rule enforcement.
+- `docs/OCR-34-10-8-TRACEABILITY-AUDIT.md` now records the final end-to-end proof that `Grading Report` moved from research through matrix, fixtures, classifier, browser proof, and readiness accounting.
 
 ## Glossary
 
@@ -106,6 +116,12 @@ At the same time, some live rule-pack required documents still sit outside that 
 
 - **Commercial Invoice**
   - Trade invoice for the shipment
+
+- **Grading Report**
+  - Quality/grading evidence currently modeled in the matrix under `INVOICE`
+  - Committed fixture coverage now exists via `34.10.5`
+  - Classifier support now exists via `34.10.6`
+  - Downstream backend checklist proof and browser matrix proof now exist via `34.10.7`
 
 - **Packing List**
   - Package/consignment breakdown document
@@ -489,7 +505,7 @@ To reach the stronger target of true compliance decisions derived from uploaded 
 ### 5. Higher-confidence fixture/test program
 
 - multiple filled variants per form family if robustness to layout/issuer variation is required
-- exhaustive browser proof for every required `combo x document` slot
+- exhaustive browser proof for every fixture-backed `combo x document` slot
 - readiness ledger that tracks proof coverage per slot
 
 ## What “Ready” Means Today vs Stronger Future Version
@@ -500,7 +516,7 @@ To reach the stronger target of true compliance decisions derived from uploaded 
 - committed fixtures exist
 - classifier proof exists
 - backend OCR integration exists in limited, truthful places
-- browser OCR proof exists in representative combo paths
+- browser OCR proof exists exhaustively for the current fixture-backed slot set, including the added `Grading Report` family
 
 ### Stronger future readiness meaning
 

@@ -9,6 +9,10 @@ import type {
   OcrFixtureVariantManifestEntry,
 } from './ocr-fixture-manifest';
 import { loadOcrFixtureManifest } from './ocr-fixture-manifest';
+import {
+  loadOcrPolicyExceptions,
+  type OcrPolicyExceptionEntry,
+} from './ocr-policy-exceptions';
 import type {
   RuleMarket,
   RuleProduct,
@@ -38,6 +42,7 @@ export interface OcrReadinessLedgerEntry {
     status: OcrReadinessProofStatus;
     reason: string;
   };
+  policyExceptions: OcrPolicyExceptionEntry[];
   ready: boolean;
   blockerReasons: string[];
 }
@@ -53,6 +58,7 @@ const BASE_CLASSIFIER_PROVEN_LABELS = new Set([
   'Phytosanitary Certificate',
   'MRL Test Results',
   'GAP Certificate',
+  'Grading Report',
   'Commercial Invoice',
   'Packing List',
   'Transport Document',
@@ -72,6 +78,7 @@ const BACKEND_PROVEN_DOCUMENT_LABELS = new Set([
   'VHT Certificate',
   'GAP Certificate',
   'MRL Test Results',
+  'Grading Report',
   'Commercial Invoice',
   'Packing List',
   'Transport Document',
@@ -80,14 +87,18 @@ const BACKEND_PROVEN_DOCUMENT_LABELS = new Set([
 ]);
 
 function buildBrowserProvenRequiredSlots(
-  matrix: SupportedDocumentMatrix,
+  manifest: OcrFixtureManifest,
 ): Set<string> {
   return new Set(
-    matrix.supportedCombos.flatMap((combo) => {
-      const comboId = comboKey(combo.market, combo.product);
-      return combo.requiredDocuments.map(
-        (documentLabel) => `${comboId}::${documentLabel}`,
+    manifest.documents.flatMap((document) => {
+      const baseSlots = document.applicableCombos.map(
+        (combo) => `${combo}::${document.documentLabel}`,
       );
+      const variantSlots = (document.variants ?? []).map(
+        (variant) => `${variant.combo}::${document.documentLabel}`,
+      );
+
+      return [...baseSlots, ...variantSlots];
     }),
   );
 }
@@ -116,21 +127,22 @@ function getDocumentDefinition(
 function getFixtureEntry(
   manifest: OcrFixtureManifest,
   documentLabel: string,
-): OcrFixtureManifestEntry {
-  const entry = manifest.documents.find(
-    (document) => document.documentLabel === documentLabel,
+): OcrFixtureManifestEntry | null {
+  return (
+    manifest.documents.find(
+      (document) => document.documentLabel === documentLabel,
+    ) ?? null
   );
-  if (!entry) {
-    throw new Error(`Missing OCR fixture entry for ${documentLabel}.`);
-  }
-
-  return entry;
 }
 
 function getVariantEntry(
-  entry: OcrFixtureManifestEntry,
+  entry: OcrFixtureManifestEntry | null,
   combo: `${RuleMarket}/${RuleProduct}`,
 ): OcrFixtureVariantManifestEntry | null {
+  if (entry === null) {
+    return null;
+  }
+
   return entry.variants?.find((variant) => variant.combo === combo) ?? null;
 }
 
@@ -207,11 +219,12 @@ function determineBrowserProof(
 }
 
 export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
-  const [matrix, manifest] = await Promise.all([
+  const [matrix, manifest, policyExceptions] = await Promise.all([
     loadSupportedDocumentMatrix(),
     loadOcrFixtureManifest(),
+    loadOcrPolicyExceptions(),
   ]);
-  const browserProvenRequiredSlots = buildBrowserProvenRequiredSlots(matrix);
+  const browserProvenRequiredSlots = buildBrowserProvenRequiredSlots(manifest);
 
   const entries = matrix.supportedCombos.flatMap((combo) => {
     const comboId = comboKey(combo.market, combo.product);
@@ -230,11 +243,13 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
       );
 
       const fixtureStatus: OcrReadinessLedgerEntry['fixture'] = {
+        // `34.10.4` lets the matrix grow ahead of fixture work; keep that explicit.
         status:
-          variant !== null || fixtureEntry.assetPath.length > 0
+          fixtureEntry !== null &&
+          (variant !== null || fixtureEntry.assetPath.length > 0)
             ? 'COMPLETE'
             : 'MISSING',
-        assetPath: fixtureEntry.assetPath,
+        assetPath: fixtureEntry?.assetPath ?? null,
         variantAssetPath: variant?.assetPath ?? null,
       };
       const classifierProof = determineClassifierProof(
@@ -248,6 +263,10 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
         documentLabel,
         browserProvenRequiredSlots,
       );
+      const applicablePolicyExceptions = policyExceptions.exceptions.filter(
+        (entry) =>
+          entry.combo === comboId && entry.documentLabel === documentLabel,
+      );
       const blockerReasons = [
         fixtureStatus.status !== 'COMPLETE'
           ? 'Missing committed fixture coverage.'
@@ -255,6 +274,9 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
         classifierProof.status !== 'COMPLETE' ? classifierProof.reason : null,
         backendProof.status === 'MISSING' ? backendProof.reason : null,
         browserProof.status !== 'COMPLETE' ? browserProof.reason : null,
+        ...applicablePolicyExceptions.map(
+          (entry) => `Policy exception: ${entry.summary}`,
+        ),
       ].filter((reason): reason is string => reason !== null);
 
       return {
@@ -266,6 +288,7 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
         classifierProof,
         backendProof,
         browserProof,
+        policyExceptions: applicablePolicyExceptions,
         ready: blockerReasons.length === 0,
         blockerReasons,
       } satisfies OcrReadinessLedgerEntry;

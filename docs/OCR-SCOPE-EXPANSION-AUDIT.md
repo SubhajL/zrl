@@ -6,7 +6,7 @@ This document records the current repo-state answer that closed the earlier opti
 
 ## Current Answer
 
-The current first-pass OCR matrix still covers only these standalone OCR document families:
+The current first-pass OCR matrix covers these standalone OCR document families:
 
 The current first-pass OCR matrix labels remain:
 
@@ -14,13 +14,14 @@ The current first-pass OCR matrix labels remain:
 - `VHT Certificate`
 - `MRL Test Results`
 - `GAP Certificate`
+- `Grading Report`
 - `Export License`
 - `Commercial Invoice`
 - `Packing List`
 - `Transport Document`
 - `Delivery Note`
 
-But the live rule packs do contain additional required document labels outside that first-pass matrix, most notably `Grading Report`.
+The live rule packs still contain additional required labels outside that first-pass matrix, but `Grading Report` is no longer one of them after `34.10.4`.
 
 ## What The Repo-State Audit Actually Shows
 
@@ -51,6 +52,7 @@ Examples:
 
 ## What This Means
 
-- The earlier scope-audit step does **not** add new OCR form families in the current repo state.
-- The honest implementation is to record that some required rule-pack document labels remain outside the first-pass matrix and must be researched/modelled explicitly before claiming broader OCR readiness.
+- The earlier scope-audit question is now partly closed: `Grading Report` has been promoted into the matrix.
+- The final end-to-end closure for that promotion is now recorded in `docs/OCR-34-10-8-TRACEABILITY-AUDIT.md`.
+- The honest implementation is still to record that some required rule-pack labels remain outside the fixture/classifier/browser-proven OCR subset and that operational controls should not be invented as standalone document uploads.
 - If new supporting documents are later confirmed through authoritative combo-by-combo research, they must first be added explicitly to `rules/document-matrix.yaml` before entering fixture/classifier/browser/readiness scope.

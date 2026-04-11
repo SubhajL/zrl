@@ -9,7 +9,10 @@ import type {
 
 const RULE_YAML_FILE_PATTERN = /\.(ya?ml)$/i;
 const RULE_DATA_FILE_PATTERN = /\.(ya?ml|csv)$/i;
-const EXCLUDED_RULE_YAML_BASENAMES = new Set(['document-matrix.yaml']);
+const EXCLUDED_RULE_YAML_BASENAMES = new Set([
+  'document-matrix.yaml',
+  'ocr-policy-exceptions.yaml',
+]);
 
 async function findRuleFiles(
   directory: string,
