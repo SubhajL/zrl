@@ -1,6 +1,7 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { of } from 'rxjs';
+import { lastValueFrom, of } from 'rxjs';
 import { HashingService } from '../hashing/hashing.service';
 import { AuditInterceptor } from './audit.interceptor';
 import { AuditService } from './audit.service';
@@ -85,6 +86,99 @@ describe('AuditInterceptor', () => {
     expect((next.handle as jest.Mock).mock.calls).toHaveLength(1);
     expect(hashingService.hashString.mock.calls).toHaveLength(0);
     expect(auditService.createEntry.mock.calls).toHaveLength(0);
+  });
+
+  it('waits for the audit write before completing the response stream', async () => {
+    reflector.getAllAndOverride.mockReturnValue({
+      action: AuditAction.VERIFY,
+      entityType: AuditEntityType.LANE,
+    });
+    hashingService.hashString.mockResolvedValue(
+      '1111111111111111111111111111111111111111111111111111111111111111',
+    );
+
+    let resolveEntry:
+      | ((value: Awaited<ReturnType<AuditService['createEntry']>>) => void)
+      | undefined;
+    auditService.createEntry.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveEntry = resolve;
+        }),
+    );
+
+    const context = createExecutionContext({
+      params: { id: 'lane-1' },
+      user: { id: 'user-1' },
+    });
+    const next: CallHandler = {
+      handle: () => of({ valid: true }),
+    };
+    const onComplete = jest.fn();
+    const completed = new Promise<void>((resolve) => {
+      interceptor.intercept(context, next).subscribe({
+        complete: () => {
+          onComplete();
+          resolve();
+        },
+      });
+    });
+    await flushPromises();
+
+    expect(onComplete).not.toHaveBeenCalled();
+
+    resolveEntry?.({
+      id: 'audit-1',
+      timestamp: new Date('2026-03-21T00:00:00.000Z'),
+      actor: 'user-1',
+      action: AuditAction.VERIFY,
+      entityType: AuditEntityType.LANE,
+      entityId: 'lane-1',
+      payloadHash:
+        '1111111111111111111111111111111111111111111111111111111111111111',
+      prevHash:
+        '2222222222222222222222222222222222222222222222222222222222222222',
+      entryHash:
+        '3333333333333333333333333333333333333333333333333333333333333333',
+    });
+    await completed;
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs audit write failures without failing the response', async () => {
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    reflector.getAllAndOverride.mockReturnValue({
+      action: AuditAction.VERIFY,
+      entityType: AuditEntityType.LANE,
+    });
+    hashingService.hashString.mockResolvedValue(
+      '1111111111111111111111111111111111111111111111111111111111111111',
+    );
+    auditService.createEntry.mockRejectedValue(new Error('audit write failed'));
+
+    const context = createExecutionContext({
+      params: { id: 'lane-1' },
+      user: { id: 'user-1' },
+    });
+    const next: CallHandler = {
+      handle: () => of({ valid: true }),
+    };
+
+    await expect(
+      lastValueFrom(interceptor.intercept(context, next)),
+    ).resolves.toEqual({
+      valid: true,
+    });
+    expect(loggerError).toHaveBeenCalledWith(
+      'audit write failed',
+      expect.any(String),
+    );
+
+    loggerError.mockRestore();
   });
 });
 

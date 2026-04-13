@@ -130,12 +130,9 @@ export const OCR_BROWSER_READINESS_SLOTS: readonly BrowserReadySlot[] =
           (entry) => entry.combo === combo,
         );
         const fixturePath = variant?.assetPath ?? manifestEntry.assetPath;
-        const expectedPresentFieldKeys = Array.from(
-          new Set([
-            ...manifestEntry.expectedFieldCompleteness.presentFieldKeys,
-            ...(variant?.expectedFieldCompleteness.presentFieldKeys ?? []),
-          ]),
-        );
+        const expectedPresentFieldKeys =
+          variant?.expectedFieldCompleteness.presentFieldKeys ??
+          manifestEntry.expectedFieldCompleteness.presentFieldKeys;
 
         return {
           combo,

@@ -421,7 +421,11 @@ export function TabEvidence({
                   fieldCompleteness?.expectedFieldKeys.length ?? 0;
 
                 return (
-                  <div key={artifactType} className="space-y-1">
+                  <div
+                    key={artifactType}
+                    className="space-y-1"
+                    data-testid={`evidence-artifact-${artifact.id}`}
+                  >
                     <div className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors">
                       <StatusIcon status={artifact.verificationStatus} />
                       <span className="text-sm font-medium flex-1 truncate">

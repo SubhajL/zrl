@@ -55,6 +55,14 @@ describe('TabEvidence', () => {
   });
 
   describe('with onUpload prop', () => {
+    it('renders a stable test hook for existing artifact cards', () => {
+      render(<TabEvidence evidence={[buildArtifact()]} />);
+
+      expect(
+        screen.getByTestId('evidence-artifact-artifact-1'),
+      ).toBeInTheDocument();
+    });
+
     it('renders upload zones as interactive with cursor-pointer', () => {
       const onUpload = jest.fn().mockResolvedValue(undefined);
       render(<TabEvidence evidence={[]} onUpload={onUpload} />);

@@ -215,13 +215,15 @@
           "packageDescription",
           "placeOfOrigin",
           "meansOfConveyance",
+          "declaredPointOfEntry",
           "commodityDescription",
           "botanicalName",
           "additionalDeclarations",
           "issueDate",
-          "authorizedOfficer"
+          "authorizedOfficer",
+          "officialSealOrSignature"
         ],
-        "missingFieldKeys": ["declaredPointOfEntry", "officialSealOrSignature"],
+        "missingFieldKeys": [],
         "lowConfidenceFieldKeys": [],
         "unsupportedFieldKeys": []
       },
@@ -242,7 +244,24 @@
           "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-japan-mango.svg",
           "requiredFieldKeys": ["mustStateFruitFlyFree", "treatmentReference"],
           "expectedFieldCompleteness": {
-            "presentFieldKeys": ["mustStateFruitFlyFree", "treatmentReference"],
+            "presentFieldKeys": [
+              "certificateNumber",
+              "issuingAuthority",
+              "exporterName",
+              "consigneeName",
+              "packageDescription",
+              "placeOfOrigin",
+              "meansOfConveyance",
+              "declaredPointOfEntry",
+              "commodityDescription",
+              "botanicalName",
+              "additionalDeclarations",
+              "issueDate",
+              "authorizedOfficer",
+              "officialSealOrSignature",
+              "mustStateFruitFlyFree",
+              "treatmentReference"
+            ],
             "missingFieldKeys": [],
             "lowConfidenceFieldKeys": [],
             "unsupportedFieldKeys": []
@@ -254,6 +273,20 @@
           "requiredFieldKeys": ["packageMarkingForJapan", "treatmentReference"],
           "expectedFieldCompleteness": {
             "presentFieldKeys": [
+              "certificateNumber",
+              "issuingAuthority",
+              "exporterName",
+              "consigneeName",
+              "packageDescription",
+              "placeOfOrigin",
+              "meansOfConveyance",
+              "declaredPointOfEntry",
+              "commodityDescription",
+              "botanicalName",
+              "additionalDeclarations",
+              "issueDate",
+              "authorizedOfficer",
+              "officialSealOrSignature",
               "packageMarkingForJapan",
               "treatmentReference"
             ],
@@ -267,7 +300,24 @@
           "assetPath": "frontend/e2e/test-assets/ocr-forms/official/phytosanitary-certificate-korea-mangosteen.svg",
           "requiredFieldKeys": ["fumigationDetails", "treatmentReference"],
           "expectedFieldCompleteness": {
-            "presentFieldKeys": ["fumigationDetails", "treatmentReference"],
+            "presentFieldKeys": [
+              "certificateNumber",
+              "issuingAuthority",
+              "exporterName",
+              "consigneeName",
+              "packageDescription",
+              "placeOfOrigin",
+              "meansOfConveyance",
+              "declaredPointOfEntry",
+              "commodityDescription",
+              "botanicalName",
+              "additionalDeclarations",
+              "issueDate",
+              "authorizedOfficer",
+              "officialSealOrSignature",
+              "fumigationDetails",
+              "treatmentReference"
+            ],
             "missingFieldKeys": [],
             "lowConfidenceFieldKeys": [],
             "unsupportedFieldKeys": []
@@ -337,7 +387,20 @@
           "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-japan-mango.svg",
           "requiredFieldKeys": ["allowedVariety", "maffVerificationReference"],
           "expectedFieldCompleteness": {
-            "presentFieldKeys": ["allowedVariety", "maffVerificationReference"],
+            "presentFieldKeys": [
+              "treatmentRecordNumber",
+              "commodityName",
+              "lotOrConsignmentId",
+              "treatmentFacility",
+              "treatmentDate",
+              "treatmentMethod",
+              "targetCoreTemperatureC",
+              "holdMinutes",
+              "operatorOrInspector",
+              "linkedPhytoCertificateNumber",
+              "allowedVariety",
+              "maffVerificationReference"
+            ],
             "missingFieldKeys": [],
             "lowConfidenceFieldKeys": [],
             "unsupportedFieldKeys": []
@@ -348,7 +411,20 @@
           "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-japan-mangosteen.svg",
           "requiredFieldKeys": ["coolingRequirement", "humidityRequirement"],
           "expectedFieldCompleteness": {
-            "presentFieldKeys": ["coolingRequirement", "humidityRequirement"],
+            "presentFieldKeys": [
+              "treatmentRecordNumber",
+              "commodityName",
+              "lotOrConsignmentId",
+              "treatmentFacility",
+              "treatmentDate",
+              "treatmentMethod",
+              "targetCoreTemperatureC",
+              "holdMinutes",
+              "operatorOrInspector",
+              "linkedPhytoCertificateNumber",
+              "coolingRequirement",
+              "humidityRequirement"
+            ],
             "missingFieldKeys": [],
             "lowConfidenceFieldKeys": [],
             "unsupportedFieldKeys": []
@@ -359,7 +435,19 @@
           "assetPath": "frontend/e2e/test-assets/ocr-forms/treatment/vht-certificate-korea-mango.svg",
           "requiredFieldKeys": ["overseasInspectionReference"],
           "expectedFieldCompleteness": {
-            "presentFieldKeys": ["overseasInspectionReference"],
+            "presentFieldKeys": [
+              "treatmentRecordNumber",
+              "commodityName",
+              "lotOrConsignmentId",
+              "treatmentFacility",
+              "treatmentDate",
+              "treatmentMethod",
+              "targetCoreTemperatureC",
+              "holdMinutes",
+              "operatorOrInspector",
+              "linkedPhytoCertificateNumber",
+              "overseasInspectionReference"
+            ],
             "missingFieldKeys": [],
             "lowConfidenceFieldKeys": [],
             "unsupportedFieldKeys": []

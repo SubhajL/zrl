@@ -238,7 +238,11 @@ async function seedEmissionFactors() {
     await prisma.emissionFactor.upsert({
       where: {
         product_market_transportMode: {
-          product: factor.product as 'MANGO' | 'DURIAN' | 'MANGOSTEEN' | 'LONGAN',
+          product: factor.product as
+            | 'MANGO'
+            | 'DURIAN'
+            | 'MANGOSTEEN'
+            | 'LONGAN',
           market: factor.market as 'JAPAN' | 'CHINA' | 'KOREA' | 'EU',
           transportMode: factor.transportMode as 'AIR' | 'SEA' | 'TRUCK',
         },
@@ -306,6 +310,9 @@ async function seedSampleLane(exporterId: string) {
             ],
           },
         });
+        await tx.evidenceArtifactAnalysis.deleteMany({
+          where: { artifactId: { in: artifactIds } },
+        });
       }
 
       await tx.notification.deleteMany({ where: { laneId: existingLane.id } });
@@ -313,7 +320,9 @@ async function seedSampleLane(exporterId: string) {
         where: { laneId: existingLane.id },
       });
       await tx.proofPack.deleteMany({ where: { laneId: existingLane.id } });
-      await tx.evidenceArtifact.deleteMany({ where: { laneId: existingLane.id } });
+      await tx.evidenceArtifact.deleteMany({
+        where: { laneId: existingLane.id },
+      });
       await tx.temperatureReading.deleteMany({
         where: { laneId: existingLane.id },
       });
