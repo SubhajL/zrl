@@ -4,6 +4,7 @@
 
 <!-- Append entries here. Format: date | what was done | what's next -->
 
+2026-04-13 13:15 ICT | Fixed `prisma/seed.ts` reseed ordering so Playwright local startup can delete `evidence_artifact_analyses` before `evidence_artifacts`; repeated `db:seed`, the full OCR matrix Playwright suite, and a follow-up smoke run now pass from the clean PR branch | Push the seed fix, refresh the PR, and merge to `main`
 2026-03-21 13:17 ICT | Installed global Claude hooks, connected project-scoped taskmaster-ai in core mode, and created Coding Log scaffolding | Initialize Task Master tasks from docs/PRD.md
 2026-03-21 13:24 ICT | Added root AGENTS.md tailored to the current docs-first repo and existing harness | Add subdirectory AGENTS.md files after real scaffolding exists
 2026-03-21 13:48 ICT | Added three Codex Task Master skills in `~/.codex/skills` for init, next-task, and status workflows | Forward-test the new skills against the ZRL repo workflow
