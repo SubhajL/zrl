@@ -1,14 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
-  <rect width="1800" height="1200" fill="#ffffff" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1520" viewBox="0 0 1800 1520">
+  <rect width="1800" height="1520" fill="#ffffff" />
   <text x="80" y="110" font-family="Arial" font-size="52" font-weight="700" fill="#111111">PHYTOSANITARY CERTIFICATE</text>
   <text x="80" y="210" font-family="Arial" font-size="34" fill="#111111">Certificate No: KR-MT-PHYTO-2026-0004</text>
   <text x="80" y="290" font-family="Arial" font-size="34" fill="#111111">Exporter: Southern Orchard Export House</text>
   <text x="80" y="370" font-family="Arial" font-size="34" fill="#111111">Consignee: Seoul Fresh Import Logistics</text>
-  <text x="80" y="450" font-family="Arial" font-size="34" fill="#111111">Place of origin: Yala, Thailand</text>
-  <text x="80" y="530" font-family="Arial" font-size="34" fill="#111111">Botanical name: Garcinia mangostana</text>
-  <text x="80" y="610" font-family="Arial" font-size="34" fill="#111111">Additional declarations: Methyl bromide fumigation completed before export.</text>
-  <text x="80" y="690" font-family="Arial" font-size="34" fill="#111111">Treatment reference: Fumigation log MB-2026-031 and plant quarantine release noted.</text>
-  <text x="80" y="770" font-family="Arial" font-size="34" fill="#111111">Fumigation details: Methyl bromide 32 g/m3 for 2 hours at 21 C.</text>
-  <text x="80" y="850" font-family="Arial" font-size="34" fill="#111111">Issuing authority: Department of Agriculture Thailand</text>
-  <text x="80" y="930" font-family="Arial" font-size="34" fill="#111111">Date of issue: 08 April 2026</text>
+  <text x="80" y="450" font-family="Arial" font-size="34" fill="#111111">Package description: Export cartons with fumigation release tags</text>
+  <text x="80" y="530" font-family="Arial" font-size="34" fill="#111111">Place of origin: Yala, Thailand</text>
+  <text x="80" y="610" font-family="Arial" font-size="34" fill="#111111">Means of conveyance: Air freight TG Cargo 908</text>
+  <text x="80" y="690" font-family="Arial" font-size="34" fill="#111111">Declared point of entry: Incheon International Airport</text>
+  <text x="80" y="770" font-family="Arial" font-size="34" fill="#111111">Commodity description: Fresh mangosteen consignment</text>
+  <text x="80" y="850" font-family="Arial" font-size="34" fill="#111111">Botanical name: Garcinia mangostana</text>
+  <text x="80" y="930" font-family="Arial" font-size="34" fill="#111111">Additional declarations: Methyl bromide fumigation completed before export.</text>
+  <text x="80" y="1010" font-family="Arial" font-size="34" fill="#111111">Treatment reference: Fumigation log MB-2026-031 and plant quarantine release noted.</text>
+  <text x="80" y="1090" font-family="Arial" font-size="34" fill="#111111">Fumigation details: Methyl bromide 32 g/m3 for 2 hours at 21 C.</text>
+  <text x="80" y="1170" font-family="Arial" font-size="34" fill="#111111">Issuing authority: Department of Agriculture Thailand</text>
+  <text x="80" y="1250" font-family="Arial" font-size="34" fill="#111111">Date of issue: 08 April 2026</text>
+  <text x="80" y="1330" font-family="Arial" font-size="34" fill="#111111">Authorized officer: Plant Quarantine Officer</text>
+  <text x="80" y="1410" font-family="Arial" font-size="34" fill="#111111">Official seal or signature: Department of Agriculture embossed seal and signed original</text>
 </svg>

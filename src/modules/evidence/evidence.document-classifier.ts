@@ -76,10 +76,12 @@ function extractCommonFields(
   return {
     certificateNumber:
       stringFromMetadata(metadata, 'certificateNumber') ??
-      findRegexValue(text, [
-        /certificate\s*(?:no\.?|number)\s*[:#]?\s*([^\n]+)/i,
-        /cert(?:ificate)?\s*#\s*([^\n]+)/i,
-      ]),
+      (input.artifactType === 'VHT_CERT'
+        ? undefined
+        : findRegexValue(text, [
+            /certificate\s*(?:no\.?|number)\s*[:#]?\s*([^\n]+)/i,
+            /cert(?:ificate)?\s*#\s*([^\n]+)/i,
+          ])),
     exporterName:
       stringFromMetadata(metadata, 'exporterName') ??
       findRegexValue(text, [
@@ -108,6 +110,11 @@ function extractCommonFields(
     meansOfConveyance:
       stringFromMetadata(metadata, 'meansOfConveyance') ??
       findRegexValue(text, [/means\s+of\s+conveyance\s*[:#]?\s*([^\n]+)/i]),
+    declaredPointOfEntry:
+      stringFromMetadata(metadata, 'declaredPointOfEntry') ??
+      findRegexValue(text, [
+        /declared\s+point\s+of\s+entry\s*[:#]?\s*([^\n]+)/i,
+      ]),
     packageDescription:
       (input.artifactType === 'PHYTO_CERT'
         ? stringFromMetadata(metadata, 'packageDescription')
@@ -140,6 +147,13 @@ function extractCommonFields(
         ? stringFromMetadata(metadata, 'authorizedOfficer')
         : undefined) ??
       findRegexValue(text, [/authorized\s+officer\s*[:#]?\s*([^\n]+)/i]),
+    officialSealOrSignature:
+      (input.artifactType === 'PHYTO_CERT'
+        ? stringFromMetadata(metadata, 'officialSealOrSignature')
+        : undefined) ??
+      findRegexValue(text, [
+        /official\s+seal\s+or\s+signature\s*[:#]?\s*([^\n]+)/i,
+      ]),
     treatmentRecordNumber:
       stringFromMetadata(metadata, 'treatmentRecordNumber') ??
       findRegexValue(text, [

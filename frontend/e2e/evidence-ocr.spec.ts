@@ -30,7 +30,7 @@ test('evidence tab renders OCR field completeness after uploading a formal docum
     ),
   });
 
-  const analysis = await waitForArtifactAnalysisFromUi(
+  const { artifactId, analysis } = await waitForArtifactAnalysisFromUi(
     page,
     SEEDED_LANE_ID,
     fileName,
@@ -43,44 +43,44 @@ test('evidence tab renders OCR field completeness after uploading a formal docum
       'certificateNumber',
       'exporterName',
       'consigneeName',
+      'packageDescription',
       'placeOfOrigin',
       'meansOfConveyance',
+      'declaredPointOfEntry',
       'botanicalName',
+      'commodityDescription',
       'additionalDeclarations',
       'issueDate',
       'issuingAuthority',
+      'authorizedOfficer',
+      'officialSealOrSignature',
       'mustStateFruitFlyFree',
       'treatmentReference',
     ]),
   );
-  expect(analysis.fieldCompleteness.missingFieldKeys).toEqual(
-    expect.arrayContaining(['declaredPointOfEntry', 'officialSealOrSignature']),
-  );
+  expect(analysis.fieldCompleteness.missingFieldKeys).toEqual([]);
 
   await page.reload();
   await page.getByRole('tab', { name: 'Evidence' }).click();
+  const evidencePanel = page.getByRole('tabpanel', { name: 'Evidence' });
+  const artifactEntry = evidencePanel.getByTestId(
+    `evidence-artifact-${artifactId}`,
+  );
+  const artifactFileName = artifactEntry.getByText(fileName, { exact: true });
 
-  await expect(page.getByText('Document analysis')).toBeVisible();
+  await expect(artifactFileName).toBeVisible();
+  await expect(artifactEntry.getByText('Document analysis')).toBeVisible();
   await expect(
-    page.getByRole('tabpanel', { name: 'Evidence' }).getByText(fileName),
+    artifactEntry.getByText(
+      'Matched Phytosanitary Certificate using matrix-driven rules.',
+    ),
   ).toBeVisible();
   await expect(
-    page
-      .getByRole('tabpanel', { name: 'Evidence' })
-      .getByText(
-        'Matched Phytosanitary Certificate using matrix-driven rules.',
-      ),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
+    artifactEntry.getByText(
       `Present ${analysis.fieldCompleteness.presentFieldKeys.length}/${analysis.fieldCompleteness.expectedFieldKeys.length}`,
     ),
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      `Missing: ${analysis.fieldCompleteness.missingFieldKeys.join(', ')}`,
-    ),
-  ).toBeVisible();
+  await expect(artifactEntry.getByText(/^Missing:/)).toHaveCount(0);
 });
 
 async function waitForArtifactAnalysisFromUi(
@@ -95,5 +95,6 @@ async function waitForArtifactAnalysisFromUi(
     laneId,
     fileName,
   );
-  return await backendHelper.waitForArtifactAnalysisReady(artifactId);
+  const analysis = await backendHelper.waitForArtifactAnalysisReady(artifactId);
+  return { artifactId, analysis };
 }
