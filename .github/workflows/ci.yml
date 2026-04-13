@@ -257,6 +257,16 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Install OCR runtime for browser E2E
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            tesseract-ocr-tha \
+            tesseract-ocr-jpn \
+            tesseract-ocr-kor
+
       - name: Install Playwright browser
         working-directory: frontend
         run: npm run test:e2e:install
