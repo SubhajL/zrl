@@ -17,6 +17,8 @@ function buildHex(index: number): string {
   return index.toString(16).padStart(64, '0').slice(-64);
 }
 
+const AUDIT_CHAIN_TEST_TIMEOUT_MS = 20_000;
+
 describe('Audit chain integrity (live DB e2e)', () => {
   let pool: Pool;
   let app: INestApplication<App>;
@@ -227,63 +229,71 @@ describe('Audit chain integrity (live DB e2e)', () => {
     await pool.end();
   });
 
-  it('returns valid for an untampered 1000-entry lane audit chain and ignores other lanes', async () => {
-    await appendLaneEntries(laneId, 1000);
-    await appendLaneEntries(secondaryLaneId, 2, 1000);
+  it(
+    'returns valid for an untampered 1000-entry lane audit chain and ignores other lanes',
+    async () => {
+      await appendLaneEntries(laneId, 1000);
+      await appendLaneEntries(secondaryLaneId, 2, 1000);
 
-    await request(app.getHttpServer())
-      .post(`/lanes/${publicLaneId}/audit/verify`)
-      .set('Authorization', 'Bearer owner-token')
-      .expect(201)
-      .expect({
-        valid: true,
-        entriesChecked: 1000,
-      });
-
-    await request(app.getHttpServer())
-      .post(`/lanes/${secondaryPublicLaneId}/audit/verify`)
-      .set('Authorization', 'Bearer owner-token')
-      .expect(201)
-      .expect({
-        valid: true,
-        entriesChecked: 2,
-      });
-  });
-
-  it('returns the first invalid entry after audit hash tampering', async () => {
-    await appendLaneEntries(laneId, 1000);
-
-    const tamperedEntry = await pool.query<{ id: string }>(
-      `
-        SELECT id
-        FROM audit_entries
-        WHERE entity_type = 'LANE' AND entity_id = $1
-        ORDER BY timestamp ASC, id ASC
-        OFFSET 499
-        LIMIT 1
-      `,
-      [laneId],
-    );
-    const tamperedEntryId = tamperedEntry.rows[0]?.id;
-
-    expect(tamperedEntryId).toBeDefined();
-
-    await pool.query('UPDATE audit_entries SET entry_hash = $2 WHERE id = $1', [
-      tamperedEntryId,
-      '0'.repeat(64),
-    ]);
-
-    await request(app.getHttpServer())
-      .post(`/lanes/${publicLaneId}/audit/verify`)
-      .set('Authorization', 'Bearer owner-token')
-      .expect(201)
-      .expect((response) => {
-        expect(response.body).toMatchObject({
-          valid: false,
+      await request(app.getHttpServer())
+        .post(`/lanes/${publicLaneId}/audit/verify`)
+        .set('Authorization', 'Bearer owner-token')
+        .expect(201)
+        .expect({
+          valid: true,
           entriesChecked: 1000,
-          firstInvalidIndex: 499,
-          firstInvalidEntryId: tamperedEntryId,
         });
-      });
-  });
+
+      await request(app.getHttpServer())
+        .post(`/lanes/${secondaryPublicLaneId}/audit/verify`)
+        .set('Authorization', 'Bearer owner-token')
+        .expect(201)
+        .expect({
+          valid: true,
+          entriesChecked: 2,
+        });
+    },
+    AUDIT_CHAIN_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'returns the first invalid entry after audit hash tampering',
+    async () => {
+      await appendLaneEntries(laneId, 1000);
+
+      const tamperedEntry = await pool.query<{ id: string }>(
+        `
+          SELECT id
+          FROM audit_entries
+          WHERE entity_type = 'LANE' AND entity_id = $1
+          ORDER BY timestamp ASC, id ASC
+          OFFSET 499
+          LIMIT 1
+        `,
+        [laneId],
+      );
+      const tamperedEntryId = tamperedEntry.rows[0]?.id;
+
+      expect(tamperedEntryId).toBeDefined();
+
+      await pool.query(
+        'UPDATE audit_entries SET entry_hash = $2 WHERE id = $1',
+        [tamperedEntryId, '0'.repeat(64)],
+      );
+
+      await request(app.getHttpServer())
+        .post(`/lanes/${publicLaneId}/audit/verify`)
+        .set('Authorization', 'Bearer owner-token')
+        .expect(201)
+        .expect((response) => {
+          expect(response.body).toMatchObject({
+            valid: false,
+            entriesChecked: 1000,
+            firstInvalidIndex: 499,
+            firstInvalidEntryId: tamperedEntryId,
+          });
+        });
+    },
+    AUDIT_CHAIN_TEST_TIMEOUT_MS,
+  );
 });

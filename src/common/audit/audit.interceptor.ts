@@ -6,7 +6,7 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { tap } from 'rxjs';
+import { concatMap } from 'rxjs';
 import { HashingService } from '../hashing/hashing.service';
 import { AUDITED_METADATA } from './audit.constants';
 import { AuditService } from './audit.service';
@@ -39,14 +39,16 @@ export class AuditInterceptor implements NestInterceptor {
     }>();
 
     return next.handle().pipe(
-      tap((responseBody) => {
-        void this.recordAuditEntry(request, responseBody, metadata).catch(
-          (error: unknown) => {
-            const resolved =
-              error instanceof Error ? error : new Error(String(error));
-            this.logger.error(resolved.message, resolved.stack);
-          },
-        );
+      concatMap(async (responseBody: unknown): Promise<unknown> => {
+        try {
+          await this.recordAuditEntry(request, responseBody, metadata);
+        } catch (error: unknown) {
+          const resolved =
+            error instanceof Error ? error : new Error(String(error));
+          this.logger.error(resolved.message, resolved.stack);
+        }
+
+        return responseBody;
       }),
     );
   }

@@ -515,9 +515,16 @@ describe('supported document matrix', () => {
       const manifestDocument = manifest.documents.find(
         (document) => document.documentLabel === overrideEntry.documentLabel,
       );
+      const matrixDocument = matrix.documents.find(
+        (document) => document.documentLabel === overrideEntry.documentLabel,
+      );
       const variant = manifestDocument?.variants?.find(
         (entry) => entry.combo === overrideEntry.combo,
       );
+      const combinedRequiredFieldKeys = [
+        ...(matrixDocument?.requiredFieldKeys ?? []),
+        ...overrideEntry.requiredFieldKeys,
+      ].sort();
 
       expect(variant).toBeDefined();
       expect([...(variant?.requiredFieldKeys ?? [])].sort()).toEqual(
@@ -525,7 +532,7 @@ describe('supported document matrix', () => {
       );
       expect(variant?.expectedFieldCompleteness).toBeDefined();
       expect(variant?.expectedFieldCompleteness?.presentFieldKeys).toEqual(
-        expect.arrayContaining(overrideEntry.requiredFieldKeys),
+        expect.arrayContaining(combinedRequiredFieldKeys),
       );
       await expect(
         access(resolve(process.cwd(), variant?.assetPath ?? '')),

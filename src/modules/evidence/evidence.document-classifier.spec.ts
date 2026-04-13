@@ -74,6 +74,35 @@ async function analyzeManifestBaseFixture(documentLabel: string) {
   return { manifest, fixture, result };
 }
 
+function sortFieldKeys(fieldKeys: readonly string[] | undefined): string[] {
+  return [...(fieldKeys ?? [])].sort();
+}
+
+function expectFieldCompletenessToMatchManifest(
+  result: Awaited<
+    ReturnType<MatrixDrivenEvidenceDocumentClassifier['analyze']>
+  >['fieldCompleteness'],
+  expected: {
+    presentFieldKeys: readonly string[];
+    missingFieldKeys: readonly string[];
+    lowConfidenceFieldKeys: readonly string[];
+    unsupportedFieldKeys: readonly string[];
+  },
+) {
+  expect(sortFieldKeys(result.presentFieldKeys)).toEqual(
+    sortFieldKeys(expected.presentFieldKeys),
+  );
+  expect(sortFieldKeys(result.missingFieldKeys)).toEqual(
+    sortFieldKeys(expected.missingFieldKeys),
+  );
+  expect(sortFieldKeys(result.lowConfidenceFieldKeys)).toEqual(
+    sortFieldKeys(expected.lowConfidenceFieldKeys),
+  );
+  expect(sortFieldKeys(result.unsupportedFieldKeys)).toEqual(
+    sortFieldKeys(expected.unsupportedFieldKeys),
+  );
+}
+
 describe('MatrixDrivenEvidenceDocumentClassifier', () => {
   it('classifies the committed base phytosanitary fixture using manifest-backed expectations', async () => {
     const classifier = new MatrixDrivenEvidenceDocumentClassifier();
@@ -104,9 +133,12 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
         consigneeName: 'Global Fresh Produce Importers',
         botanicalName: 'Mangifera indica',
         meansOfConveyance: 'Air freight TG Cargo 602',
+        declaredPointOfEntry: 'Narita International Airport',
         packageDescription: '420 cartons / palletized',
         commodityDescription: 'Fresh tropical fruit consignment',
         authorizedOfficer: 'Plant Quarantine Officer',
+        officialSealOrSignature:
+          'Department of Agriculture embossed seal and signed original',
       }),
     );
     expect(result.fieldCompleteness.presentFieldKeys).toEqual(
@@ -156,32 +188,22 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
     expect(result.extractedFields).toEqual(
       expect.objectContaining({
         certificateNumber: 'JP-MG-PHYTO-2026-0001',
+        declaredPointOfEntry: 'Narita International Airport',
         mustStateFruitFlyFree: true,
+        officialSealOrSignature:
+          'Department of Agriculture embossed seal and signed original',
         treatmentReference:
           'VHT treatment record VHT-2026-0088 completed before export.',
       }),
     );
-    expect(result.fieldCompleteness.presentFieldKeys).toEqual(
-      expect.arrayContaining([
-        'certificateNumber',
-        'issuingAuthority',
-        'exporterName',
-        'consigneeName',
-        'placeOfOrigin',
-        'meansOfConveyance',
-        'botanicalName',
-        'additionalDeclarations',
-        'issueDate',
-        ...(variant?.expectedFieldCompleteness.presentFieldKeys ?? []),
-      ]),
-    );
-    expect(result.fieldCompleteness.missingFieldKeys).toEqual(
-      expect.arrayContaining(
-        phytoFixture?.expectedFieldCompleteness.missingFieldKeys ?? [],
-      ),
-    );
-    expect(result.lowConfidenceFieldKeys).toEqual(
-      variant?.expectedFieldCompleteness.lowConfidenceFieldKeys ?? [],
+    expectFieldCompletenessToMatchManifest(
+      result.fieldCompleteness,
+      variant?.expectedFieldCompleteness ?? {
+        presentFieldKeys: [],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
     );
   });
 
@@ -349,27 +371,14 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
         overseasInspectionReference: 'QIA-OVERSEAS-TH-2026-511',
       }),
     );
-    expect(result.fieldCompleteness.presentFieldKeys).toEqual(
-      expect.arrayContaining([
-        'treatmentRecordNumber',
-        'commodityName',
-        'treatmentFacility',
-        'treatmentDate',
-        'treatmentMethod',
-        'targetCoreTemperatureC',
-        'holdMinutes',
-        'operatorOrInspector',
-        'linkedPhytoCertificateNumber',
-        ...(variant?.expectedFieldCompleteness.presentFieldKeys ?? []),
-      ]),
-    );
-    expect(result.fieldCompleteness.missingFieldKeys).toEqual(
-      expect.arrayContaining(
-        variant?.expectedFieldCompleteness.missingFieldKeys ?? [],
-      ),
-    );
-    expect(result.fieldCompleteness.lowConfidenceFieldKeys).toEqual(
-      variant?.expectedFieldCompleteness.lowConfidenceFieldKeys ?? [],
+    expectFieldCompletenessToMatchManifest(
+      result.fieldCompleteness,
+      variant?.expectedFieldCompleteness ?? {
+        presentFieldKeys: [],
+        missingFieldKeys: [],
+        lowConfidenceFieldKeys: [],
+        unsupportedFieldKeys: [],
+      },
     );
   });
 
@@ -380,20 +389,13 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
       artifactType: 'PHYTO_CERT' as const,
       expectedFields: {
         certificateNumber: 'JP-MT-PHYTO-2026-0007',
+        declaredPointOfEntry: 'Kansai International Airport',
         packageMarkingForJapan: 'JP-MANGOSTEEN-LOT-77',
+        officialSealOrSignature:
+          'Department of Agriculture embossed seal and signed original',
         treatmentReference:
           'Steam heat treatment record SHT-2026-144 with verified cooling.',
       },
-      expectedSharedPresentFields: [
-        'certificateNumber',
-        'exporterName',
-        'consigneeName',
-        'placeOfOrigin',
-        'botanicalName',
-        'packageDescription',
-        'additionalDeclarations',
-        'issueDate',
-      ],
     },
     {
       documentLabel: 'Phytosanitary Certificate',
@@ -401,20 +403,13 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
       artifactType: 'PHYTO_CERT' as const,
       expectedFields: {
         certificateNumber: 'KR-MT-PHYTO-2026-0004',
+        declaredPointOfEntry: 'Incheon International Airport',
         fumigationDetails: 'Methyl bromide 32 g/m3 for 2 hours at 21 C.',
+        officialSealOrSignature:
+          'Department of Agriculture embossed seal and signed original',
         treatmentReference:
           'Fumigation log MB-2026-031 and plant quarantine release noted.',
       },
-      expectedSharedPresentFields: [
-        'certificateNumber',
-        'exporterName',
-        'consigneeName',
-        'placeOfOrigin',
-        'botanicalName',
-        'additionalDeclarations',
-        'issuingAuthority',
-        'issueDate',
-      ],
     },
     {
       documentLabel: 'VHT Certificate',
@@ -425,16 +420,6 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
         allowedVariety: 'Nam Doc Mai',
         maffVerificationReference: 'MAFF-TH-INSPECT-2026-114',
       },
-      expectedSharedPresentFields: [
-        'treatmentRecordNumber',
-        'commodityName',
-        'treatmentFacility',
-        'treatmentDate',
-        'treatmentMethod',
-        'targetCoreTemperatureC',
-        'holdMinutes',
-        'linkedPhytoCertificateNumber',
-      ],
     },
     {
       documentLabel: 'VHT Certificate',
@@ -447,26 +432,10 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
         coolingRequirement:
           'Product cooled for at least 60 minutes after treatment.',
       },
-      expectedSharedPresentFields: [
-        'treatmentRecordNumber',
-        'commodityName',
-        'treatmentFacility',
-        'treatmentDate',
-        'treatmentMethod',
-        'targetCoreTemperatureC',
-        'holdMinutes',
-        'linkedPhytoCertificateNumber',
-      ],
     },
   ])(
     'classifies committed $combo $documentLabel override fixture using manifest-backed expectations',
-    async ({
-      documentLabel,
-      combo,
-      artifactType,
-      expectedFields,
-      expectedSharedPresentFields,
-    }) => {
+    async ({ documentLabel, combo, artifactType, expectedFields }) => {
       const classifier = new MatrixDrivenEvidenceDocumentClassifier();
       const manifest = await loadOcrFixtureManifest();
       const fixture = manifest.documents.find(
@@ -492,19 +461,14 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
       expect(result.extractedFields).toEqual(
         expect.objectContaining(expectedFields),
       );
-      expect(result.fieldCompleteness.presentFieldKeys).toEqual(
-        expect.arrayContaining([
-          ...expectedSharedPresentFields,
-          ...(variant?.expectedFieldCompleteness.presentFieldKeys ?? []),
-        ]),
-      );
-      expect(result.fieldCompleteness.missingFieldKeys).toEqual(
-        expect.arrayContaining(
-          variant?.expectedFieldCompleteness.missingFieldKeys ?? [],
-        ),
-      );
-      expect(result.fieldCompleteness.lowConfidenceFieldKeys).toEqual(
-        variant?.expectedFieldCompleteness.lowConfidenceFieldKeys ?? [],
+      expectFieldCompletenessToMatchManifest(
+        result.fieldCompleteness,
+        variant?.expectedFieldCompleteness ?? {
+          presentFieldKeys: [],
+          missingFieldKeys: [],
+          lowConfidenceFieldKeys: [],
+          unsupportedFieldKeys: [],
+        },
       );
     },
   );
