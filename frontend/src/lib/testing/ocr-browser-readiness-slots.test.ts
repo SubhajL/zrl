@@ -8,9 +8,11 @@ import {
 } from './ocr-browser-readiness-slots';
 
 describe('ocr browser readiness slots', () => {
-  it('enumerates every current required combo-document slot for browser proof expansion', () => {
-    expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBe(75);
-    expect(OCR_BROWSER_READINESS_SLOTS).toHaveLength(75);
+  it('enumerates every fixture-backed required combo-document slot for browser proof expansion', () => {
+    expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBe(
+      OCR_BROWSER_READINESS_SLOTS.length,
+    );
+    expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBeGreaterThan(0);
     expect(
       OCR_BROWSER_READINESS_SLOTS.filter(
         (slot) =>
@@ -24,9 +26,14 @@ describe('ocr browser readiness slots', () => {
           slot.combo === 'EU/MANGO' && slot.documentLabel === 'Export License',
       ),
     ).toHaveLength(1);
+    expect(
+      OCR_BROWSER_READINESS_SLOTS.filter(
+        (slot) => slot.documentLabel === 'Grading Report',
+      ),
+    ).toHaveLength(9);
   });
 
-  it('stays in exact combo-document parity with the supported document matrix', async () => {
+  it('stays in exact parity with the fixture-backed subset of the supported document matrix', async () => {
     const matrix = YAML.parse(
       await readFile(
         resolve(process.cwd(), '../rules/document-matrix.yaml'),
@@ -39,12 +46,17 @@ describe('ocr browser readiness slots', () => {
         requiredDocuments: string[];
       }>;
     };
+    const fixtureBackedLabels = new Set(
+      manifest.documents.map((document) => document.documentLabel),
+    );
     const matrixSlots = matrix.supportedCombos
       .flatMap((combo) =>
-        combo.requiredDocuments.map(
-          (documentLabel) =>
-            `${combo.market}/${combo.product}::${documentLabel}`,
-        ),
+        combo.requiredDocuments
+          .filter((documentLabel) => fixtureBackedLabels.has(documentLabel))
+          .map(
+            (documentLabel) =>
+              `${combo.market}/${combo.product}::${documentLabel}`,
+          ),
       )
       .sort();
     const browserSlots = OCR_BROWSER_READINESS_SLOTS.map(

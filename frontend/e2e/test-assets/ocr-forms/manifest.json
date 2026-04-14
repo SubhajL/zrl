@@ -134,6 +134,37 @@
       ]
     },
     {
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "assetPath": "frontend/e2e/test-assets/ocr-forms/trade/grading-report-base.svg",
+      "expectedFieldCompleteness": {
+        "presentFieldKeys": [
+          "gradingReportNumber",
+          "inspectionDate",
+          "exporterName",
+          "commodityName",
+          "lotOrConsignmentId",
+          "gradeClass",
+          "packhouseName",
+          "inspectorName"
+        ],
+        "missingFieldKeys": [],
+        "lowConfidenceFieldKeys": [],
+        "unsupportedFieldKeys": []
+      },
+      "applicableCombos": [
+        "EU/DURIAN",
+        "EU/MANGO",
+        "EU/MANGOSTEEN",
+        "JAPAN/DURIAN",
+        "JAPAN/MANGO",
+        "JAPAN/MANGOSTEEN",
+        "KOREA/DURIAN",
+        "KOREA/MANGO",
+        "KOREA/MANGOSTEEN"
+      ]
+    },
+    {
       "documentLabel": "MRL Test Results",
       "artifactType": "MRL_TEST",
       "assetPath": "frontend/e2e/test-assets/ocr-forms/lab/mrl-test-results-base.svg",

@@ -539,12 +539,15 @@ describe('RuleLoaderService', () => {
     );
   });
 
-  it('ignores document-matrix yaml during repository rule discovery', async () => {
+  it('ignores non-rule support yaml files during repository rule discovery', async () => {
     const files = await findRuleYamlFiles(resolve(process.cwd(), 'rules'));
 
     expect(files).toContain(resolve(process.cwd(), 'rules/japan/mango.yaml'));
     expect(files).not.toContain(
       resolve(process.cwd(), 'rules/document-matrix.yaml'),
+    );
+    expect(files).not.toContain(
+      resolve(process.cwd(), 'rules/ocr-policy-exceptions.yaml'),
     );
   });
 

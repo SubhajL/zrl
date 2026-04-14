@@ -1,12 +1,20 @@
 import { buildOcrReadinessLedger } from './ocr-readiness-ledger';
+import { loadSupportedDocumentMatrix } from './document-matrix';
 
 describe('OCR readiness ledger', () => {
-  it('enumerates every currently required combo-document slot and reflects exhaustive browser proof', async () => {
-    const ledger = await buildOcrReadinessLedger();
+  it('enumerates every currently required combo-document slot and reflects the live matrix total', async () => {
+    const [ledger, matrix] = await Promise.all([
+      buildOcrReadinessLedger(),
+      loadSupportedDocumentMatrix(),
+    ]);
+    const requiredSlotCount = matrix.supportedCombos.reduce(
+      (total, combo) => total + combo.requiredDocuments.length,
+      0,
+    );
 
     expect(ledger.version).toBe(1);
-    expect(ledger.totalRequiredSlots).toBe(75);
-    expect(ledger.entries).toHaveLength(75);
+    expect(ledger.totalRequiredSlots).toBe(requiredSlotCount);
+    expect(ledger.entries).toHaveLength(requiredSlotCount);
     expect(ledger.fullyReadySlots).toBeGreaterThan(0);
 
     const japanMangoPhyto = ledger.entries.find(
@@ -30,6 +38,46 @@ describe('OCR readiness ledger', () => {
     expect(euMangoGap?.browserProof.status).toBe('COMPLETE');
     expect(koreaMangoVht?.classifierProof.status).toBe('COMPLETE');
     expect(koreaMangoVht?.browserProof.status).toBe('COMPLETE');
+  });
+
+  it('treats matrix-required grading-report slots as fully ready once downstream proof layers exist', async () => {
+    const ledger = await buildOcrReadinessLedger();
+
+    const euMangoGradingReport = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'EU/MANGO' && entry.documentLabel === 'Grading Report',
+    );
+
+    expect(euMangoGradingReport).toBeDefined();
+    expect(euMangoGradingReport?.fixture.status).toBe('COMPLETE');
+    expect(euMangoGradingReport?.classifierProof.status).toBe('COMPLETE');
+    expect(euMangoGradingReport?.backendProof.status).toBe('COMPLETE');
+    expect(euMangoGradingReport?.browserProof.status).toBe('COMPLETE');
+    expect(euMangoGradingReport?.ready).toBe(true);
+    expect(euMangoGradingReport?.blockerReasons).toEqual([]);
+  });
+
+  it('surfaces machine-readable policy exceptions on affected readiness slots', async () => {
+    const ledger = await buildOcrReadinessLedger();
+
+    const euDurianPhyto = ledger.entries.find(
+      (entry) =>
+        entry.combo === 'EU/DURIAN' &&
+        entry.documentLabel === 'Phytosanitary Certificate',
+    );
+
+    expect(euDurianPhyto).toBeDefined();
+    expect(euDurianPhyto?.policyExceptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: 'UNRESOLVED',
+          exceptionType: 'POLICY_DISPUTE',
+        }),
+      ]),
+    );
+    expect(euDurianPhyto?.blockerReasons).toEqual(
+      expect.arrayContaining([expect.stringContaining('Policy exception:')]),
+    );
   });
 
   it('marks every slot blocked when any proof layer is not complete', async () => {

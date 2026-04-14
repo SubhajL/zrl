@@ -53,6 +53,15 @@ const DOCUMENT_CATEGORY_FALLBACK: Record<string, RuleChecklistCategory> = {
   'delivery note': RuleChecklistCategory.CHAIN_OF_CUSTODY,
 };
 
+const INVOICE_FAMILY_DOCUMENT_KEYS = new Set([
+  'commercial invoice',
+  'packing list',
+  'transport document',
+  'delivery note',
+  'export license',
+  'grading report',
+]);
+
 const CATEGORY_WEIGHT_KEYS: Record<
   RuleChecklistCategory,
   keyof RuleSnapshotPayload['completenessWeights']
@@ -1111,7 +1120,6 @@ export class RulesEngineService {
           source: artifact.artifactType === 'GAP_CERT' ? 'ARTIFACT_TYPE' : null,
         };
       case 'product photos':
-      case 'grading report':
         return {
           matched: artifact.artifactType === 'CHECKPOINT_PHOTO',
           source:
@@ -1135,18 +1143,16 @@ export class RulesEngineService {
               ? 'ARTIFACT_TYPE'
               : null,
         };
-      case 'commercial invoice':
-      case 'packing list':
-      case 'transport document':
-      case 'delivery note':
-      case 'export license':
-        return {
-          matched: matchesFileNameFallback(fileName, documentLabel),
-          source: matchesFileNameFallback(fileName, documentLabel)
-            ? 'FILE_NAME_FALLBACK'
-            : null,
-        };
       default:
+        if (INVOICE_FAMILY_DOCUMENT_KEYS.has(documentKey)) {
+          return {
+            matched: matchesFileNameFallback(fileName, documentLabel),
+            source: matchesFileNameFallback(fileName, documentLabel)
+              ? 'FILE_NAME_FALLBACK'
+              : null,
+          };
+        }
+
         return {
           matched: matchesFileNameFallback(fileName, documentLabel),
           source: matchesFileNameFallback(fileName, documentLabel)

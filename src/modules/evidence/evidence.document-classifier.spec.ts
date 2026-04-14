@@ -265,6 +265,16 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
         issuingOffice: 'Plant Standards and Certification Office',
       },
     },
+    {
+      documentLabel: 'Grading Report',
+      expectedFields: {
+        gradingReportNumber: 'GR-2026-0418',
+        inspectionDate: '07 April 2026',
+        gradeClass: 'Premium Export A',
+        packhouseName: 'Chiang Mai Premium Packing Center',
+        inspectorName: 'Somchai Rattanakul',
+      },
+    },
   ])(
     'classifies committed base $documentLabel fixture using manifest-backed expectations',
     async ({ documentLabel, expectedFields }) => {
@@ -294,6 +304,41 @@ describe('MatrixDrivenEvidenceDocumentClassifier', () => {
       );
     },
   );
+
+  it('uses grading report OCR text to extract the full committed grading fixture field set', async () => {
+    const { fixture, result } =
+      await analyzeManifestBaseFixture('Grading Report');
+
+    expect(result.documentLabel).toBe('Grading Report');
+    expect(result.documentRole).toBe('QUALITY_GRADING_REPORT');
+    expect(result.confidence).toBe('MEDIUM_LOW');
+    expect(result.extractedFields).toEqual(
+      expect.objectContaining({
+        gradingReportNumber: 'GR-2026-0418',
+        inspectionDate: '07 April 2026',
+        exporterName: 'Thai Orchard Export Co., Ltd.',
+        commodityName: 'Fresh Mango',
+        lotOrConsignmentId: 'LOT-EXPORT-2026-041',
+        gradeClass: 'Premium Export A',
+        packhouseName: 'Chiang Mai Premium Packing Center',
+        inspectorName: 'Somchai Rattanakul',
+      }),
+    );
+    expect(result.fieldCompleteness.presentFieldKeys).toEqual(
+      expect.arrayContaining(
+        fixture?.expectedFieldCompleteness.presentFieldKeys ?? [],
+      ),
+    );
+    expect(result.fieldCompleteness.missingFieldKeys).toEqual(
+      fixture?.expectedFieldCompleteness.missingFieldKeys,
+    );
+    expect(result.fieldCompleteness.lowConfidenceFieldKeys).toEqual(
+      fixture?.expectedFieldCompleteness.lowConfidenceFieldKeys,
+    );
+    expect(result.fieldCompleteness.unsupportedFieldKeys).toEqual(
+      fixture?.expectedFieldCompleteness.unsupportedFieldKeys,
+    );
+  });
 
   it('classifies the committed Korea mango VHT override fixture using manifest-backed expectations', async () => {
     const classifier = new MatrixDrivenEvidenceDocumentClassifier();

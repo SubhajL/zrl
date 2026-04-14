@@ -454,6 +454,144 @@ describe('RulesEngineService', () => {
     );
   });
 
+  it('evaluateLane uses invoice-family evidence to satisfy grading report when metadata labels it explicitly', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Grading Report'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-grading-metadata',
+        artifactType: 'INVOICE',
+        fileName: 'grading-report.pdf',
+        metadata: {
+          documentType: 'Grading Report',
+        },
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Grading Report',
+          status: 'PRESENT',
+          present: true,
+          artifactIds: ['artifact-grading-metadata'],
+          provenance: {
+            source: 'METADATA_DOCUMENT_TYPE',
+            artifactId: 'artifact-grading-metadata',
+          },
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane uses OCR document labels to satisfy grading report on invoice-family artifacts', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Grading Report'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-grading-ocr',
+        artifactType: 'INVOICE',
+        fileName: 'trade-doc.pdf',
+        metadata: null,
+        latestAnalysisDocumentLabel: 'Grading Report',
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Grading Report',
+          status: 'PRESENT',
+          present: true,
+          artifactIds: ['artifact-grading-ocr'],
+          provenance: {
+            source: 'OCR_DOCUMENT_LABEL',
+            artifactId: 'artifact-grading-ocr',
+          },
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane uses filename fallback conservatively for grading report on invoice-family artifacts', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Grading Report'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-grading-filename',
+        artifactType: 'INVOICE',
+        fileName: 'shipment-grading_report-2026.pdf',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Grading Report',
+          status: 'PRESENT',
+          present: true,
+          artifactIds: ['artifact-grading-filename'],
+          provenance: {
+            source: 'FILE_NAME_FALLBACK',
+            artifactId: 'artifact-grading-filename',
+          },
+        }),
+      ]),
+    );
+  });
+
+  it('evaluateLane does not let checkpoint photos satisfy grading report anymore', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Grading Report'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-grading-photo',
+        artifactType: 'CHECKPOINT_PHOTO',
+        fileName: 'checkpoint.jpg',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Grading Report',
+          status: 'MISSING',
+          present: false,
+        }),
+      ]),
+    );
+  });
+
   it('evaluateLane does not let a generic invoice artifact satisfy every invoice-family document without metadata or OCR label proof', () => {
     const definition = buildDefinition({
       requiredDocuments: ['Packing List', 'Commercial Invoice'],

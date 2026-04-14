@@ -404,6 +404,21 @@ function extractCommonFields(
     issuingOffice:
       stringFromMetadata(metadata, 'issuingOffice') ??
       findRegexValue(text, [/issuing\s+office\s*[:#]?\s*([^\n]+)/i]),
+    gradingReportNumber:
+      stringFromMetadata(metadata, 'gradingReportNumber') ??
+      findRegexValue(text, [/grading\s+report\s+number\s*[:#]?\s*([^\n]+)/i]),
+    inspectionDate:
+      stringFromMetadata(metadata, 'inspectionDate') ??
+      findRegexValue(text, [/inspection\s+date\s*[:#]?\s*([^\n]+)/i]),
+    gradeClass:
+      stringFromMetadata(metadata, 'gradeClass') ??
+      findRegexValue(text, [/grade\s+class\s*[:#]?\s*([^\n]+)/i]),
+    packhouseName:
+      stringFromMetadata(metadata, 'packhouseName') ??
+      findRegexValue(text, [/packhouse\s+name\s*[:#]?\s*([^\n]+)/i]),
+    inspectorName:
+      stringFromMetadata(metadata, 'inspectorName') ??
+      findRegexValue(text, [/inspector\s+name\s*[:#]?\s*([^\n]+)/i]),
   };
 }
 
@@ -474,6 +489,12 @@ function scoreDocument(
       if (normalizedText.includes('exporter registration')) score += 5;
       if (normalizedText.includes('exporter authorization')) score += 8;
       if (normalizedText.includes('authorization record')) score += 4;
+      break;
+    case 'Grading Report':
+      if (normalizedText.includes('grading report')) score += 8;
+      if (normalizedText.includes('grade class')) score += 4;
+      if (normalizedText.includes('packhouse name')) score += 3;
+      if (normalizedText.includes('inspection date')) score += 3;
       break;
     default:
       break;
@@ -597,6 +618,10 @@ export class MatrixDrivenEvidenceDocumentClassifier implements EvidenceDocumentC
       ) {
         extractedFields['treatmentReference'] = declaration;
       }
+    }
+
+    if (match.document.documentLabel === 'Grading Report') {
+      delete extractedFields['reportNumber'];
     }
 
     const filteredExtractedFields = Object.fromEntries(

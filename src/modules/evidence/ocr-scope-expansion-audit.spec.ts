@@ -10,6 +10,7 @@ describe('OCR scope expansion audit', () => {
         'VHT Certificate',
         'MRL Test Results',
         'GAP Certificate',
+        'Grading Report',
         'Export License',
         'Commercial Invoice',
         'Packing List',
@@ -17,8 +18,8 @@ describe('OCR scope expansion audit', () => {
         'Delivery Note',
       ]),
     );
-    expect(audit.extraRequiredDocumentsOutsideFirstPass).toEqual(
-      expect.arrayContaining(['Grading Report']),
+    expect(audit.extraRequiredDocumentsOutsideFirstPass).not.toContain(
+      'Grading Report',
     );
     expect(audit.requiredDocumentsCoveredByExistingMatrix).toEqual(
       expect.arrayContaining([
@@ -41,6 +42,21 @@ describe('OCR scope expansion audit', () => {
         ),
         expect.stringContaining('KOREA/MANGOSTEEN fumigation'),
         expect.stringContaining('JAPAN/MANGOSTEEN certificate-label control'),
+      ]),
+    );
+  });
+
+  it('surfaces machine-readable unresolved policy exceptions such as the EU durian phytosanitary dispute', async () => {
+    const audit = await buildOcrScopeExpansionAudit();
+
+    expect(audit.policyExceptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          combo: 'EU/DURIAN',
+          documentLabel: 'Phytosanitary Certificate',
+          status: 'UNRESOLVED',
+          exceptionType: 'POLICY_DISPUTE',
+        }),
       ]),
     );
   });

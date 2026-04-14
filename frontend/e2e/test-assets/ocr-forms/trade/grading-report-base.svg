@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
+  <rect width="1800" height="1200" fill="#ffffff" />
+  <text x="80" y="110" font-family="Arial" font-size="52" font-weight="700" fill="#111111">GRADING REPORT</text>
+  <text x="80" y="210" font-family="Arial" font-size="34" fill="#111111">Grading report number: GR-2026-0418</text>
+  <text x="80" y="290" font-family="Arial" font-size="34" fill="#111111">Inspection date: 07 April 2026</text>
+  <text x="80" y="370" font-family="Arial" font-size="34" fill="#111111">Exporter name: Thai Orchard Export Co., Ltd.</text>
+  <text x="80" y="450" font-family="Arial" font-size="34" fill="#111111">Commodity name: Fresh Mango</text>
+  <text x="80" y="530" font-family="Arial" font-size="34" fill="#111111">Lot or consignment ID: LOT-EXPORT-2026-041</text>
+  <text x="80" y="610" font-family="Arial" font-size="34" fill="#111111">Grade class: Premium Export A</text>
+  <text x="80" y="690" font-family="Arial" font-size="34" fill="#111111">Packhouse name: Chiang Mai Premium Packing Center</text>
+  <text x="80" y="770" font-family="Arial" font-size="34" fill="#111111">Inspector name: Somchai Rattanakul</text>
+</svg>

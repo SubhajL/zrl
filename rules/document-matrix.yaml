@@ -28,6 +28,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -39,6 +40,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -50,6 +52,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -61,6 +64,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -73,6 +77,7 @@ supportedCombos:
       - VHT Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -85,6 +90,7 @@ supportedCombos:
       - VHT Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -96,6 +102,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -108,6 +115,7 @@ supportedCombos:
       - VHT Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -119,6 +127,7 @@ supportedCombos:
       - Phytosanitary Certificate
       - MRL Test Results
       - GAP Certificate
+      - Grading Report
       - Export License
       - Commercial Invoice
       - Packing List
@@ -322,6 +331,34 @@ documents:
       - shipmentReference
     notes:
       - Trade document, not government-issued.
+  - documentLabel: Grading Report
+    artifactType: INVOICE
+    documentClass: TRADE_DOCUMENT
+    documentRole: QUALITY_GRADING_REPORT
+    confidence: MEDIUM_LOW
+    applicableCombos:
+      - EU/DURIAN
+      - EU/MANGO
+      - EU/MANGOSTEEN
+      - JAPAN/DURIAN
+      - JAPAN/MANGO
+      - JAPAN/MANGOSTEEN
+      - KOREA/DURIAN
+      - KOREA/MANGO
+      - KOREA/MANGOSTEEN
+    sourceUrls: []
+    requiredFieldKeys:
+      - gradingReportNumber
+      - inspectionDate
+      - exporterName
+      - commodityName
+      - lotOrConsignmentId
+      - gradeClass
+      - packhouseName
+      - inspectorName
+    notes:
+      - Canonical matrix addition from `34.10.4` based on live rule-pack requirement across all supported combos.
+      - Downstream fixture, classifier, backend, and browser proof remains explicitly incomplete until later OCR scope phases.
   - documentLabel: Packing List
     artifactType: INVOICE
     documentClass: TRADE_DOCUMENT
