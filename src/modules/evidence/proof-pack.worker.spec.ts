@@ -110,8 +110,8 @@ describe('ProofPackWorkerService', () => {
     );
   });
 
-  afterEach(() => {
-    service.onModuleDestroy();
+  afterEach(async () => {
+    await service.onModuleDestroy();
     process.env = envSnapshot;
     jest.useRealTimers();
     jest.restoreAllMocks();
@@ -214,6 +214,38 @@ describe('ProofPackWorkerService', () => {
 
     expect(store.requeueJob).not.toHaveBeenCalled();
     expect(proofPackService.failLeasedJob).not.toHaveBeenCalled();
+  });
+
+  it('awaits in-flight startup polling during shutdown and skips alert metrics', async () => {
+    let resolveLeaseNextJob:
+      | ((job: ClaimedProofPackJob | null) => void)
+      | null = null;
+    store.leaseNextJob.mockImplementationOnce(
+      () =>
+        new Promise<ClaimedProofPackJob | null>((resolve) => {
+          resolveLeaseNextJob = resolve;
+        }),
+    );
+
+    const initPromise = service.onModuleInit();
+    await Promise.resolve();
+
+    let shutdownSettled = false;
+    const shutdownPromise = Promise.resolve(service.onModuleDestroy()).then(
+      () => {
+        shutdownSettled = true;
+      },
+    );
+
+    await Promise.resolve();
+    expect(shutdownSettled).toBe(false);
+
+    resolveLeaseNextJob?.(null);
+    await initPromise;
+    await shutdownPromise;
+
+    expect(store.getJobMetrics).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
   });
 
   it('returns job metrics with alerts for stuck jobs and failures', async () => {

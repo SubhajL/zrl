@@ -17,7 +17,10 @@ import { ProofPackService } from './proof-pack.service';
 export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ProofPackWorkerService.name);
   private pollTimer: NodeJS.Timeout | null = null;
+  private activePollPromise: Promise<void> | null = null;
+  private readonly inFlightLeaseRenewals = new Set<Promise<void>>();
   private isPolling = false;
+  private isShuttingDown = false;
   private lastAlertSignature: string | null = null;
 
   constructor(
@@ -32,18 +35,33 @@ export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.pollQueue();
+    await this.triggerPollQueue();
+    if (this.isShuttingDown) {
+      return;
+    }
+
     const intervalMs = this.getPollIntervalMs();
     this.pollTimer = setInterval(() => {
-      void this.pollQueue();
+      void this.triggerPollQueue();
     }, intervalMs);
     this.pollTimer.unref?.();
   }
 
-  onModuleDestroy(): void {
+  async onModuleDestroy(): Promise<void> {
+    this.isShuttingDown = true;
     if (this.pollTimer !== null) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
+    }
+
+    const activePollPromise = this.activePollPromise;
+    if (activePollPromise !== null) {
+      await activePollPromise;
+    }
+
+    const inFlightLeaseRenewals = [...this.inFlightLeaseRenewals];
+    if (inFlightLeaseRenewals.length > 0) {
+      await Promise.allSettled(inFlightLeaseRenewals);
     }
   }
 
@@ -69,8 +87,26 @@ export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  private triggerPollQueue(): Promise<void> {
+    if (this.activePollPromise !== null) {
+      return this.activePollPromise;
+    }
+
+    if (this.isShuttingDown || !this.isWorkerEnabled()) {
+      return Promise.resolve();
+    }
+
+    const pollPromise = this.pollQueue().finally(() => {
+      if (this.activePollPromise === pollPromise) {
+        this.activePollPromise = null;
+      }
+    });
+    this.activePollPromise = pollPromise;
+    return pollPromise;
+  }
+
   private async pollQueue(): Promise<void> {
-    if (this.isPolling || !this.isWorkerEnabled()) {
+    if (this.isPolling || this.isShuttingDown || !this.isWorkerEnabled()) {
       return;
     }
 
@@ -95,7 +131,9 @@ export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
       );
     } finally {
       this.isPolling = false;
-      await this.logAlertState();
+      if (!this.isShuttingDown) {
+        await this.logAlertState();
+      }
     }
   }
 
@@ -184,11 +222,15 @@ export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
     setCurrentLeaseExpiresAt: (leaseExpiresAt: Date) => void,
   ): NodeJS.Timeout {
     const interval = setInterval(() => {
+      if (this.isShuttingDown) {
+        return;
+      }
+
       const leasedAt = new Date();
       const leaseExpiresAt = new Date(
         leasedAt.getTime() + this.getLeaseDurationMs(),
       );
-      void this.store
+      const renewalPromise = this.store
         .renewJobLease(
           claimedJob.job.id,
           getCurrentLeaseExpiresAt(),
@@ -211,6 +253,10 @@ export class ProofPackWorkerService implements OnModuleInit, OnModuleDestroy {
             error instanceof Error ? error.stack : String(error),
           );
         });
+      this.inFlightLeaseRenewals.add(renewalPromise);
+      void renewalPromise.finally(() => {
+        this.inFlightLeaseRenewals.delete(renewalPromise);
+      });
     }, this.getHeartbeatIntervalMs());
 
     interval.unref?.();

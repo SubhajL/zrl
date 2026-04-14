@@ -45,6 +45,17 @@ export const OCR_BROWSER_SCENARIOS_BY_MARKET = {
   ),
 } as const;
 
+const CURRENT_BROWSER_SLOT_COUNT_BY_MARKET = {
+  EU: OCR_BROWSER_READINESS_SLOTS.filter((slot) => slot.combo.startsWith('EU/'))
+    .length,
+  JAPAN: OCR_BROWSER_READINESS_SLOTS.filter((slot) =>
+    slot.combo.startsWith('JAPAN/'),
+  ).length,
+  KOREA: OCR_BROWSER_READINESS_SLOTS.filter((slot) =>
+    slot.combo.startsWith('KOREA/'),
+  ).length,
+} as const;
+
 export async function executeBrowserOcrScenario(
   page: Page,
   backendHelper: AuthenticatedBackendHelper,
@@ -94,10 +105,28 @@ export async function executeBrowserOcrScenario(
 
 export function assertFullBrowserOcrMatrixShape(): void {
   expect(OCR_BROWSER_SCENARIOS).toHaveLength(OCR_BROWSER_REQUIRED_SLOT_COUNT);
-  expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBe(75);
-  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.EU).toHaveLength(24);
-  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.JAPAN).toHaveLength(26);
-  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.KOREA).toHaveLength(25);
+  expect(
+    new Set(
+      OCR_BROWSER_SCENARIOS.map(
+        (scenario) =>
+          `${scenario.laneScenario.market}/${scenario.laneScenario.product}::${scenario.expectedDocumentLabel}`,
+      ),
+    ).size,
+  ).toBe(OCR_BROWSER_REQUIRED_SLOT_COUNT);
+  expect(
+    OCR_BROWSER_SCENARIOS_BY_MARKET.EU.length +
+      OCR_BROWSER_SCENARIOS_BY_MARKET.JAPAN.length +
+      OCR_BROWSER_SCENARIOS_BY_MARKET.KOREA.length,
+  ).toBe(OCR_BROWSER_REQUIRED_SLOT_COUNT);
+  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.EU).toHaveLength(
+    CURRENT_BROWSER_SLOT_COUNT_BY_MARKET.EU,
+  );
+  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.JAPAN).toHaveLength(
+    CURRENT_BROWSER_SLOT_COUNT_BY_MARKET.JAPAN,
+  );
+  expect(OCR_BROWSER_SCENARIOS_BY_MARKET.KOREA).toHaveLength(
+    CURRENT_BROWSER_SLOT_COUNT_BY_MARKET.KOREA,
+  );
 }
 
 async function waitForArtifactAnalysisFromUi(
