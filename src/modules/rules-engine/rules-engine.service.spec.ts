@@ -592,6 +592,36 @@ describe('RulesEngineService', () => {
     );
   });
 
+  it('evaluateLane does not let non-invoice artifacts satisfy grading report by filename alone', () => {
+    const definition = buildDefinition({
+      requiredDocuments: ['Grading Report'],
+    });
+    const service = new RulesEngineService(
+      { reload: jest.fn(), getRuleDefinition: jest.fn() } as never,
+      {} as RuleStore,
+      { hashString: jest.fn() } as unknown as HashingService,
+    );
+
+    const result = service.evaluateLane(definition, [
+      {
+        id: 'artifact-grading-photo-filename',
+        artifactType: 'CHECKPOINT_PHOTO',
+        fileName: 'shipment-grading_report-2026.jpg',
+        metadata: null,
+      },
+    ]);
+
+    expect(result.checklist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Grading Report',
+          status: 'MISSING',
+          present: false,
+        }),
+      ]),
+    );
+  });
+
   it('evaluateLane does not let a generic invoice artifact satisfy every invoice-family document without metadata or OCR label proof', () => {
     const definition = buildDefinition({
       requiredDocuments: ['Packing List', 'Commercial Invoice'],

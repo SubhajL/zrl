@@ -5,6 +5,7 @@ import {
   findRuleYamlFiles,
   loadRuleDefinitionFromFile,
 } from '../rules-engine/rule-definition.files';
+import { loadDocumentCatalog } from './document-catalog';
 import { loadSupportedDocumentMatrix } from './document-matrix';
 import { loadOcrFixtureManifest } from './ocr-fixture-manifest';
 import { buildOcrReadinessLedger } from './ocr-readiness-ledger';
@@ -377,6 +378,33 @@ describe('supported document matrix', () => {
       expect(positiveChecklistItem?.present).toBe(true);
       expect(negativeChecklistItem?.status).toBe('MISSING');
     }
+  });
+
+  it('keeps the shared document catalog aligned with matrix-backed and checklist-only document semantics', async () => {
+    const catalog = await loadDocumentCatalog();
+
+    expect(
+      catalog.entriesByLabel.get('Phytosanitary Certificate'),
+    ).toMatchObject({
+      matrixBacked: true,
+      artifactType: 'PHYTO_CERT',
+      checklistCategory: 'REGULATORY',
+    });
+    expect(catalog.entriesByLabel.get('Grading Report')).toMatchObject({
+      matrixBacked: true,
+      artifactType: 'INVOICE',
+      checklistCategory: 'QUALITY',
+    });
+    expect(catalog.entriesByLabel.get('Temperature Log')).toMatchObject({
+      matrixBacked: false,
+      artifactType: 'TEMP_DATA',
+      checklistCategory: 'COLD_CHAIN',
+    });
+    expect(catalog.entriesByLabel.get('Handoff Signatures')).toMatchObject({
+      matrixBacked: false,
+      artifactType: 'HANDOFF_SIGNATURE',
+      checklistCategory: 'CHAIN_OF_CUSTODY',
+    });
   });
 
   it('keeps current CI invariants scoped to matrix-backed and fixture-backed document families only', async () => {

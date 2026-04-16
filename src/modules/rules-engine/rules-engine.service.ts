@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditAction } from '../../common/audit/audit.types';
 import { HashingService } from '../../common/hashing/hashing.service';
+import {
+  matchChecklistDocumentAgainstArtifact,
+  resolveChecklistDocumentCategory,
+} from '../evidence/document-catalog';
 import { NotificationService } from '../notifications/notification.service';
 import {
   buildRuleSnapshotPayload,
@@ -34,33 +38,6 @@ import type {
   RuleVersionFilter,
   RuleVersionRecord,
 } from './rules-engine.types';
-
-const DOCUMENT_CATEGORY_FALLBACK: Record<string, RuleChecklistCategory> = {
-  'phytosanitary certificate': RuleChecklistCategory.REGULATORY,
-  'vht certificate': RuleChecklistCategory.REGULATORY,
-  'mrl test results': RuleChecklistCategory.REGULATORY,
-  'export license': RuleChecklistCategory.REGULATORY,
-  'gap certificate': RuleChecklistCategory.REGULATORY,
-  'grading report': RuleChecklistCategory.QUALITY,
-  'product photos': RuleChecklistCategory.QUALITY,
-  'temperature log': RuleChecklistCategory.COLD_CHAIN,
-  'sla summary': RuleChecklistCategory.COLD_CHAIN,
-  'excursion report': RuleChecklistCategory.COLD_CHAIN,
-  'commercial invoice': RuleChecklistCategory.CHAIN_OF_CUSTODY,
-  'packing list': RuleChecklistCategory.CHAIN_OF_CUSTODY,
-  'handoff signatures': RuleChecklistCategory.CHAIN_OF_CUSTODY,
-  'transport document': RuleChecklistCategory.CHAIN_OF_CUSTODY,
-  'delivery note': RuleChecklistCategory.CHAIN_OF_CUSTODY,
-};
-
-const INVOICE_FAMILY_DOCUMENT_KEYS = new Set([
-  'commercial invoice',
-  'packing list',
-  'transport document',
-  'delivery note',
-  'export license',
-  'grading report',
-]);
 
 const CATEGORY_WEIGHT_KEYS: Record<
   RuleChecklistCategory,
@@ -119,16 +96,6 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
-
-function matchesFileNameFallback(
-  fileName: string,
-  documentLabel: string,
-): boolean {
-  const sluggedFileName = slugify(fileName);
-  const sluggedDocumentLabel = slugify(documentLabel);
-
-  return sluggedFileName.includes(sluggedDocumentLabel);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -1064,102 +1031,14 @@ export class RulesEngineService {
   }
 
   private resolveDocumentCategory(label: string): RuleChecklistCategory {
-    return (
-      DOCUMENT_CATEGORY_FALLBACK[normalizeKey(label)] ??
-      RuleChecklistCategory.REGULATORY
-    );
+    return resolveChecklistDocumentCategory(label);
   }
 
   private artifactSatisfiesDocument(
     documentLabel: string,
     artifact: RuleLaneArtifact,
   ): ChecklistMatch {
-    const documentKey = normalizeKey(documentLabel);
-    const metadata = artifact.metadata ?? {};
-    const metadataDocumentType =
-      readString(metadata, 'documentType') ??
-      readString(metadata, 'documentName');
-    const ocrDocumentLabel =
-      artifact.latestAnalysisDocumentLabel === null ||
-      artifact.latestAnalysisDocumentLabel === undefined
-        ? null
-        : normalizeKey(artifact.latestAnalysisDocumentLabel);
-    const fileName = artifact.fileName;
-
-    if (
-      metadataDocumentType !== null &&
-      normalizeKey(metadataDocumentType) === documentKey
-    ) {
-      return { matched: true, source: 'METADATA_DOCUMENT_TYPE' };
-    }
-
-    if (ocrDocumentLabel !== null && ocrDocumentLabel === documentKey) {
-      return { matched: true, source: 'OCR_DOCUMENT_LABEL' };
-    }
-
-    switch (documentKey) {
-      case 'phytosanitary certificate':
-        return {
-          matched: artifact.artifactType === 'PHYTO_CERT',
-          source:
-            artifact.artifactType === 'PHYTO_CERT' ? 'ARTIFACT_TYPE' : null,
-        };
-      case 'vht certificate':
-        return {
-          matched: artifact.artifactType === 'VHT_CERT',
-          source: artifact.artifactType === 'VHT_CERT' ? 'ARTIFACT_TYPE' : null,
-        };
-      case 'mrl test results':
-        return {
-          matched: artifact.artifactType === 'MRL_TEST',
-          source: artifact.artifactType === 'MRL_TEST' ? 'ARTIFACT_TYPE' : null,
-        };
-      case 'gap certificate':
-        return {
-          matched: artifact.artifactType === 'GAP_CERT',
-          source: artifact.artifactType === 'GAP_CERT' ? 'ARTIFACT_TYPE' : null,
-        };
-      case 'product photos':
-        return {
-          matched: artifact.artifactType === 'CHECKPOINT_PHOTO',
-          source:
-            artifact.artifactType === 'CHECKPOINT_PHOTO'
-              ? 'ARTIFACT_TYPE'
-              : null,
-        };
-      case 'temperature log':
-      case 'sla summary':
-      case 'excursion report':
-        return {
-          matched: artifact.artifactType === 'TEMP_DATA',
-          source:
-            artifact.artifactType === 'TEMP_DATA' ? 'ARTIFACT_TYPE' : null,
-        };
-      case 'handoff signatures':
-        return {
-          matched: artifact.artifactType === 'HANDOFF_SIGNATURE',
-          source:
-            artifact.artifactType === 'HANDOFF_SIGNATURE'
-              ? 'ARTIFACT_TYPE'
-              : null,
-        };
-      default:
-        if (INVOICE_FAMILY_DOCUMENT_KEYS.has(documentKey)) {
-          return {
-            matched: matchesFileNameFallback(fileName, documentLabel),
-            source: matchesFileNameFallback(fileName, documentLabel)
-              ? 'FILE_NAME_FALLBACK'
-              : null,
-          };
-        }
-
-        return {
-          matched: matchesFileNameFallback(fileName, documentLabel),
-          source: matchesFileNameFallback(fileName, documentLabel)
-            ? 'FILE_NAME_FALLBACK'
-            : null,
-        };
-    }
+    return matchChecklistDocumentAgainstArtifact(documentLabel, artifact);
   }
 
   private readExpiryDateFromMetadata(
