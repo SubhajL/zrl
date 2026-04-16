@@ -1,4 +1,5 @@
-import { loadSupportedDocumentMatrix } from './document-matrix';
+import type { DocumentCatalogEntry } from './document-catalog';
+import { loadDocumentCatalog } from './document-catalog';
 import type {
   EvidenceArtifactType,
   EvidenceDocumentFieldCompleteness,
@@ -16,9 +17,7 @@ export interface EvidenceDocumentAnalysisInput {
   ocrText: string;
 }
 
-type CandidateDocument = Awaited<
-  ReturnType<typeof loadSupportedDocumentMatrix>
->['documents'][number];
+type CandidateDocument = DocumentCatalogEntry;
 
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -547,14 +546,17 @@ function buildFieldCompleteness(
 
 export class MatrixDrivenEvidenceDocumentClassifier implements EvidenceDocumentClassifier {
   constructor(
-    private readonly loadMatrix: typeof loadSupportedDocumentMatrix = loadSupportedDocumentMatrix,
+    private readonly loadCatalog: typeof loadDocumentCatalog = loadDocumentCatalog,
   ) {}
 
   async analyze(
     input: EvidenceDocumentAnalysisInput,
   ): Promise<EvidenceDocumentClassificationResult> {
-    const matrix = await this.loadMatrix();
-    const candidates = selectCandidates(matrix.documents, input);
+    const catalog = await this.loadCatalog();
+    const candidates = selectCandidates(
+      catalog.entries.filter((entry) => entry.matrixBacked),
+      input,
+    );
     const normalizedText = normalizeText(input.ocrText);
     const candidateScores = candidates
       .map((document) => ({
@@ -577,7 +579,7 @@ export class MatrixDrivenEvidenceDocumentClassifier implements EvidenceDocumentC
         lowConfidenceFieldKeys: [],
         fieldCompleteness: {
           supported: false,
-          documentMatrixVersion: matrix.version,
+          documentMatrixVersion: catalog.version,
           expectedFieldKeys: [],
           presentFieldKeys: [],
           missingFieldKeys: [],
@@ -631,7 +633,7 @@ export class MatrixDrivenEvidenceDocumentClassifier implements EvidenceDocumentC
     );
 
     const fieldCompleteness = buildFieldCompleteness(
-      matrix.version,
+      catalog.version,
       expectedFieldKeys,
       filteredExtractedFields,
       lowConfidenceFieldKeys,

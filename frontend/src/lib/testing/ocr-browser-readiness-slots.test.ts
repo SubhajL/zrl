@@ -3,6 +3,10 @@ import { resolve } from 'node:path';
 import manifest from '../../../e2e/test-assets/ocr-forms/manifest.json';
 import * as YAML from 'yaml';
 import {
+  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
+  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS,
+} from '../../../../src/modules/evidence/document-catalog.browser';
+import {
   OCR_BROWSER_READINESS_SLOTS,
   OCR_BROWSER_REQUIRED_SLOT_COUNT,
 } from './ocr-browser-readiness-slots';
@@ -95,5 +99,21 @@ describe('ocr browser readiness slots', () => {
     expect(koreaMangoVhtSlot?.expectedPresentFieldKeys).toEqual(
       koreaMangoVhtVariant?.expectedFieldCompleteness.presentFieldKeys,
     );
+  });
+
+  it('matches the shared document catalog browser export exactly', () => {
+    expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBe(
+      DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
+    );
+    expect(
+      OCR_BROWSER_READINESS_SLOTS.map((slot) => ({
+        combo: slot.combo,
+        documentLabel: slot.documentLabel,
+        artifactType: slot.artifactType,
+        fixturePath: slot.fixturePath,
+        uploadFileName: slot.uploadFileName,
+        expectedPresentFieldKeys: slot.expectedPresentFieldKeys,
+      })),
+    ).toEqual(DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS);
   });
 });

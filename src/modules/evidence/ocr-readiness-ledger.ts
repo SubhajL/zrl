@@ -1,14 +1,4 @@
-import type {
-  SupportedDocumentDefinition,
-  SupportedDocumentMatrix,
-} from './document-matrix';
-import { loadSupportedDocumentMatrix } from './document-matrix';
-import type {
-  OcrFixtureManifest,
-  OcrFixtureManifestEntry,
-  OcrFixtureVariantManifestEntry,
-} from './ocr-fixture-manifest';
-import { loadOcrFixtureManifest } from './ocr-fixture-manifest';
+import { loadDocumentCatalog } from './document-catalog';
 import {
   loadOcrPolicyExceptions,
   type OcrPolicyExceptionEntry,
@@ -86,23 +76,6 @@ const BACKEND_PROVEN_DOCUMENT_LABELS = new Set([
   'Export License',
 ]);
 
-function buildBrowserProvenRequiredSlots(
-  manifest: OcrFixtureManifest,
-): Set<string> {
-  return new Set(
-    manifest.documents.flatMap((document) => {
-      const baseSlots = document.applicableCombos.map(
-        (combo) => `${combo}::${document.documentLabel}`,
-      );
-      const variantSlots = (document.variants ?? []).map(
-        (variant) => `${variant.combo}::${document.documentLabel}`,
-      );
-
-      return [...baseSlots, ...variantSlots];
-    }),
-  );
-}
-
 function comboKey(
   market: RuleMarket,
   product: RuleProduct,
@@ -110,48 +83,12 @@ function comboKey(
   return `${market}/${product}`;
 }
 
-function getDocumentDefinition(
-  matrix: SupportedDocumentMatrix,
-  documentLabel: string,
-): SupportedDocumentDefinition {
-  const definition = matrix.documents.find(
-    (document) => document.documentLabel === documentLabel,
-  );
-  if (!definition) {
-    throw new Error(`Missing document definition for ${documentLabel}.`);
-  }
-
-  return definition;
-}
-
-function getFixtureEntry(
-  manifest: OcrFixtureManifest,
-  documentLabel: string,
-): OcrFixtureManifestEntry | null {
-  return (
-    manifest.documents.find(
-      (document) => document.documentLabel === documentLabel,
-    ) ?? null
-  );
-}
-
-function getVariantEntry(
-  entry: OcrFixtureManifestEntry | null,
-  combo: `${RuleMarket}/${RuleProduct}`,
-): OcrFixtureVariantManifestEntry | null {
-  if (entry === null) {
-    return null;
-  }
-
-  return entry.variants?.find((variant) => variant.combo === combo) ?? null;
-}
-
 function determineClassifierProof(
   combo: `${RuleMarket}/${RuleProduct}`,
   documentLabel: string,
-  variant: OcrFixtureVariantManifestEntry | null,
+  hasVariantFixture: boolean,
 ): OcrReadinessLedgerEntry['classifierProof'] {
-  if (variant !== null) {
+  if (hasVariantFixture) {
     return FULLY_PROVEN_OVERRIDE_COMBOS.has(combo)
       ? {
           status: 'COMPLETE',
@@ -219,24 +156,31 @@ function determineBrowserProof(
 }
 
 export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
-  const [matrix, manifest, policyExceptions] = await Promise.all([
-    loadSupportedDocumentMatrix(),
-    loadOcrFixtureManifest(),
+  const [catalog, policyExceptions] = await Promise.all([
+    loadDocumentCatalog(),
     loadOcrPolicyExceptions(),
   ]);
-  const browserProvenRequiredSlots = buildBrowserProvenRequiredSlots(manifest);
+  const browserProvenRequiredSlots = new Set(
+    catalog.fixtureBackedRequiredSlots.map(
+      (slot) => `${slot.combo}::${slot.documentLabel}`,
+    ),
+  );
 
-  const entries = matrix.supportedCombos.flatMap((combo) => {
+  const entries = catalog.supportedCombos.flatMap((combo) => {
     const comboId = comboKey(combo.market, combo.product);
 
     return combo.requiredDocuments.map((documentLabel) => {
-      const definition = getDocumentDefinition(matrix, documentLabel);
-      const fixtureEntry = getFixtureEntry(manifest, documentLabel);
-      const variant = getVariantEntry(fixtureEntry, comboId);
+      const definition = catalog.entriesByLabel.get(documentLabel);
+      if (!definition) {
+        throw new Error(`Missing document catalog entry for ${documentLabel}.`);
+      }
+      const variant =
+        definition.fixture?.variants.find((entry) => entry.combo === comboId) ??
+        null;
       const requiredFieldKeys = Array.from(
         new Set([
           ...definition.requiredFieldKeys,
-          ...(definition.marketSpecificFieldRules?.find(
+          ...(definition.marketSpecificFieldRules.find(
             (rule) => rule.combo === comboId,
           )?.requiredFieldKeys ?? []),
         ]),
@@ -245,17 +189,17 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
       const fixtureStatus: OcrReadinessLedgerEntry['fixture'] = {
         // `34.10.4` lets the matrix grow ahead of fixture work; keep that explicit.
         status:
-          fixtureEntry !== null &&
-          (variant !== null || fixtureEntry.assetPath.length > 0)
+          definition.fixture !== null &&
+          (variant !== null || definition.fixture.assetPath.length > 0)
             ? 'COMPLETE'
             : 'MISSING',
-        assetPath: fixtureEntry?.assetPath ?? null,
+        assetPath: definition.fixture?.assetPath ?? null,
         variantAssetPath: variant?.assetPath ?? null,
       };
       const classifierProof = determineClassifierProof(
         comboId,
         documentLabel,
-        variant,
+        variant !== null,
       );
       const backendProof = determineBackendProof(documentLabel);
       const browserProof = determineBrowserProof(
@@ -296,7 +240,7 @@ export async function buildOcrReadinessLedger(): Promise<OcrReadinessLedger> {
   });
 
   return {
-    version: matrix.version,
+    version: catalog.version,
     totalRequiredSlots: entries.length,
     fullyReadySlots: entries.filter((entry) => entry.ready).length,
     entries,

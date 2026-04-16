@@ -79,7 +79,9 @@ function assertCombo(
   return value as `${RuleMarket}/${RuleProduct}`;
 }
 
-function parseMatrix(raw: unknown): SupportedDocumentMatrix {
+export function parseSupportedDocumentMatrix(
+  raw: unknown,
+): SupportedDocumentMatrix {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error('Invalid document matrix root.');
   }
@@ -210,5 +212,5 @@ function parseMatrix(raw: unknown): SupportedDocumentMatrix {
 
 export async function loadSupportedDocumentMatrix(): Promise<SupportedDocumentMatrix> {
   const source = await readFile(MATRIX_FILE_PATH, 'utf8');
-  return parseMatrix(YAML.parse(source));
+  return parseSupportedDocumentMatrix(YAML.parse(source));
 }

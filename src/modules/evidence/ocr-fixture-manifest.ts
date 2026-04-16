@@ -91,7 +91,7 @@ function parseExpectedFieldCompleteness(
   };
 }
 
-function parseManifest(raw: unknown): OcrFixtureManifest {
+export function parseOcrFixtureManifest(raw: unknown): OcrFixtureManifest {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error('Invalid OCR fixture manifest root.');
   }
@@ -195,7 +195,7 @@ function parseManifest(raw: unknown): OcrFixtureManifest {
 
 export async function loadOcrFixtureManifest(): Promise<OcrFixtureManifest> {
   const source = await readFile(OCR_FIXTURE_MANIFEST_PATH, 'utf8');
-  return parseManifest(JSON.parse(source));
+  return parseOcrFixtureManifest(JSON.parse(source));
 }
 
 export async function readOcrFixtureText(assetPath: string): Promise<string> {
