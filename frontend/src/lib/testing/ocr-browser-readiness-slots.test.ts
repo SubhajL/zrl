@@ -1,15 +1,27 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import manifest from '../../../e2e/test-assets/ocr-forms/manifest.json';
+import browserRequiredSlots from '../../../e2e/test-assets/ocr-forms/browser-required-slots.json';
 import * as YAML from 'yaml';
-import {
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS,
-} from '../../../../src/modules/evidence/document-catalog.browser';
 import {
   OCR_BROWSER_READINESS_SLOTS,
   OCR_BROWSER_REQUIRED_SLOT_COUNT,
 } from './ocr-browser-readiness-slots';
+
+type BrowserRequiredSlotsContract = {
+  readonly version: number;
+  readonly slots: ReadonlyArray<{
+    readonly combo: string;
+    readonly documentLabel: string;
+    readonly artifactType: string;
+    readonly fixturePath: string;
+    readonly uploadFileName: string;
+    readonly expectedPresentFieldKeys: readonly string[];
+  }>;
+};
+
+const DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS =
+  browserRequiredSlots satisfies BrowserRequiredSlotsContract;
 
 describe('ocr browser readiness slots', () => {
   it('enumerates every fixture-backed required combo-document slot for browser proof expansion', () => {
@@ -103,7 +115,7 @@ describe('ocr browser readiness slots', () => {
 
   it('matches the shared document catalog browser export exactly', () => {
     expect(OCR_BROWSER_REQUIRED_SLOT_COUNT).toBe(
-      DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
+      DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS.slots.length,
     );
     expect(
       OCR_BROWSER_READINESS_SLOTS.map((slot) => ({
@@ -114,6 +126,6 @@ describe('ocr browser readiness slots', () => {
         uploadFileName: slot.uploadFileName,
         expectedPresentFieldKeys: slot.expectedPresentFieldKeys,
       })),
-    ).toEqual(DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS);
+    ).toEqual(DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS.slots);
   });
 });

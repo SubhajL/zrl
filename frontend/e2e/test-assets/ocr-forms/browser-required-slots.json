@@ -1,0 +1,1666 @@
+{
+  "version": 1,
+  "slots": [
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "eu-durian-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "eu-durian-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "eu-durian-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "eu-durian-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "eu-durian-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "eu-durian-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "eu-durian-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "eu-durian-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "EU/DURIAN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "eu-durian-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "eu-mango-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "eu-mango-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "eu-mango-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "eu-mango-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "eu-mango-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "eu-mango-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "eu-mango-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "eu-mango-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "EU/MANGO",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "eu-mango-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "eu-mangosteen-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "eu-mangosteen-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "eu-mangosteen-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "eu-mangosteen-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "eu-mangosteen-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "eu-mangosteen-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "eu-mangosteen-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "eu-mangosteen-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "EU/MANGOSTEEN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "eu-mangosteen-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "japan-durian-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "japan-durian-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "japan-durian-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "japan-durian-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "japan-durian-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "japan-durian-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "japan-durian-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "japan-durian-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "JAPAN/DURIAN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "japan-durian-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "japan-mango-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "japan-mango-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "japan-mango-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "japan-mango-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "japan-mango-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "japan-mango-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "japan-mango-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-japan-mango.svg",
+      "uploadFileName": "japan-mango-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature",
+        "mustStateFruitFlyFree",
+        "treatmentReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "japan-mango-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGO",
+      "documentLabel": "VHT Certificate",
+      "artifactType": "VHT_CERT",
+      "fixturePath": "treatment/vht-certificate-japan-mango.svg",
+      "uploadFileName": "japan-mango-vht-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "treatmentRecordNumber",
+        "commodityName",
+        "lotOrConsignmentId",
+        "treatmentFacility",
+        "treatmentDate",
+        "treatmentMethod",
+        "targetCoreTemperatureC",
+        "holdMinutes",
+        "operatorOrInspector",
+        "linkedPhytoCertificateNumber",
+        "allowedVariety",
+        "maffVerificationReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "japan-mangosteen-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "japan-mangosteen-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "japan-mangosteen-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "japan-mangosteen-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "japan-mangosteen-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "japan-mangosteen-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "japan-mangosteen-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-japan-mangosteen.svg",
+      "uploadFileName": "japan-mangosteen-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature",
+        "packageMarkingForJapan",
+        "treatmentReference"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "japan-mangosteen-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "JAPAN/MANGOSTEEN",
+      "documentLabel": "VHT Certificate",
+      "artifactType": "VHT_CERT",
+      "fixturePath": "treatment/vht-certificate-japan-mangosteen.svg",
+      "uploadFileName": "japan-mangosteen-vht-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "treatmentRecordNumber",
+        "commodityName",
+        "lotOrConsignmentId",
+        "treatmentFacility",
+        "treatmentDate",
+        "treatmentMethod",
+        "targetCoreTemperatureC",
+        "holdMinutes",
+        "operatorOrInspector",
+        "linkedPhytoCertificateNumber",
+        "coolingRequirement",
+        "humidityRequirement"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "korea-durian-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "korea-durian-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "korea-durian-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "korea-durian-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "korea-durian-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "korea-durian-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "korea-durian-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "korea-durian-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "KOREA/DURIAN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "korea-durian-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "korea-mango-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "korea-mango-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "korea-mango-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "korea-mango-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "korea-mango-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "korea-mango-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "korea-mango-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-base.svg",
+      "uploadFileName": "korea-mango-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "korea-mango-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGO",
+      "documentLabel": "VHT Certificate",
+      "artifactType": "VHT_CERT",
+      "fixturePath": "treatment/vht-certificate-korea-mango.svg",
+      "uploadFileName": "korea-mango-vht-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "treatmentRecordNumber",
+        "commodityName",
+        "lotOrConsignmentId",
+        "treatmentFacility",
+        "treatmentDate",
+        "treatmentMethod",
+        "targetCoreTemperatureC",
+        "holdMinutes",
+        "operatorOrInspector",
+        "linkedPhytoCertificateNumber",
+        "overseasInspectionReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Commercial Invoice",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/commercial-invoice-base.svg",
+      "uploadFileName": "korea-mangosteen-commercial-invoice.svg",
+      "expectedPresentFieldKeys": [
+        "invoiceNumber",
+        "invoiceDate",
+        "sellerName",
+        "buyerName",
+        "goodsDescription",
+        "quantity",
+        "unitPrice",
+        "totalAmount",
+        "currency",
+        "countryOfOrigin",
+        "incoterms",
+        "shipmentReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Delivery Note",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/delivery-note-base.svg",
+      "uploadFileName": "korea-mangosteen-delivery-note.svg",
+      "expectedPresentFieldKeys": [
+        "deliveryNoteNumber",
+        "deliveryDate",
+        "senderName",
+        "receiverName",
+        "deliveryLocation",
+        "shipmentReference",
+        "goodsDescription",
+        "quantity",
+        "senderSignature",
+        "receiverSignature"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Export License",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/export-license-base.svg",
+      "uploadFileName": "korea-mangosteen-export-license.svg",
+      "expectedPresentFieldKeys": [
+        "authorizationNumber",
+        "legalEntityName",
+        "establishmentName",
+        "operatorType",
+        "address",
+        "issueDate",
+        "expiryDate",
+        "issuingOffice"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "GAP Certificate",
+      "artifactType": "GAP_CERT",
+      "fixturePath": "certifications/gap-certificate-base.svg",
+      "uploadFileName": "korea-mangosteen-gap-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "certificateHolder",
+        "schemeName",
+        "commodityScope",
+        "farmOrSiteId",
+        "farmLocation",
+        "certificationBody",
+        "issueDate",
+        "expiryDate",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Grading Report",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/grading-report-base.svg",
+      "uploadFileName": "korea-mangosteen-grading-report.svg",
+      "expectedPresentFieldKeys": [
+        "gradingReportNumber",
+        "inspectionDate",
+        "exporterName",
+        "commodityName",
+        "lotOrConsignmentId",
+        "gradeClass",
+        "packhouseName",
+        "inspectorName"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "MRL Test Results",
+      "artifactType": "MRL_TEST",
+      "fixturePath": "lab/mrl-test-results-base.svg",
+      "uploadFileName": "korea-mangosteen-mrl-test-results.svg",
+      "expectedPresentFieldKeys": [
+        "reportNumber",
+        "laboratoryName",
+        "accreditationReference",
+        "sampleId",
+        "commodityName",
+        "sampleOriginCountry",
+        "sampleReceiptDate",
+        "analysisDate",
+        "analyticalMethod",
+        "analyteTable",
+        "resultUnits",
+        "authorizedSignatory"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Packing List",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/packing-list-base.svg",
+      "uploadFileName": "korea-mangosteen-packing-list.svg",
+      "expectedPresentFieldKeys": [
+        "packingListNumber",
+        "packingListDate",
+        "exporterName",
+        "consigneeName",
+        "invoiceReference",
+        "packageCount",
+        "packageType",
+        "marksAndNumbers",
+        "grossWeight",
+        "netWeight",
+        "containerReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Phytosanitary Certificate",
+      "artifactType": "PHYTO_CERT",
+      "fixturePath": "official/phytosanitary-certificate-korea-mangosteen.svg",
+      "uploadFileName": "korea-mangosteen-phytosanitary-certificate.svg",
+      "expectedPresentFieldKeys": [
+        "certificateNumber",
+        "issuingAuthority",
+        "exporterName",
+        "consigneeName",
+        "packageDescription",
+        "placeOfOrigin",
+        "meansOfConveyance",
+        "declaredPointOfEntry",
+        "commodityDescription",
+        "botanicalName",
+        "additionalDeclarations",
+        "issueDate",
+        "authorizedOfficer",
+        "officialSealOrSignature",
+        "fumigationDetails",
+        "treatmentReference"
+      ]
+    },
+    {
+      "combo": "KOREA/MANGOSTEEN",
+      "documentLabel": "Transport Document",
+      "artifactType": "INVOICE",
+      "fixturePath": "trade/transport-document-base.svg",
+      "uploadFileName": "korea-mangosteen-transport-document.svg",
+      "expectedPresentFieldKeys": [
+        "transportDocumentNumber",
+        "transportMode",
+        "carrierName",
+        "shipperName",
+        "consigneeName",
+        "departurePoint",
+        "arrivalPoint",
+        "goodsDescription",
+        "packageCount",
+        "grossWeight",
+        "issueDate"
+      ]
+    }
+  ]
+}

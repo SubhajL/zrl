@@ -1,14 +1,17 @@
-import type {
-  ArtifactType,
-  DestinationMarket,
-  ProductType,
-} from '../../../frontend/src/lib/types';
-import { loadDocumentCatalogSync } from './document-catalog';
+import type { EvidenceArtifactType } from './evidence.types';
+import { loadDocumentCatalogSync, type ComboId } from './document-catalog';
+
+type BrowserMarket = ComboId extends `${infer Market}/${string}`
+  ? Market
+  : never;
+type BrowserProduct = ComboId extends `${string}/${infer Product}`
+  ? Product
+  : never;
 
 export interface DocumentCatalogBrowserRequiredSlot {
-  readonly combo: `${DestinationMarket}/${ProductType}`;
+  readonly combo: `${BrowserMarket}/${BrowserProduct}`;
   readonly documentLabel: string;
-  readonly artifactType: ArtifactType;
+  readonly artifactType: EvidenceArtifactType;
   readonly fixturePath: string;
   readonly uploadFileName: string;
   readonly expectedPresentFieldKeys: readonly string[];

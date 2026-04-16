@@ -1,4 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { loadDocumentCatalog } from './document-catalog';
+import {
+  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
+  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS,
+} from './document-catalog.browser';
 
 describe('document catalog', () => {
   it('composes canonical entries from the matrix and fixture manifest', async () => {
@@ -79,6 +85,29 @@ describe('document catalog', () => {
         'declaredPointOfEntry',
         'officialSealOrSignature',
       ]),
+    );
+  });
+
+  it('stays in sync with the committed browser-required slot contract json', () => {
+    const browserRequiredSlots = JSON.parse(
+      readFileSync(
+        resolve(
+          process.cwd(),
+          'frontend/e2e/test-assets/ocr-forms/browser-required-slots.json',
+        ),
+        'utf8',
+      ),
+    ) as {
+      version: number;
+      slots: typeof DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS;
+    };
+
+    expect(browserRequiredSlots.version).toBe(1);
+    expect(browserRequiredSlots.slots).toEqual(
+      DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS,
+    );
+    expect(browserRequiredSlots.slots).toHaveLength(
+      DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
     );
   });
 });

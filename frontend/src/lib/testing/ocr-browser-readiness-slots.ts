@@ -3,10 +3,7 @@ import {
   LIVE_LANE_CREATION_SCENARIOS,
   type LaneCreationScenario,
 } from './lane-creation-scenarios';
-import {
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS,
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT,
-} from '../../../../src/modules/evidence/document-catalog.browser';
+import browserRequiredSlots from '../../../e2e/test-assets/ocr-forms/browser-required-slots.json';
 
 type BrowserReadySlot = {
   readonly combo: `${DestinationMarket}/${ProductType}`;
@@ -25,6 +22,18 @@ type BrowserReadySlot = {
 
 type BrowserReadyArtifactType = BrowserReadySlot['artifactType'];
 
+type BrowserRequiredSlotsContract = {
+  readonly version: number;
+  readonly slots: ReadonlyArray<{
+    readonly combo: `${DestinationMarket}/${ProductType}`;
+    readonly documentLabel: string;
+    readonly artifactType: BrowserReadyArtifactType;
+    readonly fixturePath: string;
+    readonly uploadFileName: string;
+    readonly expectedPresentFieldKeys: readonly string[];
+  }>;
+};
+
 const LIVE_SCENARIO_BY_COMBO = new Map<
   `${DestinationMarket}/${ProductType}`,
   LaneCreationScenario
@@ -35,8 +44,11 @@ const LIVE_SCENARIO_BY_COMBO = new Map<
   ]),
 );
 
+const DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS =
+  browserRequiredSlots as BrowserRequiredSlotsContract;
+
 export const OCR_BROWSER_READINESS_SLOTS: readonly BrowserReadySlot[] =
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS.flatMap((slot) => {
+  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS.slots.flatMap((slot) => {
       const laneScenario = LIVE_SCENARIO_BY_COMBO.get(slot.combo);
       if (!laneScenario) {
         throw new Error(
@@ -48,7 +60,7 @@ export const OCR_BROWSER_READINESS_SLOTS: readonly BrowserReadySlot[] =
         {
           combo: slot.combo,
           documentLabel: slot.documentLabel,
-          artifactType: slot.artifactType as BrowserReadyArtifactType,
+          artifactType: slot.artifactType,
           fixturePath: slot.fixturePath,
           uploadFileName: slot.uploadFileName,
           expectedPresentFieldKeys: slot.expectedPresentFieldKeys,
@@ -62,5 +74,4 @@ export const OCR_BROWSER_READINESS_SLOTS: readonly BrowserReadySlot[] =
         : left.combo.localeCompare(right.combo),
     );
 
-export const OCR_BROWSER_REQUIRED_SLOT_COUNT =
-  DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOT_COUNT;
+export const OCR_BROWSER_REQUIRED_SLOT_COUNT = DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS.slots.length;

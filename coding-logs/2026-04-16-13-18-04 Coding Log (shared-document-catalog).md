@@ -353,3 +353,50 @@ LOW
 
 - Internal-only TypeScript/module refactor; no API, schema, or migration impact.
 - Unrelated local files remain outside the staged change set (`.gitignore`, `prisma/AGENTS.md`, `rules/AGENTS.md`, `test/AGENTS.md`, older untracked coding log, and the Task 25 doc).
+
+## Implementation (2026-04-16 14:34 +07) - PR #89 CI boundary fix
+
+### What Changed
+
+- Switched [frontend/src/lib/testing/ocr-browser-readiness-slots.ts](/Users/subhajlimanond/dev/zrl/frontend/src/lib/testing/ocr-browser-readiness-slots.ts) and [frontend/src/lib/testing/ocr-browser-readiness-slots.test.ts](/Users/subhajlimanond/dev/zrl/frontend/src/lib/testing/ocr-browser-readiness-slots.test.ts) to consume the committed JSON contract at [frontend/e2e/test-assets/ocr-forms/browser-required-slots.json](/Users/subhajlimanond/dev/zrl/frontend/e2e/test-assets/ocr-forms/browser-required-slots.json) instead of importing backend TypeScript.
+- Kept [src/modules/evidence/document-catalog.browser.ts](/Users/subhajlimanond/dev/zrl/src/modules/evidence/document-catalog.browser.ts) as the backend-side slot exporter, but removed its dependency on frontend types by deriving its combo and artifact unions from backend catalog/evidence types only.
+- Added a backend parity guard in [src/modules/evidence/document-catalog.spec.ts](/Users/subhajlimanond/dev/zrl/src/modules/evidence/document-catalog.spec.ts) that compares the committed JSON contract against `DOCUMENT_CATALOG_BROWSER_REQUIRED_SLOTS`.
+- Removed the temporary frontend `yaml` dependency from [frontend/package.json](/Users/subhajlimanond/dev/zrl/frontend/package.json) and [frontend/package-lock.json](/Users/subhajlimanond/dev/zrl/frontend/package-lock.json); the file-based contract made it unnecessary.
+
+### Validation
+
+- `npm run build`
+- `npm test -- --runInBand src/modules/evidence/document-catalog.spec.ts src/modules/evidence/document-matrix.spec.ts src/modules/evidence/ocr-readiness-ledger.spec.ts src/modules/evidence/evidence.document-classifier.spec.ts src/modules/rules-engine/rules-engine.service.spec.ts`
+- `npm run typecheck`
+- `npm run lint -- src/modules/evidence/document-catalog.browser.ts src/modules/evidence/document-catalog.spec.ts`
+- `cd frontend && npm run build`
+- `cd frontend && npm run typecheck`
+- `cd frontend && npm run lint -- src/lib/testing/ocr-browser-readiness-slots.ts src/lib/testing/ocr-browser-readiness-slots.test.ts`
+- `cd frontend && npm test -- --runInBand src/lib/testing/ocr-browser-readiness-slots.test.ts`
+
+## Review (2026-04-16 14:36 +07) - PR #89 CI boundary fix
+
+### Reviewed
+
+- Repo: /Users/subhajlimanond/dev/zrl
+- Branch: feature/shared-document-catalog
+- Scope: PR #89 follow-up fix for backend/frontend cross-boundary imports and transient frontend dependency drift
+- Commands Run: `CODEX_ALLOW_LARGE_OUTPUT=1 git diff -- src/modules/evidence/document-catalog.browser.ts src/modules/evidence/document-catalog.spec.ts frontend/src/lib/testing/ocr-browser-readiness-slots.ts frontend/src/lib/testing/ocr-browser-readiness-slots.test.ts frontend/package.json frontend/package-lock.json | sed -n '1,320p'`; `npm run build`; `npm test -- --runInBand src/modules/evidence/document-catalog.spec.ts src/modules/evidence/document-matrix.spec.ts src/modules/evidence/ocr-readiness-ledger.spec.ts src/modules/evidence/evidence.document-classifier.spec.ts src/modules/rules-engine/rules-engine.service.spec.ts`; `npm run typecheck`; `npm run lint -- src/modules/evidence/document-catalog.browser.ts src/modules/evidence/document-catalog.spec.ts`; `cd frontend && npm run build`; `cd frontend && npm run typecheck`; `cd frontend && npm run lint -- src/lib/testing/ocr-browser-readiness-slots.ts src/lib/testing/ocr-browser-readiness-slots.test.ts`; `cd frontend && npm test -- --runInBand src/lib/testing/ocr-browser-readiness-slots.test.ts`
+
+### Findings
+
+CRITICAL
+
+- No findings.
+
+HIGH
+
+- No findings.
+
+MEDIUM
+
+- No findings.
+
+LOW
+
+- Residual risk only: the committed JSON contract must stay refreshed whenever the shared catalog changes. The new backend parity test should catch drift quickly, but the repo still relies on developers to regenerate the file as part of future catalog edits.
